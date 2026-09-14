@@ -51,7 +51,10 @@ export function tenantScope(schema) {
 
   SCOPED_QUERY_OPS.forEach((op) => schema.pre(op, injectFilter));
 
-  schema.pre('save', function preSaveTenant(next) {
+  // Must run on 'validate', not 'save' — mongoose runs schema validation
+  // (including the `required: true` check on `school`) before 'save' hooks
+  // fire, so setting it in pre('save') is too late.
+  schema.pre('validate', function preValidateTenant(next) {
     if (tenantContext.isSystem() || this.school) return next();
     const school = tenantContext.getSchool();
     if (!school) {
