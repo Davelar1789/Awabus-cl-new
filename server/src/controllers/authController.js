@@ -9,18 +9,18 @@ import { generateOtpCode, sendOtpSms, getOtpExpiry } from '../utils/otp.js';
 // @route   POST /api/auth/login
 // @access  Public
 export const login = asyncHandler(async (req, res) => {
-  const { phone, password, rememberDevice, deviceId } = req.body;
+  const { email, password, rememberDevice, deviceId } = req.body;
 
-  if (!phone || !password) {
+  if (!email || !password) {
     res.status(400);
     throw new Error('Phone number and password are required');
   }
 
-  const admin = await Admin.findOne({ phone });
+  const admin = await Admin.findOne({ email });
 
   if (!admin || !(await admin.matchPassword(password))) {
     res.status(401);
-    throw new Error('The phone number or password you entered is incorrect.');
+    throw new Error('The email or password you entered is incorrect.');
   }
 
   if (rememberDevice && deviceId && !admin.rememberedDevices.includes(deviceId)) {
