@@ -102,23 +102,20 @@ export default function Sidebar() {
               <Moon className="h-4 w-4" /> Dark mode
             </span>
             <button
-              onClick={toggleDarkMode}
-              className={cn(
-                'relative h-6 w-11 rounded-full transition-colors',
-                darkMode ? 'bg-brand-600' : 'bg-slate-600'
-              )}
-              aria-label="Toggle dark mode"
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-                  darkMode ? 'translate-x-5' : 'translate-x-0.5'
-                )}
-              />
-              {darkMode ? (
-                <Sun className="absolute right-1 top-1 h-3.5 w-3.5 text-white/0" />
-              ) : null}
-            </button>
+  onClick={toggleDarkMode}
+  className={cn(
+    'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+    darkMode ? 'bg-brand-600' : 'bg-slate-600'
+  )}
+  aria-label="Toggle dark mode"
+>
+  <span
+    className={cn(
+      'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+      darkMode ? 'translate-x-5' : 'translate-x-0'
+    )}
+  />
+</button>
           </div>
           <button
             onClick={logout}
