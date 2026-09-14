@@ -14,7 +14,7 @@ export const SCHOOL = {
 export const ADMIN = {
   name: 'Ama Kzyei',
   phone: '+233244528983',
-  email: 'ama.kzyei@awabus.com',
+  email: 'itsawabus@gmail.com',
   password: 'Awabus@123',
   role: 'admin',
 };

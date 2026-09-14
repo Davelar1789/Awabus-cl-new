@@ -11,7 +11,10 @@ const adminSchema = new mongoose.Schema(
 
     name: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true }, // unique per school
-    email: { type: String, trim: true, lowercase: true },
+    // Email is deliberately unique ACROSS schools (not compound with `school`) —
+    // sign-in has to look an admin up by email before it knows which tenant
+    // they belong to, so two admins in different schools can't share one.
+    email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
     password: { type: String, required: true, minlength: 6 },
     role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
     avatarUrl: { type: String, default: '' },
