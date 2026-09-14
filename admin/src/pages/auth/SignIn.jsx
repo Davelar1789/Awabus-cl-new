@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, ArrowLeft } from 'lucide-react';
 import AuthLayout from '../../components/layout/AuthLayout.jsx';
-import { PasswordInput, TextInput, Label, FieldError } from '../../components/ui/Input.jsx';
+import { PasswordInput, Input, Label, FieldError } from '../../components/ui/Input.jsx';
 import Checkbox from '../../components/ui/Checkbox.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { checkEmail, login as loginApi, setPassword as setPasswordApi } from '../../api/auth.js';
@@ -162,7 +162,7 @@ export default function SignIn() {
         <form onSubmit={handleEmailSubmit} className="mt-6 space-y-5">
           <div>
             <Label htmlFor="email">Email address</Label>
-            <TextInput
+            <Input
               id="email"
               type="email"
               value={email}
