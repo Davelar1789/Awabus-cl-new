@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, ChevronDown, LogOut, Search, Settings, UserCircle } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, Search, Settings, UserCircle } from 'lucide-react';
 import { useTopbarStore } from '../../store/topbarStore.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { useUiStore } from '../../store/uiStore.js';
 import Avatar from '../ui/Avatar.jsx';
 
 export default function Topbar() {
   const { breadcrumb, searchValue, searchPlaceholder, onSearchChange } = useTopbarStore();
   const { admin, logout } = useAuthStore();
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -19,7 +21,15 @@ export default function Topbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-navy-light">
+    <header className="sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-slate-200 bg-white px-4 sm:px-6 dark:border-slate-800 dark:bg-navy-light">
+      <button
+        onClick={toggleSidebar}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-navy lg:hidden"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       <nav className="hidden shrink-0 items-center gap-1.5 text-sm md:flex">
         {breadcrumb.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1.5">
