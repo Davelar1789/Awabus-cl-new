@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { tenantScope } from '../plugins/tenantScope.js';
 
 const timelineEventSchema = new mongoose.Schema(
   {
@@ -40,7 +41,9 @@ const studentProgressSchema = new mongoose.Schema(
 
 const tripSchema = new mongoose.Schema(
   {
-    tripCode: { type: String, required: true, unique: true }, // TRP-0108
+    school: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true, index: true },
+
+    tripCode: { type: String, required: true, trim: true }, // TRP-0108, unique per school
     route: { type: mongoose.Schema.Types.ObjectId, ref: 'Route', required: true },
     bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus', required: true },
     driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', required: true },
@@ -73,5 +76,13 @@ const tripSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// tripCode only needs to be unique within a school, not globally
+tripSchema.index({ school: 1, tripCode: 1 }, { unique: true });
+// common query pattern: "today's trips for this school"
+tripSchema.index({ school: 1, date: -1 });
+tripSchema.index({ school: 1, status: 1 });
+
+tripSchema.plugin(tenantScope);
 
 export default mongoose.model('Trip', tripSchema);

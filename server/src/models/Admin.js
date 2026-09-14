@@ -1,13 +1,19 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { tenantScope } from '../plugins/tenantScope.js';
 
 const adminSchema = new mongoose.Schema(
   {
+    // A school can have many admins (one-to-many), so this is just a plain ref,
+    // not unique. Superadmins that manage multiple schools are a separate concern
+    // (see note below) rather than something this field needs to express.
+    school: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true, index: true },
+
     name: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, unique: true, trim: true },
+    phone: { type: String, required: true, trim: true }, // unique per school
     email: { type: String, trim: true, lowercase: true },
     password: { type: String, required: true, minlength: 6 },
-    role: { type: String, enum: ['admin', 'super_admin'], default: 'admin' },
+    role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
     avatarUrl: { type: String, default: '' },
     rememberedDevices: [{ type: String }],
   },
@@ -31,5 +37,11 @@ adminSchema.methods.toSafeObject = function toSafeObject() {
   delete obj.rememberedDevices;
   return obj;
 };
+
+// phone only needs to be unique within a school, not globally
+adminSchema.index({ school: 1, phone: 1 }, { unique: true });
+adminSchema.index({ school: 1, role: 1 });
+
+adminSchema.plugin(tenantScope);
 
 export default mongoose.model('Admin', adminSchema);

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import connectDB from '../config/db.js';
 
+import School from '../models/School.js';
 import Admin from '../models/Admin.js';
 import Driver from '../models/Driver.js';
 import Bus from '../models/Bus.js';
@@ -11,34 +12,36 @@ import Guardian from '../models/Guardian.js';
 import Trip from '../models/Trip.js';
 import OtpToken from '../models/OtpToken.js';
 
-import { ADMIN, PLACES, DRIVERS, BUSES, ROUTES, buildStudents, TRIP_STATUSES } from './data.js';
+import { tenantContext } from '../utils/tenantContext.js';
+import { SCHOOL, ADMIN, PLACES, DRIVERS, BUSES, ROUTES, buildStudents, TRIP_STATUSES } from './data.js';
 
 const pad = (n, size = 3) => String(n).padStart(size, '0');
 
+// Wiping the DB touches every tenant, so this runs outside any single
+// school's context — it's the one place in this script that legitimately
+// needs to bypass tenant scoping.
 const destroy = async () => {
-  await Promise.all([
-    Admin.deleteMany(),
-    Driver.deleteMany(),
-    Bus.deleteMany(),
-    Route.deleteMany(),
-    Student.deleteMany(),
-    Guardian.deleteMany(),
-    Trip.deleteMany(),
-    OtpToken.deleteMany(),
-  ]);
+  await tenantContext.runAsSystem(async () => {
+    await Promise.all([
+      School.deleteMany(),
+      Admin.deleteMany(),
+      Driver.deleteMany(),
+      Bus.deleteMany(),
+      Route.deleteMany(),
+      Student.deleteMany(),
+      Guardian.deleteMany(),
+      Trip.deleteMany(),
+      OtpToken.deleteMany(),
+    ]);
+  });
   console.log('[seed] All collections cleared');
 };
 
-const run = async () => {
-  await connectDB();
-
-  if (process.argv.includes('--destroy')) {
-    await destroy();
-    return mongoose.disconnect();
-  }
-
-  await destroy();
-
+// Everything below is the *same* seeding logic as before — it doesn't need
+// to know about `school` at all. Because it all runs inside
+// tenantContext.run(school._id, ...), the tenantScope mongoose plugin stamps
+// `school` onto every create/insertMany/findByIdAndUpdate automatically.
+const seedSchoolData = async (school) => {
   // 1. Admin
   await Admin.create(ADMIN);
   console.log(`[seed] Admin created: ${ADMIN.phone} / ${ADMIN.password}`);
@@ -96,6 +99,7 @@ const run = async () => {
   console.log(`[seed] ${routes.length} routes created`);
 
   // 5. Guardians + Students (attached to a route + that route's bus)
+  // Note: Guardian isn't tenant-scoped yet, so these creates are unaffected either way.
   const studentSeeds = buildStudents(36);
   const students = [];
   for (let i = 0; i < studentSeeds.length; i += 1) {
@@ -218,8 +222,29 @@ const run = async () => {
     });
   }
   console.log('[seed] 2 live in-progress trips created');
+};
+
+const run = async () => {
+  await connectDB();
+
+  if (process.argv.includes('--destroy')) {
+    await destroy();
+    return mongoose.disconnect();
+  }
+
+  await destroy();
+
+  // The School itself is created outside any tenant context (nothing to scope it to yet).
+  const school = await tenantContext.runAsSystem(() => School.create(SCHOOL));
+  console.log(`[seed] School created: ${school.name} (${school.code})`);
+
+  // Everything else runs inside this school's tenant context, so every
+  // create/insertMany/findByIdAndUpdate above gets `school` stamped on
+  // automatically by the tenantScope plugin.
+  await tenantContext.run(school._id, () => seedSchoolData(school));
 
   console.log('\n[seed] Done! Sign in with:');
+  console.log(`        school:   ${school.name} (${school.code})`);
   console.log(`        phone:    ${ADMIN.phone}`);
   console.log(`        password: ${ADMIN.password}\n`);
 

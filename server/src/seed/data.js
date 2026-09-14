@@ -1,6 +1,16 @@
 // Realistic Ghana-flavoured sample data for local development & demos.
 // Coordinates are approximate Accra-area landmarks used only for the map demo.
 
+export const SCHOOL = {
+  name: 'Awabus Demo School',
+  code: 'AWA-001',
+  address: 'East Legon, Accra, Ghana',
+  contactEmail: 'info@awabusdemoschool.edu.gh',
+  contactPhone: '+233302123456',
+  timezone: 'Africa/Accra',
+  status: 'Active',
+};
+
 export const ADMIN = {
   name: 'Ama Kzyei',
   phone: '+233244528983',
