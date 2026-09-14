@@ -6,9 +6,9 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-navy-dark">
       <Sidebar />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <Topbar />
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           <Outlet />
         </main>
       </div>
