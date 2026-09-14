@@ -12,9 +12,17 @@ import { tenantContext } from '../utils/tenantContext.js';
 // reason to reach for tenantContext.runAsSystem() instead of a normal query:
 // it's a deliberate, explicit cross-tenant lookup, not an accidental leak.
 // Once an admin is found, `admin.school` goes into the JWT and every
-// subsequent request is scoped normally by the withTenant middleware.
+// subsequent request is scoped normally by the withTenant 
 const findAdminByEmail = (email) =>
-  tenantContext.runAsSystem(() => Admin.findOne({ email: email.toLowerCase().trim() }));
+  tenantContext.runAsSystem(async () => {
+    console.log('[AUTH] Inside runAsSystem');
+    console.log('[AUTH] isSystem:', tenantContext.isSystem());
+    console.log('[AUTH] school:', tenantContext.getSchool());
+
+    return Admin.findOne({
+      email: email.toLowerCase().trim(),
+    });
+  });
 
 const findAdminByPhone = (phone) => tenantContext.runAsSystem(() => Admin.findOne({ phone }));
 
