@@ -5,6 +5,69 @@ import OtpToken from '../models/OtpToken.js';
 import generateToken from '../utils/generateToken.js';
 import { generateOtpCode, sendOtpSms, getOtpExpiry } from '../utils/otp.js';
 
+// @desc    Check if an email exists and whether the account has a password set
+// @route   POST /api/auth/check-email
+// @access  Public
+export const checkEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400);
+    throw new Error('Email is required');
+  }
+
+  const admin = await Admin.findOne({ email });
+
+  if (!admin) {
+    res.status(404);
+    throw new Error('No account found with this email address');
+  }
+
+  res.json({
+    success: true,
+    exists: true,
+    hasPassword: Boolean(admin.password),
+  });
+});
+
+// @desc    Set a password for a first-time account and sign in
+// @route   POST /api/auth/set-password
+// @access  Public
+export const setPassword = asyncHandler(async (req, res) => {
+  const { email, password, deviceId } = req.body;
+
+  if (!email || !password) {
+    res.status(400);
+    throw new Error('Email and password are required');
+  }
+
+  const admin = await Admin.findOne({ email });
+
+  if (!admin) {
+    res.status(404);
+    throw new Error('No account found with this email address');
+  }
+
+  if (admin.password) {
+    res.status(400);
+    throw new Error('This account already has a password set');
+  }
+
+  admin.password = password;
+
+  if (deviceId && !admin.rememberedDevices.includes(deviceId)) {
+    admin.rememberedDevices.push(deviceId);
+  }
+
+  await admin.save();
+
+  res.json({
+    success: true,
+    token: generateToken(admin._id, 'admin'),
+    admin: admin.toSafeObject(),
+  });
+});
+
 // @desc    Sign in to the Admin Portal
 // @route   POST /api/auth/login
 // @access  Public
@@ -13,7 +76,7 @@ export const login = asyncHandler(async (req, res) => {
 
   if (!email || !password) {
     res.status(400);
-    throw new Error('Phone number and password are required');
+    throw new Error('Email and password are required');
   }
 
   const admin = await Admin.findOne({ email });
