@@ -13,6 +13,9 @@ const extractBearerToken = (req) => {
 };
 
 // Protects Admin Portal routes. Expects: Authorization: Bearer <token>
+// Handles both tenant admins (decoded.school present) and superadmins
+// (decoded.school is null/absent — they operate via runAsSystem instead
+// of a bound tenant context).
 export const protectAdmin = asyncHandler(async (req, res, next) => {
   const token = extractBearerToken(req);
 
@@ -32,6 +35,23 @@ export const protectAdmin = asyncHandler(async (req, res, next) => {
   if (decoded.type !== 'admin') {
     res.status(401);
     throw new Error('Not authorized for admin portal');
+  }
+
+  if (decoded.role === 'superadmin') {
+    // Superadmins have no tenant — run the lookup as system and skip
+    // establishing a tenant context entirely. Any tenant-scoped queries
+    // deeper in the request must use tenantContext.runAsSystem() themselves
+    // (as superadminController.js already does).
+    return tenantContext.runAsSystem(async () => {
+      const admin = await Admin.findById(decoded.id);
+      if (!admin || admin.role !== 'superadmin') {
+        res.status(401);
+        throw new Error('Superadmin account no longer exists');
+      }
+      req.admin = admin;
+      req.school = null;
+      next();
+    });
   }
 
   if (!decoded.school) {
@@ -57,6 +77,15 @@ export const protectAdmin = asyncHandler(async (req, res, next) => {
     req.school = decoded.school;
     next();
   });
+});
+
+// Restricts a route to superadmins only. Must run after protectAdmin.
+export const requireSuperadmin = asyncHandler(async (req, res, next) => {
+  if (!req.admin || req.admin.role !== 'superadmin') {
+    res.status(403);
+    throw new Error('Superadmin access required');
+  }
+  next();
 });
 
 // Protects Driver App routes (server API is ready even though the driver app UI is not built yet).

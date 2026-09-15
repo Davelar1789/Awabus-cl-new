@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { protectAdmin } from '../middleware/auth.js';
 import { requireSuperadmin } from '../middleware/superadmin.js';
 import {
   getAnalytics,
@@ -10,7 +10,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect, requireSuperadmin);
+router.use(protectAdmin, requireSuperadmin);
 
 router.get('/analytics', getAnalytics);
 router.get('/schools', listSchools);
