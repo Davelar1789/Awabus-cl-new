@@ -11,6 +11,7 @@ import {
   Sun,
   LogOut,
   X,
+  Building2,
 } from 'lucide-react';
 import { useUiStore } from '../../store/uiStore.js';
 import { useAuthStore } from '../../store/authStore.js';

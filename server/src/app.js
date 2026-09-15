@@ -12,6 +12,7 @@ import guardianRoutes from './routes/guardianRoutes.js';
 import tripRoutes from './routes/tripRoutes.js';
 import trackingRoutes from './routes/trackingRoutes.js';
 import driverAppRoutes from './routes/driverAppRoutes.js';
+import superadminRoutes from './routes/superadminRoutes.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/guardians', guardianRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // Driver App API (mobile client not built yet, API is ready)
 app.use('/api/driver-app', driverAppRoutes);
