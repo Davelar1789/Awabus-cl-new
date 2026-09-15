@@ -27,11 +27,16 @@ const NAV_ITEMS = [
   { to: '/trip-history', label: 'Trip History', icon: History },
 ];
 
+const SUPERADMIN_NAV_ITEM = { to: '/platform', label: 'Platform', icon: Building2, end: true };
+
 export default function Sidebar() {
   const { darkMode, toggleDarkMode } = useUiStore();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const closeSidebar = useUiStore((s) => s.closeSidebar);
+  const admin = useAuthStore((s) => s.admin);
   const logout = useAuthStore((s) => s.logout);
+
+  const navItems = admin?.role === 'superadmin' ? [SUPERADMIN_NAV_ITEM, ...NAV_ITEMS] : NAV_ITEMS;
 
   return (
     <>
@@ -76,7 +81,7 @@ export default function Sidebar() {
         </div>
 
         <nav className="flex-1 space-y-1">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -103,20 +108,20 @@ export default function Sidebar() {
               <Moon className="h-4 w-4" /> Dark mode
             </span>
             <button
-  onClick={toggleDarkMode}
-  className={cn(
-    'relative h-6 w-11 shrink-0 rounded-full transition-colors',
-    darkMode ? 'bg-brand-600' : 'bg-slate-600'
-  )}
-  aria-label="Toggle dark mode"
->
-  <span
-    className={cn(
-      'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-      darkMode ? 'translate-x-5' : 'translate-x-0'
-    )}
-  />
-</button>
+              onClick={toggleDarkMode}
+              className={cn(
+                'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+                darkMode ? 'bg-brand-600' : 'bg-slate-600'
+              )}
+              aria-label="Toggle dark mode"
+            >
+              <span
+                className={cn(
+                  'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                  darkMode ? 'translate-x-5' : 'translate-x-0'
+                )}
+              />
+            </button>
           </div>
           <button
             onClick={logout}
