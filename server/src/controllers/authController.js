@@ -84,11 +84,12 @@ export const setPassword = asyncHandler(async (req, res) => {
 
   await saveAdminAsSystem(admin);
 
-  res.json({
-    success: true,
-    token: generateToken(admin._id, 'admin', { school: admin.school }),
-    admin: admin.toSafeObject(),
-  });
+// setPassword
+res.json({
+  success: true,
+  token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
+  admin: admin.toSafeObject(),
+});
 });
 
 // @desc    Sign in to the Admin Portal
@@ -114,11 +115,12 @@ export const login = asyncHandler(async (req, res) => {
     await saveAdminAsSystem(admin);
   }
 
-  res.json({
-    success: true,
-    token: generateToken(admin._id, 'admin', { school: admin.school }),
-    admin: admin.toSafeObject(),
-  });
+// login
+res.json({
+  success: true,
+  token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
+  admin: admin.toSafeObject(),
+});
 });
 
 // @desc    Get logged-in admin profile
