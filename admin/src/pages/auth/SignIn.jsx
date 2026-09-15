@@ -55,7 +55,8 @@ export default function SignIn() {
     onSuccess: (data) => {
       setAuth(data);
       setSuccess(true);
-      setTimeout(() => navigate('/'), 900);
+      const destination = data.admin?.role === 'superadmin' ? '/platform' : '/';
+      setTimeout(() => navigate(destination), 900);
     },
     onError: (err) => setFormError(err.message),
   });
@@ -70,7 +71,8 @@ export default function SignIn() {
     onSuccess: (data) => {
       setAuth(data);
       setSuccess(true);
-      setTimeout(() => navigate('/'), 900);
+      const destination = data.admin?.role === 'superadmin' ? '/platform' : '/';
+      setTimeout(() => navigate(destination), 900);
     },
     onError: (err) => setFormError(err.message),
   });
