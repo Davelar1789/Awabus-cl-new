@@ -1,23 +1,9 @@
-# AwaBus Driver App (scaffold)
+# AwaBus Driver App
 
-This app is intentionally **not built out yet** — no login, trip, or tracking
-screens exist. What's here is just enough tooling so development can start
-immediately:
-
-- Vite + React, matching the admin portal's stack.
-- `src/api/client.js` / `src/api/driverApp.js` — a ready-made wrapper over
-  every endpoint the server already exposes at `/api/driver-app` (login,
-  today's trip, start/end trip, GPS location pings, student attendance).
-- Tailwind configured with the same AwaBus color tokens used by the admin
-  portal, so screens can match the brand from the first commit.
-
-## Why the server API already exists
-
-The backend (`/server`) implements the full driver-facing contract — auth,
-fetching the day's assigned trip, starting/ending a trip, streaming GPS
-coordinates, and marking student attendance/drop-off — documented in
-`server/src/routes/driverAppRoutes.js`. That means building this app is purely
-a frontend effort; no backend changes should be required for a first version.
+A mobile-first React web app for AwaBus drivers to run their daily trip:
+sign in, take pre-trip attendance, start the trip, share live GPS, scan
+students onto the bus, broadcast delay SMS to parents, and end the trip —
+all against the real `/api/driver-app` backend in `/server`.
 
 ## Getting started
 
@@ -27,10 +13,43 @@ cp .env.example .env
 npm run dev
 ```
 
-## Suggested first screens
+Sign in with a driver phone/password from the server's seed script (see the
+root README) — e.g. `+233 24 412 3456` / `Driver@123`.
 
-1. Sign in (phone + password against `POST /api/driver-app/auth/login`)
-2. Today's trip overview (`GET /api/driver-app/trips/today`)
-3. Start Trip / End Trip actions
-4. Background GPS reporting while a trip is in progress
-5. Student roster with attendance + drop-off actions
+## How it fits together
+
+- **Auto-provisioned trips.** The first time a driver opens the Home screen
+  each day, the server creates that day's trip from their current bus/route
+  assignment if one doesn't exist yet (`GET /api/driver-app/trips/today`) —
+  nothing needs to be scheduled in the Admin Portal first.
+- **Offline resilience.** While a trip is active, GPS pings and student scans
+  that fail to reach the server (`src/store/offlineQueueStore.js`) are queued
+  in `localStorage` and replayed automatically on the next `online` event
+  (`src/hooks/useOfflineSync.js`), matching the "Data will sync when you
+  reconnect" behavior in the design.
+- **Live GPS.** `src/hooks/useGeolocation.js` wraps `navigator.geolocation.
+  watchPosition`; positions are throttled and pushed to
+  `POST /trips/:id/location`, the same endpoint the Admin Portal's Live
+  Tracking map reads from via Socket.io.
+- **Delay broadcasts.** `POST /trips/:id/delay-broadcast` sends a mock SMS
+  (logged server-side — no gateway wired up yet) to the guardians of every
+  student marked "Present" for the trip, and records the broadcast for
+  Broadcast History.
+
+## Structure
+
+```
+src/
+  api/            axios client + typed wrappers over every /api/driver-app endpoint
+  store/          zustand stores: auth, ui/prefs, connection status, offline queue, reset flow
+  hooks/          useGeolocation, useOnlineStatus-style connection tracking, useOfflineSync
+  components/
+    layout/       Header, TripHeader (active-trip banner), Drawer, AppShell, AuthLayout
+    ui/           Button, Input, PhoneInput, Badge, Card, Modal, Switch, OtpInput, Avatar
+  pages/
+    auth/         Sign in, forgot password, OTP verify, reset password
+    home/         Pre-trip Home screen + Start Trip confirmation
+    trip/         Active Trip, Delay Broadcast, Broadcast Sent, Trip Completed
+    history/      Trip History (+ detail), Broadcast History
+    settings/     Settings, Help & support
+```

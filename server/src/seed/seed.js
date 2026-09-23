@@ -51,12 +51,18 @@ const seedSchoolData = async (school) => {
   console.log(`[seed] ${buses.length} buses created`);
 
   // 3. Drivers
-  const drivers = await Driver.insertMany(
-    DRIVERS.map((d) => ({
+  // Created one at a time (not insertMany) so the pre('save') hook actually
+  // hashes each driver's seeded `password` — insertMany skips document
+  // middleware, which would otherwise leave passwords stored in plaintext.
+  const drivers = [];
+  for (const d of DRIVERS) {
+    // eslint-disable-next-line no-await-in-loop
+    const driver = await Driver.create({
       ...d,
       licenseValidation: { status: 'verified', message: 'DVLA Verified', checkedAt: new Date() },
-    }))
-  );
+    });
+    drivers.push(driver);
+  }
   console.log(`[seed] ${drivers.length} drivers created`);
 
   // 4. Routes (paired 1:1 by index with drivers/buses)
@@ -222,6 +228,8 @@ const seedSchoolData = async (school) => {
     });
   }
   console.log('[seed] 2 live in-progress trips created');
+
+  return { drivers };
 };
 
 const run = async () => {
@@ -241,12 +249,17 @@ const run = async () => {
   // Everything else runs inside this school's tenant context, so every
   // create/insertMany/findByIdAndUpdate above gets `school` stamped on
   // automatically by the tenantScope plugin.
-  await tenantContext.run(school._id, () => seedSchoolData(school));
+  const { drivers } = await tenantContext.run(school._id, () => seedSchoolData(school));
+  const demoDriver = drivers[0];
 
-  console.log('\n[seed] Done! Sign in with:');
-  console.log(`        school:   ${school.name} (${school.code})`);
-  console.log(`        phone:    ${ADMIN.phone}`);
-  console.log(`        password: ${ADMIN.password}\n`);
+  console.log('\n[seed] Done!\n');
+  console.log('  Admin Portal:');
+  console.log(`    school:   ${school.name} (${school.code})`);
+  console.log(`    email:    ${ADMIN.email}`);
+  console.log(`    password: ${ADMIN.password}\n`);
+  console.log('  Driver App:');
+  console.log(`    phone:    ${demoDriver.phone}`);
+  console.log(`    password: Driver@123\n`);
 
   await mongoose.disconnect();
 };

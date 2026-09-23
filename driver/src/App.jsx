@@ -1,27 +1,67 @@
-// Placeholder entry point. The AwaBus Driver App screens (login, today's trip,
-// live GPS sharing, student check-in/drop-off) have not been designed/built
-// yet — this scaffold exists so the project can be picked up without any
-// tooling setup, wired straight into the already-live server API at
-// /api/driver-app (see src/api/driverApp.js).
+import { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import AppShell from './components/layout/AppShell.jsx';
+import ProtectedRoute from './components/layout/ProtectedRoute.jsx';
+import { useOfflineSync } from './hooks/useOfflineSync.js';
+
+import SignIn from './pages/auth/SignIn.jsx';
+import ForgotPassword from './pages/auth/ForgotPassword.jsx';
+import VerifyOtp from './pages/auth/VerifyOtp.jsx';
+import ResetPassword from './pages/auth/ResetPassword.jsx';
+import ResetSuccess from './pages/auth/ResetSuccess.jsx';
+
+import Home from './pages/home/Home.jsx';
+import ActiveTrip from './pages/trip/ActiveTrip.jsx';
+import DelayBroadcast from './pages/trip/DelayBroadcast.jsx';
+import BroadcastSent from './pages/trip/BroadcastSent.jsx';
+import TripCompleted from './pages/trip/TripCompleted.jsx';
+
+import TripHistory from './pages/history/TripHistory.jsx';
+import TripHistoryDetail from './pages/history/TripHistoryDetail.jsx';
+import BroadcastHistory from './pages/history/BroadcastHistory.jsx';
+
+import Settings from './pages/settings/Settings.jsx';
+import HelpSupport from './pages/settings/HelpSupport.jsx';
+
 export default function App() {
+  useOfflineSync();
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      const theme = JSON.parse(localStorage.getItem('awabus_driver_prefs') || '{}').theme || 'system';
+      if (theme === 'system') document.documentElement.classList.toggle('dark', mq.matches);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
-      <div className="flex items-center gap-2">
-        <svg width="36" height="30" viewBox="0 0 32 28" fill="none">
-          <path
-            d="M4 20V11a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v9a2 2 0 0 1-2 2h-1a3 3 0 0 1-6 0h-6a3 3 0 0 1-6 0H6a2 2 0 0 1-2-2Z"
-            fill="#3ed6ac"
-          />
-          <circle cx="10.5" cy="22.5" r="2" fill="#0b1b2b" />
-          <circle cx="21.5" cy="22.5" r="2" fill="#0b1b2b" />
-        </svg>
-        <span className="text-2xl font-extrabold tracking-wide text-brand-300">AWABUS</span>
-      </div>
-      <h1 className="text-xl font-bold text-white">Driver App — Coming Soon</h1>
-      <p className="max-w-sm text-sm text-slate-400">
-        This app isn't built yet. The server API it will talk to (auth, today's trip, GPS
-        streaming, student attendance) is already live at <code>/api/driver-app</code>.
-      </p>
-    </div>
+    <Routes>
+      <Route path="/sign-in" element={<SignIn />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-success" element={<ResetSuccess />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/trip/active" element={<ActiveTrip />} />
+          <Route path="/trip/delay-broadcast" element={<DelayBroadcast />} />
+          <Route path="/trip/delay-broadcast/sent" element={<BroadcastSent />} />
+          <Route path="/trip/completed" element={<TripCompleted />} />
+
+          <Route path="/trip-history" element={<TripHistory />} />
+          <Route path="/trip-history/:id" element={<TripHistoryDetail />} />
+          <Route path="/broadcast-history" element={<BroadcastHistory />} />
+
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/help" element={<HelpSupport />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

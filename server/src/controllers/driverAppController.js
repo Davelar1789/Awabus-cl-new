@@ -1,13 +1,28 @@
-// Driver App API (mobile) — the AwaBus driver app UI itself has not been built yet,
-// but the backend surface it will talk to is ready here so the mobile client
-// (in /driver) can be wired up without further server changes.
+// Driver App API (mobile) — backend surface for the AwaBus Driver App in /driver.
 
 import asyncHandler from 'express-async-handler';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import Driver from '../models/Driver.js';
 import Trip from '../models/Trip.js';
 import Bus from '../models/Bus.js';
+import RouteModel from '../models/Route.js';
+import Student from '../models/Student.js';
+import OtpToken from '../models/OtpToken.js';
 import generateToken from '../utils/generateToken.js';
+import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
+import { nextSequentialCode } from '../utils/idGenerator.js';
+import { generateOtpCode, sendOtpSms, sendSms, getOtpExpiry } from '../utils/otp.js';
+
+const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+const driverProfile = (driver) => ({
+  id: driver._id,
+  name: `${driver.firstName} ${driver.lastName}`,
+  phone: driver.phone,
+  status: driver.status,
+  profilePhotoUrl: driver.profilePhotoUrl,
+});
 
 // @desc    Driver app sign in
 // @route   POST /api/driver-app/auth/login
@@ -31,8 +46,8 @@ export const driverLogin = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    token: generateToken(driver._id, 'driver'),
-    driver: { id: driver._id, name: `${driver.firstName} ${driver.lastName}`, phone: driver.phone },
+    token: generateToken(driver._id, 'driver', { school: driver.school }),
+    driver: driverProfile(driver),
   });
 });
 
@@ -41,11 +56,45 @@ export const driverLogin = asyncHandler(async (req, res) => {
 export const getDriverMe = asyncHandler(async (req, res) => {
   const driver = await Driver.findById(req.driver._id)
     .populate('assignedBus', 'plateNumber name capacity')
-    .populate('assignedRoute', 'routeId name stops');
+    .populate('assignedRoute', 'routeId name stops students');
   res.json({ success: true, data: driver });
 });
 
+// Builds today's trip document for a driver on the fly the first time it's
+// requested, from whatever bus/route they're currently assigned. This means
+// the driver app works without an admin having to manually schedule a trip
+// every day first.
+const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
+  if (!driver.assignedBus || !driver.assignedRoute) return null;
+
+  const route = await RouteModel.findById(driver.assignedRoute).populate('students', '_id');
+  if (!route) return null;
+
+  const tripCode = await nextSequentialCode(Trip, 'tripCode', 'TRP-', 4);
+
+  const trip = await Trip.create({
+    tripCode,
+    route: route._id,
+    bus: driver.assignedBus,
+    driver: driver._id,
+    date: dayStart,
+    status: 'Scheduled',
+    stops: route.stops,
+    studentProgress: (route.students || []).map((s) => ({
+      student: s._id,
+      attendance: 'Present',
+      dropoffStatus: 'Pending',
+    })),
+  });
+
+  return Trip.findById(trip._id)
+    .populate('route', 'routeId name stops')
+    .populate('bus', 'plateNumber name capacity')
+    .populate('studentProgress.student', 'firstName lastName studentCode');
+};
+
 // @desc    Get today's scheduled/active trip for the logged-in driver
+//          (auto-creates one from the driver's current assignment if missing)
 // @route   GET /api/driver-app/trips/today
 export const getTodaysTrip = asyncHandler(async (req, res) => {
   const start = new Date();
@@ -53,13 +102,17 @@ export const getTodaysTrip = asyncHandler(async (req, res) => {
   const end = new Date();
   end.setHours(23, 59, 59, 999);
 
-  const trip = await Trip.findOne({
+  let trip = await Trip.findOne({
     driver: req.driver._id,
     date: { $gte: start, $lte: end },
   })
     .populate('route', 'routeId name stops')
     .populate('bus', 'plateNumber name capacity')
     .populate('studentProgress.student', 'firstName lastName studentCode');
+
+  if (!trip) {
+    trip = await provisionTodaysTrip(req.driver, start, end);
+  }
 
   res.json({ success: true, data: trip });
 });
@@ -73,7 +126,8 @@ export const startTrip = asyncHandler(async (req, res) => {
     throw new Error('Trip not found');
   }
   trip.status = 'In Progress';
-  trip.departureTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  trip.startedAt = new Date();
+  trip.departureTime = timeNow();
   trip.timeline.push({
     time: trip.departureTime,
     title: 'Trip started',
@@ -95,12 +149,18 @@ export const endTrip = asyncHandler(async (req, res) => {
     throw new Error('Trip not found');
   }
   trip.status = 'Completed';
-  trip.arrivalTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  trip.endedAt = new Date();
+  trip.arrivalTime = timeNow();
+  if (trip.startedAt) {
+    trip.durationMinutes = Math.max(1, Math.round((trip.endedAt - trip.startedAt) / 60000));
+  }
   await trip.save();
   await Bus.findByIdAndUpdate(trip.bus, { status: 'Idle' });
 
   req.app.get('io')?.emit('trip:ended', { tripId: trip._id, busId: trip.bus });
-  res.json({ success: true, data: trip });
+
+  const populated = await Trip.findById(trip._id).populate('studentProgress.student', 'firstName lastName studentCode');
+  res.json({ success: true, data: populated });
 });
 
 // @desc    Push a GPS location update while a trip is in progress
@@ -128,7 +188,8 @@ export const pushLocation = asyncHandler(async (req, res) => {
   res.json({ success: true, data: location });
 });
 
-// @desc    Mark a student's attendance/drop-off status for the active trip
+// @desc    Mark a student's attendance (pre-trip roll call) and/or boarding
+//          scan (dropoffStatus) for the active trip
 // @route   POST /api/driver-app/trips/:id/students/:studentId/attendance
 export const markAttendance = asyncHandler(async (req, res) => {
   const { attendance, dropoffStatus } = req.body;
@@ -144,11 +205,242 @@ export const markAttendance = asyncHandler(async (req, res) => {
     throw new Error('Student is not on this trip roster');
   }
   if (attendance) progress.attendance = attendance;
-  if (dropoffStatus) progress.dropoffStatus = dropoffStatus;
-  progress.alertStatus = 'Alert sent';
-  progress.alertTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  if (dropoffStatus) {
+    progress.dropoffStatus = dropoffStatus;
+    progress.alertStatus = 'Alert sent';
+    progress.alertTime = timeNow();
+  }
 
   await trip.save();
   req.app.get('io')?.emit('trip:studentUpdate', { tripId: trip._id, studentId: req.params.studentId, progress });
   res.json({ success: true, data: progress });
+});
+
+// @desc    Send a delay SMS broadcast to the guardians of attending students
+// @route   POST /api/driver-app/trips/:id/delay-broadcast
+export const sendDelayBroadcast = asyncHandler(async (req, res) => {
+  const { reason, message } = req.body;
+  if (!reason) {
+    res.status(400);
+    throw new Error('A delay reason is required');
+  }
+
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).populate(
+    'route',
+    'name'
+  );
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+
+  const attendingIds = trip.studentProgress
+    .filter((p) => p.attendance === 'Present')
+    .map((p) => p.student);
+
+  const students = await Student.find({ _id: { $in: attendingIds } }).populate('primaryGuardian', 'phone');
+  const guardianPhones = [...new Set(students.map((s) => s.primaryGuardian?.phone).filter(Boolean))];
+
+  const smsText = `AwaBus: ${trip.route?.name || 'Your route'} is running late. ${message || ''}`.trim();
+
+  let delivered = 0;
+  let failed = 0;
+  await Promise.all(
+    guardianPhones.map(async (phone) => {
+      try {
+        await sendSms(phone, smsText);
+        delivered += 1;
+      } catch {
+        failed += 1;
+      }
+    })
+  );
+
+  const broadcast = {
+    reason,
+    message: message || '',
+    sentAt: new Date(),
+    recipientCount: guardianPhones.length,
+    deliveredCount: delivered,
+    failedCount: failed,
+  };
+  trip.delayBroadcasts.push(broadcast);
+  trip.status = trip.status === 'In Progress' ? 'Delayed' : trip.status;
+  await trip.save();
+
+  res.status(201).json({ success: true, data: broadcast, preview: smsText });
+});
+
+// @desc    List past trips for the logged-in driver
+// @route   GET /api/driver-app/trips
+export const getTripHistory = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query, 10);
+  const filter = { driver: req.driver._id, status: { $in: ['Completed', 'Cancelled'] } };
+
+  const [trips, total] = await Promise.all([
+    Trip.find(filter)
+      .populate('route', 'routeId name')
+      .populate('bus', 'plateNumber name')
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit),
+    Trip.countDocuments(filter),
+  ]);
+
+  res.json({ success: true, data: trips, meta: buildPaginationMeta(total, page, limit) });
+});
+
+// @desc    Get a single past trip's detail for the logged-in driver
+// @route   GET /api/driver-app/trips/:id
+export const getTripByIdForDriver = asyncHandler(async (req, res) => {
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id })
+    .populate('route', 'routeId name stops')
+    .populate('bus', 'plateNumber name')
+    .populate('studentProgress.student', 'firstName lastName studentCode');
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+  res.json({ success: true, data: trip });
+});
+
+// @desc    List past delay broadcasts sent by the logged-in driver
+// @route   GET /api/driver-app/broadcasts
+export const getBroadcastHistory = asyncHandler(async (req, res) => {
+  const trips = await Trip.find({ driver: req.driver._id, 'delayBroadcasts.0': { $exists: true } })
+    .populate('route', 'routeId name')
+    .sort({ date: -1 })
+    .select('tripCode route date delayBroadcasts');
+
+  const broadcasts = trips
+    .flatMap((trip) =>
+      trip.delayBroadcasts.map((b) => ({
+        tripId: trip._id,
+        tripCode: trip.tripCode,
+        route: trip.route,
+        date: trip.date,
+        ...b.toObject(),
+      }))
+    )
+    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+
+  res.json({ success: true, data: broadcasts });
+});
+
+// ---------------------------------------------------------------------------
+// Forgot password (phone-based, mirrors the admin OTP flow against Driver)
+// ---------------------------------------------------------------------------
+
+// @desc    Request an OTP to begin the driver password reset flow
+// @route   POST /api/driver-app/auth/forgot-password
+export const driverForgotPassword = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    res.status(400);
+    throw new Error('Phone number is required');
+  }
+
+  const driver = await Driver.findOne({ phone });
+  if (!driver) {
+    res.json({ success: true, message: 'If that phone number exists, an OTP has been sent.' });
+    return;
+  }
+
+  const code = generateOtpCode();
+  await OtpToken.create({
+    phone,
+    code,
+    purpose: 'driver_password_reset',
+    expiresAt: getOtpExpiry(),
+  });
+  await sendOtpSms(phone, code);
+
+  res.json({ success: true, message: 'A 6-digit verification code has been sent.' });
+});
+
+// @desc    Verify the OTP sent to the driver's phone
+// @route   POST /api/driver-app/auth/verify-otp
+export const driverVerifyOtp = asyncHandler(async (req, res) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) {
+    res.status(400);
+    throw new Error('Phone number and code are required');
+  }
+
+  const otp = await OtpToken.findOne({
+    phone,
+    purpose: 'driver_password_reset',
+    consumed: false,
+  }).sort({ createdAt: -1 });
+
+  if (!otp) {
+    res.status(400);
+    throw new Error("Didn't receive a code? Request a new OTP.");
+  }
+  if (otp.expiresAt < new Date()) {
+    res.status(400);
+    throw new Error('The code has expired');
+  }
+  if (otp.code !== code) {
+    otp.attempts += 1;
+    await otp.save();
+    res.status(400);
+    throw new Error('Invalid OTP. Please try again.');
+  }
+
+  otp.consumed = true;
+  await otp.save();
+
+  const resetToken = jwt.sign({ phone, purpose: 'driver_password_reset' }, process.env.JWT_SECRET, {
+    expiresIn: '15m',
+  });
+
+  res.json({ success: true, resetToken });
+});
+
+// @desc    Resend a fresh OTP
+// @route   POST /api/driver-app/auth/resend-otp
+export const driverResendOtp = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    res.status(400);
+    throw new Error('Phone number is required');
+  }
+  const code = generateOtpCode();
+  await OtpToken.create({ phone, code, purpose: 'driver_password_reset', expiresAt: getOtpExpiry() });
+  await sendOtpSms(phone, code);
+  res.json({ success: true, message: 'A new verification code has been sent.' });
+});
+
+// @desc    Reset a driver's password using a verified reset token
+// @route   POST /api/driver-app/auth/reset-password
+export const driverResetPassword = asyncHandler(async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+  if (!resetToken || !newPassword) {
+    res.status(400);
+    throw new Error('Reset token and new password are required');
+  }
+
+  let payload;
+  try {
+    payload = jwt.verify(resetToken, process.env.JWT_SECRET);
+  } catch {
+    res.status(400);
+    throw new Error('Reset session expired. Please restart the password reset process.');
+  }
+  if (payload.purpose !== 'driver_password_reset') {
+    res.status(400);
+    throw new Error('Invalid reset session');
+  }
+
+  const driver = await Driver.findOne({ phone: payload.phone });
+  if (!driver) {
+    res.status(404);
+    throw new Error('Account not found');
+  }
+
+  driver.password = newPassword;
+  await driver.save();
+
+  res.json({ success: true, message: 'You can now sign in with your new password' });
 });

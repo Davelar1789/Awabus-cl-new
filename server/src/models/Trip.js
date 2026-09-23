@@ -39,6 +39,18 @@ const studentProgressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const delayBroadcastSchema = new mongoose.Schema(
+  {
+    reason: { type: String, required: true },
+    message: { type: String, default: '' },
+    sentAt: { type: Date, default: Date.now },
+    recipientCount: { type: Number, default: 0 },
+    deliveredCount: { type: Number, default: 0 },
+    failedCount: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
     school: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true, index: true },
@@ -52,6 +64,10 @@ const tripSchema = new mongoose.Schema(
     departureTime: { type: String, default: '' },
     arrivalTime: { type: String, default: '' },
     durationMinutes: { type: Number, default: 0 },
+    // Raw timestamps (departureTime/arrivalTime above are display strings) —
+    // used by the driver app to compute a live elapsed timer and an exact duration.
+    startedAt: { type: Date, default: null },
+    endedAt: { type: Date, default: null },
 
     status: {
       type: String,
@@ -73,6 +89,8 @@ const tripSchema = new mongoose.Schema(
     gpsSignal: { type: String, enum: ['ok', 'lost', 'offline'], default: 'ok' },
     distanceCoveredKm: { type: Number, default: 0 },
     etaMinutes: { type: Number, default: 0 },
+
+    delayBroadcasts: [delayBroadcastSchema],
   },
   { timestamps: true }
 );
