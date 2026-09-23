@@ -1,7 +1,3 @@
-import { clsx } from 'clsx';
-
-export const cn = (...args) => clsx(...args);
-
 export const initials = (name = '') =>
   name
     .split(' ')
@@ -55,4 +51,10 @@ export const timeAgo = (value) => {
   if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
   const hours = Math.floor(minutes / 60);
   return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+};
+
+export const formatDuration = (minutes) => {
+  const h = Math.floor((minutes || 0) / 60);
+  const m = (minutes || 0) % 60;
+  return formatClock(h * 3600 + m * 60);
 };

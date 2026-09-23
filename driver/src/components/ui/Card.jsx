@@ -1,15 +1,21 @@
-import { cn } from '../../lib/utils.js';
+import { StyleSheet, View } from 'react-native';
+import { colors, radii } from '../../lib/theme.js';
 
-export default function Card({ className, children, ...props }) {
-  return (
-    <div
-      className={cn(
-        'rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-navy-light',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
+export default function Card({ children, style }) {
+  return <View style={[styles.card, style]}>{children}</View>;
 }
+
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: '#e2e8f0b3',
+    backgroundColor: colors.white,
+    padding: 16,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+});

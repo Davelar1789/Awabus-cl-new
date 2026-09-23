@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { useOfflineQueueStore } from '../store/offlineQueueStore.js';
 import { useConnectionStore } from '../store/connectionStore.js';
 import { markAttendance, pushLocation } from '../api/driverApp.js';
@@ -36,10 +37,10 @@ export function useOfflineSync() {
   }, []);
 
   useEffect(() => {
-    const onOnline = () => flush();
-    window.addEventListener('online', onOnline);
-    if (navigator.onLine) flush();
-    return () => window.removeEventListener('online', onOnline);
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected && state.isInternetReachable !== false) flush();
+    });
+    return unsubscribe;
   }, [flush]);
 
   return { flush };

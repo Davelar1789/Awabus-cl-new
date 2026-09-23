@@ -1,48 +1,69 @@
-import { cn } from '../../lib/utils.js';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { colors, radii } from '../../lib/theme.js';
 
-const VARIANTS = {
-  primary: 'bg-trip-600 text-white hover:bg-trip-700 focus-visible:ring-trip-600',
-  auth: 'bg-brand-300 text-navy hover:bg-brand-500 hover:text-white focus-visible:ring-brand-400 font-bold',
-  outline:
-    'border-2 border-brand-600 bg-white text-brand-700 hover:bg-brand-50 focus-visible:ring-brand-500 dark:bg-navy-light dark:text-brand-300',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600',
-  ghost: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-navy-light',
-  link: 'text-brand-600 hover:underline dark:text-brand-400 font-semibold h-auto p-0',
+const VARIANT_STYLES = {
+  primary: { bg: colors.trip600, text: colors.white },
+  auth: { bg: colors.brand300, text: colors.navy },
+  outline: { bg: colors.white, text: colors.brand700, border: colors.brand600 },
+  danger: { bg: colors.red600, text: colors.white },
+  ghost: { bg: 'transparent', text: colors.slate600 },
+  link: { bg: 'transparent', text: colors.brand600 },
 };
 
-const SIZES = {
-  sm: 'h-10 px-3 text-sm',
-  md: 'h-12 px-4 text-base',
-  lg: 'h-14 px-6 text-base',
+const SIZE_STYLES = {
+  sm: { height: 40, paddingHorizontal: 14, fontSize: 14 },
+  md: { height: 52, paddingHorizontal: 18, fontSize: 16 },
+  lg: { height: 56, paddingHorizontal: 22, fontSize: 16 },
 };
 
 export default function Button({
-  as: Comp = 'button',
   variant = 'primary',
   size = 'md',
-  className,
   loading = false,
-  disabled,
+  disabled = false,
+  onPress,
   children,
-  ...props
+  style,
+  textStyle,
 }) {
+  const v = VARIANT_STYLES[variant];
+  const s = SIZE_STYLES[size];
+  const isLink = variant === 'link';
+
   return (
-    <Comp
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-dark',
-        'disabled:cursor-not-allowed disabled:opacity-60',
-        variant !== 'link' && SIZES[size],
-        VARIANTS[variant],
-        className
-      )}
+    <Pressable
+      onPress={onPress}
       disabled={disabled || loading}
-      {...props}
+      style={({ pressed }) => [
+        !isLink && {
+          height: s.height,
+          paddingHorizontal: s.paddingHorizontal,
+          borderRadius: radii.lg,
+          backgroundColor: v.bg,
+          borderWidth: v.border ? 2 : 0,
+          borderColor: v.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+          gap: 8,
+          opacity: disabled || loading ? 0.6 : pressed ? 0.85 : 1,
+        },
+        isLink && { opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+        style,
+      ]}
     >
-      {loading && (
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      {loading && <ActivityIndicator size="small" color={v.text} />}
+      {typeof children === 'string' ? (
+        <Text style={[styles.text, { color: v.text, fontSize: s.fontSize }, textStyle]}>{children}</Text>
+      ) : (
+        children
       )}
-      {children}
-    </Comp>
+    </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  text: {
+    fontWeight: '700',
+  },
+});

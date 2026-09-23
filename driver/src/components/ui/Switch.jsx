@@ -1,24 +1,15 @@
-import { cn } from '../../lib/utils.js';
+import { Switch as RNSwitch, Platform } from 'react-native';
+import { colors } from '../../lib/theme.js';
 
-export default function Switch({ checked, onChange, disabled }) {
+export default function Switch({ value, onValueChange, disabled }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
+    <RNSwitch
+      value={value}
+      onValueChange={onValueChange}
       disabled={disabled}
-      onClick={() => onChange?.(!checked)}
-      className={cn(
-        'relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50',
-        checked ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-600'
-      )}
-    >
-      <span
-        className={cn(
-          'absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform',
-          checked ? 'translate-x-6' : 'translate-x-1'
-        )}
-      />
-    </button>
+      trackColor={{ false: colors.slate300, true: colors.brand600 }}
+      thumbColor={Platform.OS === 'android' ? colors.white : undefined}
+      ios_backgroundColor={colors.slate300}
+    />
   );
 }

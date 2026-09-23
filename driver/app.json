@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "AwaBus Driver",
+    "slug": "awabus-driver",
+    "scheme": "awabusdriver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "backgroundColor": "#0b1b2b",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b1b2b"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.awabus.driver",
+      "infoPlist": {
+        "UIBackgroundModes": []
+      }
+    },
+    "android": {
+      "package": "com.awabus.driver",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b1b2b",
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AwaBus Driver uses your location while a trip is active to share your bus's live position with the school and parents."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0b1b2b"
+        }
+      ]
+    ]
+  }
+}

@@ -1,30 +1,31 @@
-import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { cn } from '../../lib/utils.js';
+import { Modal as RNModal, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, radii } from '../../lib/theme.js';
 
-export default function Modal({ open, onClose, children, className }) {
-  useEffect(() => {
-    if (!open) return undefined;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div
-        className={cn(
-          'relative z-10 w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-navy-light sm:rounded-3xl',
-          className
-        )}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body
+export default function Modal({ open, onClose, children, style }) {
+  return (
+    <RNModal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <SafeAreaView edges={['bottom']} style={[styles.sheet, style]}>
+          {children}
+        </SafeAreaView>
+      </View>
+    </RNModal>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+  },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.xl + 4,
+    borderTopRightRadius: radii.xl + 4,
+    padding: 20,
+    maxHeight: '85%',
+  },
+});

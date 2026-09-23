@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { Appearance } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PREFS_KEY = 'awabus_driver_prefs';
 
@@ -10,35 +12,31 @@ const defaultPrefs = {
   offlineCacheLimitTrips: 50,
 };
 
-const loadPrefs = () => {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? { ...defaultPrefs, ...JSON.parse(raw) } : defaultPrefs;
-  } catch {
-    return defaultPrefs;
-  }
-};
-
+// RN's Appearance.setColorScheme only accepts 'light' | 'dark' | 'unspecified'
+// ('unspecified' resets the app back to following the OS setting).
 const applyTheme = (theme) => {
-  const root = document.documentElement;
-  const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  const isDark = theme === 'dark' || (theme === 'system' && systemDark);
-  root.classList.toggle('dark', isDark);
+  Appearance.setColorScheme(theme === 'system' ? 'unspecified' : theme);
 };
-
-const initialPrefs = loadPrefs();
-applyTheme(initialPrefs.theme);
 
 export const useUiStore = create((set, get) => ({
-  ...initialPrefs,
-  drawerOpen: false,
-  openDrawer: () => set({ drawerOpen: true }),
-  closeDrawer: () => set({ drawerOpen: false }),
+  ...defaultPrefs,
+  isHydrated: false,
 
-  setPref: (key, value) => {
+  hydrate: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(PREFS_KEY);
+      const prefs = raw ? { ...defaultPrefs, ...JSON.parse(raw) } : defaultPrefs;
+      applyTheme(prefs.theme);
+      set({ ...prefs, isHydrated: true });
+    } catch {
+      set({ isHydrated: true });
+    }
+  },
+
+  setPref: async (key, value) => {
     const next = { ...get(), [key]: value };
     const persisted = Object.keys(defaultPrefs).reduce((acc, k) => ({ ...acc, [k]: next[k] }), {});
-    localStorage.setItem(PREFS_KEY, JSON.stringify(persisted));
+    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(persisted));
     if (key === 'theme') applyTheme(value);
     set({ [key]: value });
   },

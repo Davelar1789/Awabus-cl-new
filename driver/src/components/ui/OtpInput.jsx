@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { cn } from '../../lib/utils.js';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { colors, radii } from '../../lib/theme.js';
 
 export default function OtpInput({ length = 6, value, onChange, error }) {
   const refs = useRef([]);
@@ -11,41 +12,55 @@ export default function OtpInput({ length = 6, value, onChange, error }) {
     onChange(next.join(''));
   };
 
-  const handleChange = (i, e) => {
-    const char = e.target.value.replace(/\D/g, '').slice(-1);
+  const handleChange = (i, text) => {
+    const char = text.replace(/\D/g, '').slice(-1);
     setDigit(i, char);
     if (char && refs.current[i + 1]) refs.current[i + 1].focus();
   };
 
-  const handleKeyDown = (i, e) => {
-    if (e.key === 'Backspace' && !digits[i] && refs.current[i - 1]) refs.current[i - 1].focus();
-  };
-
-  const handlePaste = (e) => {
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length);
-    if (pasted) {
-      e.preventDefault();
-      onChange(pasted.padEnd(length, '').slice(0, length));
+  const handleKeyPress = (i, e) => {
+    if (e.nativeEvent.key === 'Backspace' && !digits[i] && refs.current[i - 1]) {
+      refs.current[i - 1].focus();
     }
   };
 
   return (
-    <div className="flex justify-center gap-2" onPaste={handlePaste}>
+    <View style={styles.row}>
       {digits.map((d, i) => (
-        <input
+        <TextInput
           key={i}
           ref={(el) => (refs.current[i] = el)}
           value={d}
-          onChange={(e) => handleChange(i, e)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          inputMode="numeric"
+          onChangeText={(text) => handleChange(i, text)}
+          onKeyPress={(e) => handleKeyPress(i, e)}
+          keyboardType="number-pad"
           maxLength={1}
-          className={cn(
-            'h-14 w-11 rounded-xl border bg-white text-center text-xl font-bold text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:bg-navy-light dark:text-white',
-            error ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'
-          )}
+          style={[styles.box, error && styles.boxError]}
         />
       ))}
-    </div>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  box: {
+    height: 56,
+    width: 44,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    backgroundColor: colors.white,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.slate900,
+  },
+  boxError: {
+    borderColor: colors.red500,
+  },
+});

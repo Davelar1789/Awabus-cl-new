@@ -1,8 +1,8 @@
 # AwaBus
 
 A multi-tenant school bus operations platform — live GPS tracking, route/
-driver/student/bus management, trip history, and a driver-facing mobile web
-app — built as a MERN stack rebuild of the AwaBus Admin Portal and Driver App
+driver/student/bus management, trip history, and a native driver mobile app —
+built as a MERN stack rebuild of the AwaBus Admin Portal and Driver App
 designs.
 
 ## Repository layout
@@ -17,10 +17,12 @@ designs.
           from the design (auth, dashboard, routes, drivers, students,
           buses, trip history, live tracking) plus a Superadmin "Platform"
           dashboard for creating/suspending schools.
-/driver   The AwaBus Driver App — React + Vite + Tailwind, mobile-first.
-          Sign in, a pre-trip roster with attendance toggling, live GPS
-          trip tracking with offline queuing, delay SMS broadcasts to
-          parents, trip/broadcast history, and settings.
+/driver   The AwaBus Driver App — a native mobile app built with React
+          Native + Expo (Expo Router, EAS Build). Sign in, a pre-trip roster
+          with attendance toggling, live GPS trip tracking with offline
+          queuing, delay SMS broadcasts to parents, trip/broadcast history,
+          and settings. See driver/README.md for how to run it and build it
+          with EAS.
 ```
 
 ## Quick start
@@ -77,10 +79,16 @@ admin a superadmin just added).
 
 ```bash
 cd driver
-cp .env.example .env      # defaults to http://localhost:5000/api
+cp .env.example .env      # point EXPO_PUBLIC_API_URL at your server (see driver/README.md)
 npm install
-npm run dev                # http://localhost:5174
+npm start                  # opens the Expo dev tools
 ```
+
+The Driver App is a native React Native/Expo app, not a website — run it in
+Expo Go or a custom dev client on your phone, or build an installable APK/IPA
+with EAS. Full setup, environment variable notes (physical devices can't use
+`localhost`), and step-by-step `eas build`/`eas update` instructions live in
+[`driver/README.md`](./driver/README.md).
 
 Sign in with the driver phone/password printed by the seed script. The
 first time a driver opens the app for a given day, their trip is
@@ -127,14 +135,16 @@ detail sub-view), and a Superadmin "Platform" dashboard. Dark mode,
 responsive tables, empty/error/loading states, and reusable UI primitives
 are shared across all of it.
 
-**Driver App** — Sign in (with wrong-password/offline states), forgot
-password/OTP/reset, a pre-trip Home screen (driver + bus/route card,
-attendance summary, tap-to-toggle student roster, Start Trip confirmation),
-an Active Trip screen (live elapsed timer, browser-geolocation GPS pushed to
-the server, online/offline banner, a local action queue that replays scans
-and GPS pings once connectivity returns, a searchable boarding roster), a
-Delay Broadcast flow (reason + message + live SMS preview → send → delivery
-summary), an End Trip confirmation that warns about unscanned students, a
-Trip Completed summary, Trip History + detail, Broadcast History, and a
-Settings screen (notification/vibration/theme/auto-sync preferences,
-persisted locally).
+**Driver App** (native, React Native + Expo) — Sign in (with wrong-password/
+offline states), forgot password/OTP/reset, a pre-trip Home screen (driver +
+bus/route card, attendance summary, tap-to-toggle student roster, Start Trip
+confirmation), an Active Trip screen (live elapsed timer, on-device GPS via
+`expo-location` pushed to the server, online/offline banner, a local action
+queue backed by AsyncStorage that replays scans and GPS pings once
+connectivity returns, a searchable boarding roster with haptic feedback on
+scan), a Delay Broadcast flow (reason + message + live SMS preview → send →
+delivery summary), an End Trip confirmation that warns about unscanned
+students, a Trip Completed summary, Trip History + detail, Broadcast
+History, and a Settings screen (profile, notification/vibration/theme/
+auto-sync preferences persisted locally, Help & Support) plus a native
+drawer navigation shell with `expo-secure-store`-backed auth.

@@ -1,17 +1,30 @@
-import { cn } from '../../lib/utils.js';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../../lib/theme.js';
 
-export default function Spinner({ className, size = 'md' }) {
-  const sizes = { sm: 'h-4 w-4 border-2', md: 'h-6 w-6 border-2', lg: 'h-10 w-10 border-[3px]' };
-  return (
-    <span className={cn('inline-block animate-spin rounded-full border-brand-500 border-t-transparent', sizes[size], className)} />
-  );
+export default function Spinner({ size = 'small', color = colors.brand500 }) {
+  return <ActivityIndicator size={size} color={color} />;
 }
 
 export function PageLoader({ label = 'Loading…' }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-400">
-      <Spinner size="lg" />
-      <p className="text-sm font-medium">{label}</p>
-    </div>
+    <View style={styles.wrap}>
+      <ActivityIndicator size="large" color={colors.brand500} />
+      <Text style={styles.label}>{label}</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 96,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.slate400,
+  },
+});

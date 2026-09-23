@@ -1,17 +1,32 @@
-import { cn } from '../../lib/utils.js';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, radii } from '../../lib/theme.js';
 
-const TONE_CLASSES = {
-  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-  danger: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
-  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-  neutral: 'bg-slate-100 text-slate-600 dark:bg-slate-700/50 dark:text-slate-300',
-  brand: 'bg-white/15 text-white',
+const TONES = {
+  success: { bg: colors.emerald50, text: colors.emerald700 },
+  danger: { bg: colors.red50, text: colors.red600 },
+  warning: { bg: colors.amber50, text: colors.amber700 },
+  neutral: { bg: colors.slate100, text: colors.slate600 },
+  brand: { bg: 'rgba(255,255,255,0.18)', text: colors.white },
 };
 
-export default function Badge({ children, tone = 'success', className }) {
+export default function Badge({ children, tone = 'success', style }) {
+  const t = TONES[tone] || TONES.success;
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold', TONE_CLASSES[tone], className)}>
-      {children}
-    </span>
+    <View style={[styles.badge, { backgroundColor: t.bg }, style]}>
+      <Text style={[styles.text, { color: t.text }]}>{children}</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    alignSelf: 'flex-start',
+  },
+  text: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+});
