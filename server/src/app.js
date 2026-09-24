@@ -20,6 +20,7 @@ const app = express();
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.DEPLOYED_URL,
+  process.env.CODESPACE_URL,
 ];
 
 app.use(cors({
