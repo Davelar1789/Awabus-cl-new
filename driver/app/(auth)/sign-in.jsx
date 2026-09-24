@@ -1,29 +1,62 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
-import { AlertCircle, WifiOff } from 'lucide-react-native';
+import { AlertCircle, ArrowLeft, Check, WifiOff } from 'lucide-react-native';
 import AuthLayout from '../../src/components/layout/AuthLayout.jsx';
 import PhoneInput from '../../src/components/ui/PhoneInput.jsx';
-import { PasswordInput, Label } from '../../src/components/ui/Input.jsx';
+import { PasswordInput, Label, FieldError } from '../../src/components/ui/Input.jsx';
 import Button from '../../src/components/ui/Button.jsx';
-import { login as loginApi } from '../../src/api/driverApp.js';
+import { checkPhone, login as loginApi, setPassword as setPasswordApi } from '../../src/api/driverApp.js';
 import { useAuthStore } from '../../src/store/authStore.js';
 import { colors, radii } from '../../src/lib/theme.js';
 
 const MAX_TRIES = 5;
 
+const PASSWORD_RULES = [
+  { key: 'length', label: 'At least 8 characters', test: (v) => v.length >= 8 },
+  { key: 'upper', label: 'At least one uppercase letter', test: (v) => /[A-Z]/.test(v) },
+  { key: 'number', label: 'At least one number', test: (v) => /\d/.test(v) },
+  { key: 'special', label: 'At least one special character', test: (v) => /[^A-Za-z0-9]/.test(v) },
+];
+
 export default function SignIn() {
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  // 'phone' -> check whether this number has an account & a password yet.
+  // 'password' -> existing driver, ask for their password.
+  // 'create' -> driver record exists but has never set a password.
+  const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState(null); // { kind: 'lookup' | 'network', message }
+
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null); // { kind: 'credentials' | 'network', message }
   const [triesLeft, setTriesLeft] = useState(MAX_TRIES);
 
-  const digits = phone.replace(/\s/g, '');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [createError, setCreateError] = useState('');
 
-  const mutation = useMutation({
-    mutationFn: () => loginApi(`+233${digits}`, password),
+  const digits = phone.replace(/\s/g, '');
+  const fullPhone = `+233${digits}`;
+
+  const checkPhoneMutation = useMutation({
+    mutationFn: () => checkPhone(fullPhone),
+    onSuccess: (data) => {
+      setStep(data.hasPassword ? 'password' : 'create');
+    },
+    onError: (err) => {
+      if (err.isNetworkError) {
+        setPhoneError({ kind: 'network', message: err.message });
+        return;
+      }
+      setPhoneError({ kind: 'lookup', message: err.message });
+    },
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: () => loginApi(fullPhone, password),
     onSuccess: async (data) => {
       await setAuth(data);
       router.replace('/');
@@ -39,31 +72,158 @@ export default function SignIn() {
         kind: 'credentials',
         message:
           remaining > 0
-            ? `Wrong phone number or password. You have ${remaining} ${remaining === 1 ? 'try' : 'tries'} left.`
+            ? `Wrong password. You have ${remaining} ${remaining === 1 ? 'try' : 'tries'} left.`
             : 'Too many failed attempts. Please try again later or reset your password.',
       });
     },
   });
 
-  const handleSubmit = () => {
+  const createPasswordMutation = useMutation({
+    mutationFn: () => setPasswordApi(fullPhone, newPassword),
+    onSuccess: async (data) => {
+      await setAuth(data);
+      router.replace('/');
+    },
+    onError: (err) => setCreateError(err.message),
+  });
+
+  const allRulesValid = useMemo(() => PASSWORD_RULES.every((r) => r.test(newPassword)), [newPassword]);
+
+  const backToPhone = () => {
+    setStep('phone');
+    setPassword('');
     setError(null);
-    if (digits.length !== 9 || !password) return;
-    mutation.mutate();
+    setTriesLeft(MAX_TRIES);
+    setNewPassword('');
+    setConfirmPassword('');
+    setCreateError('');
   };
+
+  const handlePhoneSubmit = () => {
+    setPhoneError(null);
+    if (digits.length !== 9) return;
+    checkPhoneMutation.mutate();
+  };
+
+  const handlePasswordSubmit = () => {
+    setError(null);
+    if (!password) return;
+    loginMutation.mutate();
+  };
+
+  const handleCreateSubmit = () => {
+    setCreateError('');
+    if (!allRulesValid) {
+      setCreateError('Please meet all password requirements');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setCreateError('Passwords do not match');
+      return;
+    }
+    createPasswordMutation.mutate();
+  };
+
+  if (step === 'phone') {
+    return (
+      <AuthLayout>
+        <Text style={styles.title}>Welcome back</Text>
+        <Text style={styles.subtitle}>Enter your phone number to continue</Text>
+
+        <View style={styles.field}>
+          <Label>Phone Number</Label>
+          <PhoneInput value={phone} onChange={setPhone} maxLength={11} />
+        </View>
+
+        {phoneError && (
+          <View style={[styles.banner, phoneError.kind === 'network' ? styles.bannerNeutral : styles.bannerError]}>
+            {phoneError.kind === 'network' ? (
+              <WifiOff size={16} color={colors.slate600} />
+            ) : (
+              <AlertCircle size={16} color={colors.red600} />
+            )}
+            <Text
+              style={[styles.bannerText, phoneError.kind === 'network' ? styles.bannerTextNeutral : styles.bannerTextError]}
+            >
+              {phoneError.message}
+            </Text>
+          </View>
+        )}
+
+        <Button
+          variant="auth"
+          loading={checkPhoneMutation.isPending}
+          disabled={digits.length !== 9}
+          onPress={handlePhoneSubmit}
+          style={{ marginTop: 4 }}
+        >
+          Continue
+        </Button>
+
+        <Text style={styles.terms}>
+          By signing in, you agree to our <Text style={styles.termsLink}>Terms and Conditions.</Text>
+        </Text>
+      </AuthLayout>
+    );
+  }
+
+  if (step === 'create') {
+    return (
+      <AuthLayout>
+        <Pressable onPress={backToPhone} style={styles.backRow} hitSlop={10}>
+          <ArrowLeft size={16} color={colors.slate500} />
+          <Text style={styles.backText}>+233 {phone}</Text>
+        </Pressable>
+
+        <Text style={styles.title}>Create your password</Text>
+        <Text style={styles.subtitle}>
+          This is your first time signing in on this device. Create a password for your driver account.
+        </Text>
+
+        <View style={styles.field}>
+          <Label>New password</Label>
+          <PasswordInput value={newPassword} onChangeText={setNewPassword} placeholder="••••••••" />
+        </View>
+        <View style={styles.field}>
+          <Label>Confirm password</Label>
+          <PasswordInput value={confirmPassword} onChangeText={setConfirmPassword} placeholder="••••••••" />
+          <FieldError>{createError}</FieldError>
+        </View>
+
+        <View style={styles.rules}>
+          {PASSWORD_RULES.map((r) => {
+            const passed = r.test(newPassword);
+            return (
+              <View key={r.key} style={styles.ruleRow}>
+                <View style={[styles.ruleDot, passed && styles.ruleDotActive]}>
+                  {passed && <Check size={12} color={colors.brand600} />}
+                </View>
+                <Text style={[styles.ruleText, passed && styles.ruleTextActive]}>{r.label}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <Button variant="auth" loading={createPasswordMutation.isPending} onPress={handleCreateSubmit}>
+          Create password & sign in
+        </Button>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
-      <Text style={styles.title}>Welcome back</Text>
+      <Pressable onPress={backToPhone} style={styles.backRow} hitSlop={10}>
+        <ArrowLeft size={16} color={colors.slate500} />
+        <Text style={styles.backText}>+233 {phone}</Text>
+      </Pressable>
+
+      <Text style={styles.title}>Enter your password</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
 
       <View style={styles.field}>
-        <Label>Phone Number</Label>
-        <PhoneInput value={phone} onChange={setPhone} maxLength={11} />
-      </View>
-
-      <View style={styles.field}>
         <Label>Password</Label>
-        <PasswordInput value={password} onChangeText={setPassword} placeholder="••••••••" />
+        <PasswordInput value={password} onChangeText={setPassword} placeholder="••••••••" autoFocus />
       </View>
 
       {error && (
@@ -83,8 +243,8 @@ export default function SignIn() {
         Forgot password?
       </Link>
 
-      <Button variant="auth" loading={mutation.isPending} disabled={triesLeft === 0} onPress={handleSubmit}>
-        {mutation.isPending ? 'Signing you in...' : 'Login'}
+      <Button variant="auth" loading={loginMutation.isPending} disabled={triesLeft === 0} onPress={handlePasswordSubmit}>
+        {loginMutation.isPending ? 'Signing you in...' : 'Login'}
       </Button>
 
       <Text style={styles.terms}>
@@ -155,4 +315,29 @@ const styles = StyleSheet.create({
     color: colors.slate700,
     textDecorationLine: 'underline',
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.slate500,
+  },
+  rules: { marginBottom: 24, gap: 8 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ruleDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.slate100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ruleDotActive: { backgroundColor: colors.brand100 },
+  ruleText: { fontSize: 13, color: colors.slate400 },
+  ruleTextActive: { color: colors.brand700, fontWeight: '600' },
 });

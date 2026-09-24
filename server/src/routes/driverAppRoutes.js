@@ -1,5 +1,7 @@
 import express from 'express';
 import {
+  checkDriverPhone,
+  setDriverPassword,
   driverLogin,
   driverForgotPassword,
   driverVerifyOtp,
@@ -21,6 +23,8 @@ import { protectDriver } from '../middleware/auth.js';
 const router = express.Router();
 
 // Public
+router.post('/auth/check-phone', checkDriverPhone);
+router.post('/auth/set-password', setDriverPassword);
 router.post('/auth/login', driverLogin);
 router.post('/auth/forgot-password', driverForgotPassword);
 router.post('/auth/verify-otp', driverVerifyOtp);

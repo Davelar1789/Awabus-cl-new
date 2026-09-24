@@ -13,6 +13,7 @@ import generateToken from '../utils/generateToken.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextSequentialCode } from '../utils/idGenerator.js';
 import { generateOtpCode, sendOtpSms, sendSms, getOtpExpiry } from '../utils/otp.js';
+import { tenantContext } from '../utils/tenantContext.js';
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -24,6 +25,75 @@ const driverProfile = (driver) => ({
   profilePhotoUrl: driver.profilePhotoUrl,
 });
 
+// These routes all run before anyone is authenticated, so there's no
+// req.school / tenant context yet — finding out *which* school a driver
+// belongs to is the whole point of the lookup. tenantContext.runAsSystem()
+// is the deliberate, explicit escape hatch for that (mirrors
+// authController.js's findAdminByEmail). Once a driver is found,
+// `driver.school` goes into the JWT and every subsequent request is scoped
+// normally.
+const findDriverByPhone = (phone, withPassword = false) =>
+  tenantContext.runAsSystem(() => {
+    const query = Driver.findOne({ phone });
+    return withPassword ? query.select('+password') : query;
+  });
+
+const saveDriverAsSystem = (driver) => tenantContext.runAsSystem(() => driver.save());
+
+// @desc    Check if a phone number exists and whether the driver has a password set
+// @route   POST /api/driver-app/auth/check-phone
+export const checkDriverPhone = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    res.status(400);
+    throw new Error('Phone number is required');
+  }
+
+  const driver = await findDriverByPhone(phone, true);
+
+  if (!driver) {
+    res.status(404);
+    throw new Error('No driver account found with this phone number');
+  }
+
+  res.json({
+    success: true,
+    exists: true,
+    hasPassword: Boolean(driver.password),
+  });
+});
+
+// @desc    Set a password for a first-time driver account and sign in
+// @route   POST /api/driver-app/auth/set-password
+export const setDriverPassword = asyncHandler(async (req, res) => {
+  const { phone, password } = req.body;
+  if (!phone || !password) {
+    res.status(400);
+    throw new Error('Phone number and password are required');
+  }
+
+  const driver = await findDriverByPhone(phone, true);
+
+  if (!driver) {
+    res.status(404);
+    throw new Error('No driver account found with this phone number');
+  }
+
+  if (driver.password) {
+    res.status(400);
+    throw new Error('This account already has a password set');
+  }
+
+  driver.password = password;
+  await saveDriverAsSystem(driver);
+
+  res.json({
+    success: true,
+    token: generateToken(driver._id, 'driver', { school: driver.school }),
+    driver: driverProfile(driver),
+  });
+});
+
 // @desc    Driver app sign in
 // @route   POST /api/driver-app/auth/login
 export const driverLogin = asyncHandler(async (req, res) => {
@@ -33,7 +103,7 @@ export const driverLogin = asyncHandler(async (req, res) => {
     throw new Error('Phone number and password are required');
   }
 
-  const driver = await Driver.findOne({ phone }).select('+password');
+  const driver = await findDriverByPhone(phone, true);
   if (!driver || !driver.password) {
     res.status(401);
     throw new Error('Invalid phone number or password');
@@ -340,7 +410,7 @@ export const driverForgotPassword = asyncHandler(async (req, res) => {
     throw new Error('Phone number is required');
   }
 
-  const driver = await Driver.findOne({ phone });
+  const driver = await findDriverByPhone(phone);
   if (!driver) {
     res.json({ success: true, message: 'If that phone number exists, an OTP has been sent.' });
     return;
@@ -433,14 +503,14 @@ export const driverResetPassword = asyncHandler(async (req, res) => {
     throw new Error('Invalid reset session');
   }
 
-  const driver = await Driver.findOne({ phone: payload.phone });
+  const driver = await findDriverByPhone(payload.phone);
   if (!driver) {
     res.status(404);
     throw new Error('Account not found');
   }
 
   driver.password = newPassword;
-  await driver.save();
+  await saveDriverAsSystem(driver);
 
   res.json({ success: true, message: 'You can now sign in with your new password' });
 });
