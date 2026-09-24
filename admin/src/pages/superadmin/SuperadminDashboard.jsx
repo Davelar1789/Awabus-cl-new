@@ -11,6 +11,7 @@ import { Input, Label, FieldError } from '../../components/ui/Input.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import Modal from '../../components/ui/Modal.jsx';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -19,6 +20,7 @@ export default function SuperadminDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ schoolName: '', adminName: '', adminEmail: '', adminPhone: '' });
   const [formError, setFormError] = useState('');
+  const [statusTarget, setStatusTarget] = useState(null); // school being suspended/reactivated
 
   usePageHeader({ breadcrumb: ['AwaBus', 'Platform'] });
 
@@ -41,7 +43,10 @@ export default function SuperadminDashboard() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateSchoolStatus(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['superadmin-analytics'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['superadmin-analytics'] });
+      setStatusTarget(null);
+    },
   });
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -161,7 +166,7 @@ export default function SuperadminDashboard() {
                   <Td><Badge>{s.status}</Badge></Td>
                   <Td>
                     <button
-                      onClick={() => statusMutation.mutate({ id: s.id, status: s.status === 'Active' ? 'Suspended' : 'Active' })}
+                      onClick={() => setStatusTarget(s)}
                       className="text-sm font-semibold text-brand-600 hover:underline dark:text-brand-400"
                     >
                       {s.status === 'Active' ? 'Suspend' : 'Reactivate'}
@@ -175,6 +180,45 @@ export default function SuperadminDashboard() {
           <EmptyState icon={Inbox} title="No schools yet" description="Create your first school to get started." />
         )}
       </Card>
+
+      <Modal
+        open={Boolean(statusTarget)}
+        onClose={() => setStatusTarget(null)}
+        title={statusTarget?.status === 'Active' ? 'Suspend this school?' : 'Reactivate this school?'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setStatusTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant={statusTarget?.status === 'Active' ? 'danger' : 'primary'}
+              loading={statusMutation.isPending}
+              onClick={() =>
+                statusMutation.mutate({
+                  id: statusTarget.id,
+                  status: statusTarget.status === 'Active' ? 'Suspended' : 'Active',
+                })
+              }
+            >
+              {statusTarget?.status === 'Active' ? 'Suspend school' : 'Reactivate school'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {statusTarget?.status === 'Active' ? (
+            <>
+              <strong className="text-slate-700 dark:text-slate-200">{statusTarget?.name}</strong> will be marked as
+              suspended across the platform. This can be undone at any time by reactivating it.
+            </>
+          ) : (
+            <>
+              <strong className="text-slate-700 dark:text-slate-200">{statusTarget?.name}</strong> will be marked as
+              active again.
+            </>
+          )}
+        </p>
+      </Modal>
     </div>
   );
 }
