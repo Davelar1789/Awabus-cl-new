@@ -311,7 +311,7 @@ export default function AddStudent() {
               <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Home Location & Geofencing</h3>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <Label>Street Address</Label>
+                  <Label>GPS Address</Label>
                   <Input value={form.homeAddress} onChange={(e) => set('homeAddress')(e.target.value)} placeholder="e.g. 12 Boundary Road, East Legon" />
                 </div>
                 <div>
