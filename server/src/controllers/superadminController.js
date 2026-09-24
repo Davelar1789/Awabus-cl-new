@@ -9,11 +9,14 @@ import RouteModel from '../models/Route.js';
 import Trip from '../models/Trip.js';
 import { tenantContext } from '../utils/tenantContext.js';
 
-const slugify = (name) =>
+// Derives a short, URL/login-screen-friendly code from the school name,
+// e.g. "Awabus Demo School" -> "AWABUS-DEMO-SCHOOL". Matches School.code's
+// `uppercase: true` schema constraint.
+const codeify = (name) =>
   name
-    .toLowerCase()
+    .toUpperCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[^A-Z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 
@@ -58,7 +61,7 @@ export const getAnalytics = asyncHandler(async (req, res) => {
         return {
           id: school._id,
           name: school.name,
-          slug: school.slug,
+          code: school.code,
           status: school.status,
           createdAt: school.createdAt,
           students,
@@ -114,9 +117,9 @@ export const createSchool = asyncHandler(async (req, res) => {
     throw new Error('An account with that email already exists');
   }
 
-  let slug = slugify(schoolName);
-  const slugTaken = await asSystem(() => School.findOne({ slug }));
-  if (slugTaken) slug = `${slug}-${Date.now().toString().slice(-4)}`;
+  let code = codeify(schoolName);
+  const codeTaken = await asSystem(() => School.findOne({ code }));
+  if (codeTaken) code = `${code}-${Date.now().toString().slice(-4)}`;
 
   const session = await mongoose.startSession();
   let school;
@@ -125,7 +128,7 @@ export const createSchool = asyncHandler(async (req, res) => {
   try {
     await session.withTransaction(async () => {
       [school] = await asSystem(() =>
-        School.create([{ name: schoolName.trim(), slug, contactEmail: email, contactPhone: adminPhone.trim() }], {
+        School.create([{ name: schoolName.trim(), code, contactEmail: email, contactPhone: adminPhone.trim() }], {
           session,
         })
       );
