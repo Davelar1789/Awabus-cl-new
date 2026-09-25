@@ -24,7 +24,7 @@
     "android": {
       "package": "com.awabus.driver",
       "adaptiveIcon": {
-        "backgroundColor": "#0b1b2b",
+        "backgroundColor": "#0a1f2a",
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundImage": "./assets/adaptive-icon-background.png",
         "monochromeImage": "./assets/adaptive-icon-monochrome.png"
