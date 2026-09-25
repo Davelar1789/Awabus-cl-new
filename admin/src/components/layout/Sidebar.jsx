@@ -62,7 +62,7 @@ export default function Sidebar() {
             <img 
             src="/awabus.svg" 
             alt="AWABUS Logo" 
-            className="w-70 h-auto"
+            className="w-50 h-auto"
           />
           </div>
 
