@@ -12,7 +12,7 @@ import { formatPhone, isValidPhone, toLocalPhone } from '../../src/lib/phone.js'
 import { useAuthStore } from '../../src/store/authStore.js';
 import { colors, radii } from '../../src/lib/theme.js';
 
-const MAX_TRIES = 5;
+const MAX_TRIES = 6;
 
 const PASSWORD_RULES = [
   { key: 'length', label: 'At least 8 characters', test: (v) => v.length >= 8 },
