@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore.js';
 import { useConnectionStore } from '../store/connectionStore.js';
 
 export const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://awabus.onrender.com/api',
   timeout: 15000,
 });
 

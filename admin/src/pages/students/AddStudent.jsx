@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Route as RouteIcon, Upload } from 'lucide-react';
@@ -17,6 +17,25 @@ import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
 
 const STEPS = ['Student Information', 'Parents & Guardian', 'Transport Assignment', 'Home Location', 'Review & Finalize'];
+
+const CLASS_GRADE_OPTIONS = [
+  'Creche',
+  'Nursery 1',
+  'Nursery 2',
+  'KG 1',
+  'KG 2',
+  'Basic 1',
+  'Basic 2',
+  'Basic 3',
+  'Basic 4',
+  'Basic 5',
+  'Basic 6',
+  'Basic 7',
+  'Basic 8',
+  'Basic 9',
+];
+
+const DRAFT_KEY = 'addStudentDraft';
 
 const initial = {
   firstName: '',
@@ -43,14 +62,43 @@ const initial = {
   lng: '',
 };
 
+function loadDraft() {
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export default function AddStudent() {
   usePageHeader({ breadcrumb: ['AwaBus', 'Students', 'Add student'] });
   const queryClient = useQueryClient();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState(initial);
+
+  // Restore saved draft (form + step) if one exists, otherwise start fresh
+  const [step, setStep] = useState(() => loadDraft()?.step ?? 1);
+  const [form, setForm] = useState(() => loadDraft()?.form ?? initial);
+
   const [created, setCreated] = useState(null);
   const [routeError, setRouteError] = useState('');
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+
+  // Persist to localStorage whenever the form or step changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
+    } catch {
+      // storage full or unavailable — fail silently, not critical
+    }
+  }, [form, step]);
 
   const { data: routeOptions, isLoading: routesLoading } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
   const { data: guardianOptions = [] } = useQuery({ queryKey: ['guardian-options'], queryFn: () => getGuardians() });
@@ -60,6 +108,7 @@ export default function AddStudent() {
     onSuccess: (student) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       setCreated(student);
+      clearDraft();
     },
   });
 
@@ -158,6 +207,7 @@ export default function AddStudent() {
                 setCreated(null);
                 setForm(initial);
                 setStep(1);
+                clearDraft();
               }}
             >
               Add Student
@@ -202,7 +252,20 @@ export default function AddStudent() {
               </div>
               <div>
                 <Label>Class / Grade</Label>
-                <Input value={form.classGrade} onChange={(e) => set('classGrade')(e.target.value)} placeholder="e.g. Primary 4B" />
+                <select
+                  value={form.classGrade}
+                  onChange={(e) => set('classGrade')(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="" disabled>
+                    Select class / grade
+                  </option>
+                  {CLASS_GRADE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label>Student ID</Label>
@@ -337,7 +400,7 @@ export default function AddStudent() {
               <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Home Location & Geofencing</h3>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <Label>Street Address</Label>
+                  <Label>GPS Address</Label>
                   <Input value={form.homeAddress} onChange={(e) => set('homeAddress')(e.target.value)} placeholder="e.g. 12 Boundary Road, East Legon" />
                 </div>
                 <div>

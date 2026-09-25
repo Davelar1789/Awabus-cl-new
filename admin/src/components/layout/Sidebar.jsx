@@ -59,15 +59,11 @@ export default function Sidebar() {
       >
         <div className="mb-8 flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
-            <svg width="32" height="28" viewBox="0 0 32 28" fill="none">
-              <path
-                d="M4 20V11a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v9a2 2 0 0 1-2 2h-1a3 3 0 0 1-6 0h-6a3 3 0 0 1-6 0H6a2 2 0 0 1-2-2Z"
-                fill="#3ed6ac"
-              />
-              <circle cx="10.5" cy="22.5" r="2" fill="#0b1b2b" />
-              <circle cx="21.5" cy="22.5" r="2" fill="#0b1b2b" />
-            </svg>
-            <span className="text-xl font-extrabold tracking-wide text-brand-300">AWABUS</span>
+            <img 
+            src="/awabus1.png" 
+            alt="AWABUS Logo" 
+            className="w-50 h-auto"
+          />
           </div>
 
           {/* Close button, mobile only */}
