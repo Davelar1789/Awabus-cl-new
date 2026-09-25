@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import { Home, Unlink } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
@@ -11,37 +10,10 @@ import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
+import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
+import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
 import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
-
-const pinIcon = L.divIcon({
-  className: '',
-  html: '<div style="width:16px;height:16px;border-radius:9999px;background:#0d9488;border:3px solid white;box-shadow:0 0 0 2px #0d9488;"></div>',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
-function DraggableMarker({ lat, lng, onMove }) {
-  useMapEvents({
-    click(e) {
-      onMove(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return (
-    <Marker
-      position={[lat, lng]}
-      icon={pinIcon}
-      draggable
-      eventHandlers={{
-        dragend: (e) => {
-          const { lat: newLat, lng: newLng } = e.target.getLatLng();
-          onMove(newLat, newLng);
-        },
-      }}
-    />
-  );
-}
-
-const ACCRA_DEFAULT = { lat: 5.6037, lng: -0.187 };
+import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -51,11 +23,14 @@ export default function EditStudent() {
 
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
 
+  // Initialise the form once; later refetches (e.g. after linking a household)
+  // must not wipe unsaved edits.
   useEffect(() => {
-    if (student) {
+    if (student && !form) {
       setForm({
         firstName: student.firstName,
         lastName: student.lastName,
@@ -70,7 +45,7 @@ export default function EditStudent() {
         geofenceRadius: student.geofenceRadius || 200,
       });
     }
-  }, [student]);
+  }, [student, form]);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -83,6 +58,22 @@ export default function EditStudent() {
     },
   });
 
+  // Link / unlink the shared home location immediately (separate from "Update Student").
+  const householdMutation = useMutation({
+    mutationFn: (payload) => updateStudent(id, payload),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['student', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['student-options'] });
+      setForm((f) => ({
+        ...f,
+        lat: updated.lat ?? f.lat,
+        lng: updated.lng ?? f.lng,
+        geofenceRadius: updated.geofenceRadius || f.geofenceRadius,
+      }));
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteStudent(id),
     onSuccess: () => {
@@ -92,6 +83,8 @@ export default function EditStudent() {
   });
 
   if (isLoading || !form) return <PageLoader />;
+
+  const householdMembers = student.householdMembers || [];
 
   return (
     <div>
@@ -184,6 +177,68 @@ export default function EditStudent() {
                   <Label>Geofence Radius (meters)</Label>
                   <Input type="number" value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)} />
                 </div>
+                <div className="sm:col-span-3">
+                  <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
+                    Open map picker
+                  </Button>
+                </div>
+              </CardBody>
+              <LocationPickerModal
+                open={mapOpen}
+                onClose={() => setMapOpen(false)}
+                lat={form.lat}
+                lng={form.lng}
+                radius={form.geofenceRadius}
+                onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
+              />
+            </Card>
+
+            <Card>
+              <CardHeader title="Shared Home Location" subtitle="Siblings or neighbours using the same home and geofence" />
+              <CardBody>
+                {householdMembers.length > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Shares home location with:</p>
+                    <ul className="space-y-2">
+                      {householdMembers.map((m) => (
+                        <li key={m._id} className="flex items-center gap-2 text-sm">
+                          <Home className="h-4 w-4 text-green-600" />
+                          <Link to={`/students/${m._id}`} className="font-semibold text-slate-800 hover:underline dark:text-slate-100">
+                            {m.firstName} {m.lastName}
+                          </Link>
+                          <span className="text-xs text-slate-400">{[m.studentCode, m.classGrade].filter(Boolean).join(' · ')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Changing this student&apos;s location or geofence also updates the students listed above.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      loading={householdMutation.isPending}
+                      onClick={() => householdMutation.mutate({ unlinkLocation: true })}
+                    >
+                      <Unlink className="h-4 w-4" />
+                      Unlink from household
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Pick a sibling or neighbour to copy their home location and keep both in sync.
+                    </p>
+                    <HouseholdLinkPicker
+                      guardianId={student.primaryGuardian?._id}
+                      excludeId={id}
+                      onSelect={(s) => householdMutation.mutate({ linkLocationWith: s._id })}
+                    />
+                  </div>
+                )}
+                {householdMutation.isError && (
+                  <p className="mt-2 text-sm text-red-600">{householdMutation.error.message}</p>
+                )}
               </CardBody>
             </Card>
           </div>
@@ -191,21 +246,16 @@ export default function EditStudent() {
           <Card className="flex flex-col">
             <CardHeader title="Interactive Geofence Picker" />
             <div className="h-80 px-5 pt-1 sm:h-96">
-              <MapContainer center={[Number(form.lat), Number(form.lng)]} zoom={15} className="h-full w-full">
-                <TileLayer
-                  attribution='&copy; OpenStreetMap contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <DraggableMarker
-                  lat={Number(form.lat)}
-                  lng={Number(form.lng)}
-                  onMove={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
-                />
-              </MapContainer>
+              <GeofenceMap
+                lat={form.lat}
+                lng={form.lng}
+                radius={form.geofenceRadius}
+                onMove={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
+              />
             </div>
             <p className="p-5 text-xs text-slate-400">
-              Drag the map pin to automatically update the latitude and longitude inputs. Geofence radius can be
-              customized on the left panel.
+              Click the map or drag the pin to update the latitude and longitude inputs. The green circle shows the
+              geofence radius, which can be customized on the left panel.
             </p>
             <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
               <button
