@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   },
   banner: {
     height: 180,
-    backgroundColor: colors.navy,
+    backgroundColor: colors.logoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
