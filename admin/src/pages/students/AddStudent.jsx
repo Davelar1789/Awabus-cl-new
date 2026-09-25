@@ -218,7 +218,7 @@ export default function AddStudent() {
                 clearDraft();
               }}
             >
-              Add Student
+              Add Another Student
             </Button>
           </div>
         </Card>
