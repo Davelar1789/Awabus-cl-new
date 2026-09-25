@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Home, Unlink } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useEditDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Input, { Label } from '../../components/ui/Input.jsx';
@@ -19,33 +21,43 @@ export default function EditStudent() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  usePageHeader({ breadcrumb: ['AwaBus', 'Students', 'Edit Student Details'] });
 
-  const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
 
-  // Initialise the form once; later refetches (e.g. after linking a household)
-  // must not wipe unsaved edits.
-  useEffect(() => {
-    if (student && !form) {
-      setForm({
-        firstName: student.firstName,
-        lastName: student.lastName,
-        classGrade: student.classGrade || '',
-        gender: student.gender || 'Female',
-        guardianFirst: student.primaryGuardian?.firstName || '',
-        guardianLast: student.primaryGuardian?.lastName || '',
-        guardianPhone: student.primaryGuardian?.phone || '',
-        secondContactPhone: student.secondContactPhone || '',
-        lat: student.lat ?? ACCRA_DEFAULT.lat,
-        lng: student.lng ?? ACCRA_DEFAULT.lng,
-        geofenceRadius: student.geofenceRadius || 200,
-      });
-    }
-  }, [student, form]);
+  usePageHeader({
+    breadcrumb: [
+      'AwaBus',
+      'Students',
+      { label: student ? `${student.firstName} ${student.lastName}` : '...', to: `/students/${id}` },
+      'Edit',
+    ],
+  });
+
+  const baseline = useMemo(
+    () =>
+      student
+        ? {
+            firstName: student.firstName,
+            lastName: student.lastName,
+            classGrade: student.classGrade || '',
+            gender: student.gender || 'Female',
+            guardianFirst: student.primaryGuardian?.firstName || '',
+            guardianLast: student.primaryGuardian?.lastName || '',
+            guardianPhone: student.primaryGuardian?.phone || '',
+            secondContactPhone: student.secondContactPhone || '',
+            lat: student.lat ?? ACCRA_DEFAULT.lat,
+            lng: student.lng ?? ACCRA_DEFAULT.lng,
+            geofenceRadius: student.geofenceRadius || 200,
+          }
+        : null,
+    [student]
+  );
+  // Unsaved edits are kept as a draft until saved or discarded; later refetches
+  // (e.g. after linking a household) don't overwrite them.
+  const [form, setForm, draft] = useEditDraft(`student:${id}`, baseline);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -53,6 +65,7 @@ export default function EditStudent() {
     mutationFn: (payload) => updateStudent(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
+      draft.clear();
       queryClient.invalidateQueries({ queryKey: ['student', id] });
       navigate(`/students/${id}`);
     },
@@ -92,6 +105,7 @@ export default function EditStudent() {
         title="Edit Student Details"
         subtitle={`Modify information for ${student.firstName} ${student.lastName}. Ensure geofence coordinates are valid.`}
       />
+      <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
 
       <form
         onSubmit={(e) => {

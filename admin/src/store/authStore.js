@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+const DRAFT_PREFIX = 'awabus.draft.';
+
 const STORAGE_KEY = 'awabus_admin_auth';
 
 const loadPersisted = () => {
@@ -33,6 +35,10 @@ export const useAuthStore = create((set) => ({
 
   logout: () => {
     localStorage.removeItem(STORAGE_KEY);
+    // Unsaved form drafts can contain student/driver personal data.
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(DRAFT_PREFIX))
+      .forEach((k) => localStorage.removeItem(k));
     set({ token: null, admin: null, isAuthenticated: false });
   },
 }));

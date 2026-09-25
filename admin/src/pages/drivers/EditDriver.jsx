@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useEditDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Input, { Label } from '../../components/ui/Input.jsx';
@@ -17,28 +19,38 @@ export default function EditDriver() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  usePageHeader({ breadcrumb: ['AwaBus', 'Drivers', 'Edit Driver'] });
 
-  const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id) });
   const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
+  usePageHeader({
+    breadcrumb: [
+      'AwaBus',
+      'Drivers',
+      { label: driver ? `${driver.firstName} ${driver.lastName}` : '...', to: `/drivers/${id}` },
+      'Edit',
+    ],
+  });
 
-  useEffect(() => {
-    if (driver) {
-      setForm({
-        firstName: driver.firstName,
-        lastName: driver.lastName,
-        phone: driver.phone?.replace('+233', '') || '',
-        email: driver.email || '',
-        licenseNumber: driver.licenseNumber,
-        licenseExpiry: driver.licenseExpiry ? driver.licenseExpiry.slice(0, 10) : '',
-        assignedBus: driver.assignedBus?._id || null,
-        status: driver.status,
-      });
-    }
-  }, [driver]);
+  const baseline = useMemo(
+    () =>
+      driver
+        ? {
+            firstName: driver.firstName,
+            lastName: driver.lastName,
+            phone: driver.phone?.replace('+233', '') || '',
+            email: driver.email || '',
+            licenseNumber: driver.licenseNumber,
+            licenseExpiry: driver.licenseExpiry ? driver.licenseExpiry.slice(0, 10) : '',
+            assignedBus: driver.assignedBus?._id || null,
+            status: driver.status,
+          }
+        : null,
+    [driver]
+  );
+  // Unsaved edits are kept as a draft until saved or discarded.
+  const [form, setForm, draft] = useEditDraft(`driver:${id}`, baseline);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -46,6 +58,7 @@ export default function EditDriver() {
     mutationFn: (payload) => updateDriver(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      draft.clear();
       queryClient.invalidateQueries({ queryKey: ['driver', id] });
       navigate(`/drivers/${id}`);
     },
@@ -67,6 +80,7 @@ export default function EditDriver() {
   return (
     <div>
       <PageHeader title="Edit Driver" subtitle="Update personal information, licensing status, and assigned fleet assets." />
+      <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
       <form
         onSubmit={(e) => {
           e.preventDefault();

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useEditDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody } from '../../components/ui/Card.jsx';
 import Input, { Label, FieldError } from '../../components/ui/Input.jsx';
@@ -17,27 +19,29 @@ export default function EditBus() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  usePageHeader({ breadcrumb: ['AwaBus', 'Buses', 'Edit Bus'] });
 
-  const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [routeError, setRouteError] = useState('');
 
   const { data, isLoading } = useQuery({ queryKey: ['bus', id], queryFn: () => getBus(id) });
   const { data: routeOptions = [] } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
+  usePageHeader({
+    breadcrumb: ['AwaBus', 'Buses', { label: data?.data?.plateNumber || '...', to: `/buses/${id}` }, 'Edit'],
+  });
 
-  useEffect(() => {
-    if (data?.data) {
-      const bus = data.data;
-      setForm({
-        plateNumber: bus.plateNumber,
-        name: bus.name,
-        capacity: bus.capacity,
-        assignedRoute: bus.assignedRoute?._id || null,
-        status: bus.status,
-      });
-    }
+  const baseline = useMemo(() => {
+    const bus = data?.data;
+    if (!bus) return null;
+    return {
+      plateNumber: bus.plateNumber,
+      name: bus.name,
+      capacity: bus.capacity,
+      assignedRoute: bus.assignedRoute?._id || null,
+      status: bus.status,
+    };
   }, [data]);
+  // Unsaved edits are kept as a draft until saved or discarded.
+  const [form, setForm, draft] = useEditDraft(`bus:${id}`, baseline);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -45,6 +49,7 @@ export default function EditBus() {
     mutationFn: (payload) => updateBus(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buses'] });
+      draft.clear();
       queryClient.invalidateQueries({ queryKey: ['bus', id] });
       navigate(`/buses/${id}`);
     },
@@ -74,6 +79,7 @@ export default function EditBus() {
   return (
     <div>
       <PageHeader title={`Edit Bus ${bus.plateNumber}`} />
+      <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
       <form onSubmit={handleSubmit}>
         <Card>
           {updateMutation.error && (

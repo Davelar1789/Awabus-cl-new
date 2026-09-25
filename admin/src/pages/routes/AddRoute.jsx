@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2 } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useCreateDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card from '../../components/ui/Card.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -12,9 +14,9 @@ import { createRoute } from '../../api/routes.js';
 const initialValues = { name: '' };
 
 export default function AddRoute() {
-  usePageHeader({ breadcrumb: ['Awabus', 'Routes', 'Add route'] });
+  usePageHeader({ breadcrumb: ['AwaBus', 'Routes', 'Add route'] });
   const queryClient = useQueryClient();
-  const [values, setValues] = useState(initialValues);
+  const [values, setValues, draft] = useCreateDraft('route:new', initialValues);
   const [created, setCreated] = useState(null);
 
   const mutation = useMutation({
@@ -22,6 +24,7 @@ export default function AddRoute() {
     onSuccess: (route) => {
       queryClient.invalidateQueries({ queryKey: ['routes'] });
       setCreated(route);
+      draft.clear();
     },
   });
 
@@ -53,7 +56,7 @@ export default function AddRoute() {
               variant="outline"
               onClick={() => {
                 setCreated(null);
-                setValues(initialValues);
+                draft.clear();
               }}
             >
               Add Routes
@@ -70,6 +73,7 @@ export default function AddRoute() {
   return (
     <div>
       <PageHeader title="Add route" subtitle="Establish a new transport line for the school fleet." />
+      <DraftNotice show={draft.restored} onDiscard={draft.clear} />
       <RouteForm
         mode="create"
         values={values}

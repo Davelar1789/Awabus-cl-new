@@ -24,7 +24,7 @@ export default function RoutesList() {
   const queryClient = useQueryClient();
 
   usePageHeader({
-    breadcrumb: ['Awabus', 'Routes'],
+    breadcrumb: ['AwaBus', 'Routes'],
     searchPlaceholder: 'Search routes, buses, students...',
     searchValue: search,
     onSearchChange: (v) => {
