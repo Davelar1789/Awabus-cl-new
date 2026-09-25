@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
@@ -12,37 +10,8 @@ import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
+import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
 import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
-
-const pinIcon = L.divIcon({
-  className: '',
-  html: '<div style="width:16px;height:16px;border-radius:9999px;background:#0d9488;border:3px solid white;box-shadow:0 0 0 2px #0d9488;"></div>',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
-function DraggableMarker({ lat, lng, onMove }) {
-  useMapEvents({
-    click(e) {
-      onMove(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return (
-    <Marker
-      position={[lat, lng]}
-      icon={pinIcon}
-      draggable
-      eventHandlers={{
-        dragend: (e) => {
-          const { lat: newLat, lng: newLng } = e.target.getLatLng();
-          onMove(newLat, newLng);
-        },
-      }}
-    />
-  );
-}
-
-const ACCRA_DEFAULT = { lat: 5.6037, lng: -0.187 };
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -197,6 +166,7 @@ export default function EditStudent() {
                 onClose={() => setMapOpen(false)}
                 lat={form.lat}
                 lng={form.lng}
+                radius={form.geofenceRadius}
                 onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
               />
             </Card>
@@ -205,21 +175,16 @@ export default function EditStudent() {
           <Card className="flex flex-col">
             <CardHeader title="Interactive Geofence Picker" />
             <div className="h-80 px-5 pt-1 sm:h-96">
-              <MapContainer center={[Number(form.lat), Number(form.lng)]} zoom={15} className="h-full w-full">
-                <TileLayer
-                  attribution='&copy; OpenStreetMap contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <DraggableMarker
-                  lat={Number(form.lat)}
-                  lng={Number(form.lng)}
-                  onMove={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
-                />
-              </MapContainer>
+              <GeofenceMap
+                lat={form.lat}
+                lng={form.lng}
+                radius={form.geofenceRadius}
+                onMove={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
+              />
             </div>
             <p className="p-5 text-xs text-slate-400">
-              Drag the map pin to automatically update the latitude and longitude inputs. Geofence radius can be
-              customized on the left panel.
+              Click the map or drag the pin to update the latitude and longitude inputs. The green circle shows the
+              geofence radius, which can be customized on the left panel.
             </p>
             <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
               <button

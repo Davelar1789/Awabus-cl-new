@@ -1,55 +1,16 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import { useMap } from 'react-leaflet';
 import { Crosshair, LocateFixed, MapPin } from 'lucide-react';
 import Modal from './Modal.jsx';
 import Button from './Button.jsx';
-
-export const ACCRA_DEFAULT = { lat: 5.6037, lng: -0.187 };
-
-const pinIcon = L.divIcon({
-  className: '',
-  html: '<div style="width:18px;height:18px;border-radius:9999px;background:#0d9488;border:3px solid white;box-shadow:0 0 0 2px #0d9488;"></div>',
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-});
-
-const round6 = (n) => Math.round(n * 1e6) / 1e6;
-
-const toPoint = (lat, lng) => {
-  const la = Number(lat);
-  const ln = Number(lng);
-  if (lat === '' || lng === '' || lat == null || lng == null || Number.isNaN(la) || Number.isNaN(ln)) return null;
-  return { lat: la, lng: ln };
-};
-
-function PinController({ point, onMove }) {
-  useMapEvents({
-    click(e) {
-      onMove({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return (
-    <Marker
-      position={[point.lat, point.lng]}
-      icon={pinIcon}
-      draggable
-      eventHandlers={{
-        dragend: (e) => {
-          const { lat, lng } = e.target.getLatLng();
-          onMove({ lat, lng });
-        },
-      }}
-    />
-  );
-}
+import GeofenceMap, { ACCRA_DEFAULT, round6, toPoint } from '../map/GeofenceMap.jsx';
 
 // Exposes the Leaflet map instance to the parent so toolbar buttons can fly around.
 function MapHandle({ onReady }) {
   const map = useMap();
   useEffect(() => {
     onReady(map);
-    // The modal animates in, so make sure tiles fill the final container size.
+    // The modal renders into a portal, so make sure tiles fill the final container size.
     const t = setTimeout(() => map.invalidateSize(), 50);
     return () => clearTimeout(t);
   }, [map, onReady]);
@@ -60,9 +21,8 @@ function MapHandle({ onReady }) {
  * Pop-up map for choosing a coordinate. Click the map or drag the pin to move it,
  * use the zoom controls / scroll wheel to zoom, then "Use this location" to apply.
  */
-export default function LocationPickerModal({ open, onClose, lat, lng, onConfirm, title = 'Pick location on map' }) {
-  const initial = toPoint(lat, lng);
-  const [point, setPoint] = useState(initial ?? ACCRA_DEFAULT);
+export default function LocationPickerModal({ open, onClose, lat, lng, radius, onConfirm, title = 'Pick location on map' }) {
+  const [point, setPoint] = useState(toPoint(lat, lng) ?? ACCRA_DEFAULT);
   const [map, setMap] = useState(null);
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState('');
@@ -87,7 +47,7 @@ export default function LocationPickerModal({ open, onClose, lat, lng, onConfirm
     setGeoError('');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const next = { lat: round6(pos.coords.latitude), lng: round6(pos.coords.longitude) };
         setPoint(next);
         map?.flyTo([next.lat, next.lng], 17);
         setLocating(false);
@@ -114,7 +74,7 @@ export default function LocationPickerModal({ open, onClose, lat, lng, onConfirm
           <Button
             type="button"
             onClick={() => {
-              onConfirm(round6(point.lat), round6(point.lng));
+              onConfirm(point.lat, point.lng);
               onClose();
             }}
           >
@@ -141,24 +101,29 @@ export default function LocationPickerModal({ open, onClose, lat, lng, onConfirm
       </div>
 
       <div className="h-[60vh] max-h-[520px] min-h-[300px]">
-        <MapContainer center={[point.lat, point.lng]} zoom={initial ? 16 : 13} scrollWheelZoom className="h-full w-full">
-          <TileLayer
-            attribution="&copy; OpenStreetMap contributors"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maxZoom={19}
-          />
+        <GeofenceMap
+          lat={point.lat}
+          lng={point.lng}
+          radius={radius}
+          zoom={toPoint(lat, lng) ? 16 : 13}
+          onMove={(la, ln) => setPoint({ lat: la, lng: ln })}
+        >
           <MapHandle onReady={setMap} />
-          <PinController point={point} onMove={setPoint} />
-        </MapContainer>
+        </GeofenceMap>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <span className="text-slate-500 dark:text-slate-400">
-          Latitude: <span className="font-semibold text-slate-800 dark:text-slate-100">{round6(point.lat)}</span>
+          Latitude: <span className="font-semibold text-slate-800 dark:text-slate-100">{point.lat}</span>
         </span>
         <span className="text-slate-500 dark:text-slate-400">
-          Longitude: <span className="font-semibold text-slate-800 dark:text-slate-100">{round6(point.lng)}</span>
+          Longitude: <span className="font-semibold text-slate-800 dark:text-slate-100">{point.lng}</span>
         </span>
+        {Number(radius) > 0 && (
+          <span className="text-slate-500 dark:text-slate-400">
+            Geofence: <span className="font-semibold text-green-600">{radius}m</span>
+          </span>
+        )}
       </div>
       {geoError && <p className="mt-2 text-sm text-red-600">{geoError}</p>}
     </Modal>

@@ -13,6 +13,7 @@ import EmptyState from '../../components/ui/EmptyState.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
+import GeofenceMap from '../../components/map/GeofenceMap.jsx';
 import { getRouteOptions } from '../../api/routes.js';
 import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
@@ -400,41 +401,60 @@ export default function AddStudent() {
           {step === 4 && (
             <div>
               <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Home Location & Geofencing</h3>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label>GPS Address</Label>
-                  <Input value={form.homeAddress} onChange={(e) => set('homeAddress')(e.target.value)} placeholder="e.g. 12 Boundary Road, East Legon" />
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="grid grid-cols-1 content-start gap-5 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label>GPS Address</Label>
+                    <Input value={form.homeAddress} onChange={(e) => set('homeAddress')(e.target.value)} placeholder="e.g. 12 Boundary Road, East Legon" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Geofence Radius (meters)</Label>
+                    <Select value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)}>
+                      {[100, 150, 200, 300, 500].map((r) => (
+                        <option key={r} value={r}>
+                          {r}m Notification Zone
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Latitude</Label>
+                    <Input value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
+                  </div>
+                  <div>
+                    <Label>Longitude</Label>
+                    <Input value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
+                      <MapPin className="h-4 w-4" />
+                      Pick on map
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label>Geofence Radius (meters)</Label>
-                  <Select value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)}>
-                    {[100, 150, 200, 300, 500].map((r) => (
-                      <option key={r} value={r}>
-                        {r}m Notification Zone
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label>Latitude</Label>
-                  <Input value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
-                </div>
-                <div>
-                  <Label>Longitude</Label>
-                  <Input value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
-                </div>
-                <div className="sm:col-span-2">
-                  <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
-                    <MapPin className="h-4 w-4" />
-                    Pick on map
-                  </Button>
-                </div>
+
+                <Card className="flex flex-col overflow-hidden">
+                  <CardHeader title="Interactive Geofence Picker" />
+                  <div className="h-72 px-5 pt-1 sm:h-80">
+                    <GeofenceMap
+                      lat={form.lat}
+                      lng={form.lng}
+                      radius={form.geofenceRadius}
+                      onMove={(lat, lng) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
+                    />
+                  </div>
+                  <p className="p-5 text-xs text-slate-400">
+                    Click the map or drag the pin to update the latitude and longitude. The green circle shows the{' '}
+                    {form.geofenceRadius}m geofence radius.
+                  </p>
+                </Card>
               </div>
               <LocationPickerModal
                 open={mapOpen}
                 onClose={() => setMapOpen(false)}
                 lat={form.lat}
                 lng={form.lng}
+                radius={form.geofenceRadius}
                 onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
               />
             </div>
