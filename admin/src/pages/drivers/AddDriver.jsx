@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck, Upload } from 'lucide-react';
+import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
-import { resizeImage, shrinkPhoto } from '../../lib/image.js';
+import { shrinkPhoto } from '../../lib/image.js';
+import PhotoUpload from '../../components/ui/PhotoUpload.jsx';
 import { useWizardDraft } from '../../hooks/useFormDraft.js';
 import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
@@ -434,34 +435,6 @@ const Row = ({ label, value }) => (
     <span className="font-semibold text-slate-800 dark:text-slate-100">{value}</span>
   </div>
 );
-
-function PhotoUpload({ value, onChange }) {
-  const [error, setError] = useState('');
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError('');
-    try {
-      onChange(await resizeImage(file));
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  return (
-    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center hover:border-brand-300 dark:border-slate-700 dark:bg-navy">
-      {value ? (
-        <img src={value} alt="Preview" className="h-20 w-20 rounded-full object-cover" />
-      ) : (
-        <Upload className="h-6 w-6 text-slate-400" />
-      )}
-      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Click to upload profile photo</span>
-      <span className="text-xs text-slate-400">PNG or JPG — resized automatically</span>
-      {error && <span className="text-xs font-medium text-red-500">{error}</span>}
-      <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleFile} />
-    </label>
-  );
-}
 
 function ReviewStep({ form, validation, busOptions }) {
   const bus = busOptions.find((b) => b._id === form.assignedBus);
