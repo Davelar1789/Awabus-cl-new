@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, LayerGroup, LayersControl, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
 export const ACCRA_DEFAULT = { lat: 5.6037, lng: -0.187 };
@@ -13,6 +13,68 @@ export const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/c
 export function MapTiles() {
   return (
     <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} referrerPolicy="strict-origin-when-cross-origin" />
+  );
+}
+
+const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const ESRI_LABELS_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+const ESRI_ATTRIBUTION = 'Imagery &copy; Esri, Maxar, Earthstar Geographics';
+
+const BASE_LAYERS = ['Street', 'Satellite', 'Hybrid', 'Terrain'];
+const LAYER_STORAGE_KEY = 'awabus.mapLayer';
+
+function loadLayer() {
+  try {
+    const saved = localStorage.getItem(LAYER_STORAGE_KEY);
+    return BASE_LAYERS.includes(saved) ? saved : 'Street';
+  } catch {
+    return 'Street';
+  }
+}
+
+function RememberLayer() {
+  useMapEvents({
+    baselayerchange(e) {
+      try {
+        localStorage.setItem(LAYER_STORAGE_KEY, e.name);
+      } catch {
+        // storage unavailable (private mode) - just don't remember the choice
+      }
+    },
+  });
+  return null;
+}
+
+/** Street / Satellite / Hybrid / Terrain switcher (top-right of the map). */
+export function MapLayers() {
+  const active = loadLayer();
+  return (
+    <>
+      <LayersControl position="topright">
+        <LayersControl.BaseLayer name="Street" checked={active === 'Street'}>
+          <MapTiles />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Satellite" checked={active === 'Satellite'}>
+          <TileLayer url={ESRI_IMAGERY_URL} attribution={ESRI_ATTRIBUTION} maxZoom={19} />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Hybrid" checked={active === 'Hybrid'}>
+          <LayerGroup>
+            <TileLayer url={ESRI_IMAGERY_URL} attribution={ESRI_ATTRIBUTION} maxZoom={19} />
+            <TileLayer url={ESRI_LABELS_URL} maxZoom={19} />
+          </LayerGroup>
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Terrain" checked={active === 'Terrain'}>
+          <TileLayer
+            url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+            attribution='Map data &copy; OpenStreetMap contributors, SRTM | Style &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+            maxZoom={19}
+            maxNativeZoom={17}
+          />
+        </LayersControl.BaseLayer>
+      </LayersControl>
+      <RememberLayer />
+    </>
   );
 }
 
@@ -68,7 +130,7 @@ function FollowPin({ point }) {
   const lng = point?.lng;
   useEffect(() => {
     if (lat == null || lng == null) return;
-    if (!map.getBounds().contains([lat, lng])) map.panTo([lat, lng]);
+    if (!map.getBounds().contains([lat, lng])) map.setView([lat, lng], Math.max(map.getZoom(), 16));
   }, [map, lat, lng]);
   return null;
 }
@@ -82,7 +144,7 @@ export default function GeofenceMap({ lat, lng, radius, onMove, zoom, className 
   const center = point ?? ACCRA_DEFAULT;
   return (
     <MapContainer center={[center.lat, center.lng]} zoom={zoom ?? (point ? 16 : 13)} scrollWheelZoom className={className}>
-      <MapTiles />
+      <MapLayers />
       <PinController point={point} radius={Number(radius) || 0} onMove={(la, ln) => onMove(round6(la), round6(ln))} />
       <FollowPin point={point} />
       {children}

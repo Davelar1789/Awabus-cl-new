@@ -14,6 +14,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap from '../../components/map/GeofenceMap.jsx';
+import GpsAddressInput from '../../components/ui/GpsAddressInput.jsx';
 import { getRouteOptions } from '../../api/routes.js';
 import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
@@ -404,8 +405,11 @@ export default function AddStudent() {
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div className="grid grid-cols-1 content-start gap-5 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <Label>GPS Address</Label>
-                    <Input value={form.homeAddress} onChange={(e) => set('homeAddress')(e.target.value)} placeholder="e.g. 12 Boundary Road, East Legon" />
+                    <GpsAddressInput
+                      value={form.homeAddress}
+                      onChange={set('homeAddress')}
+                      onResolve={({ lat, lng }) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <Label>Geofence Radius (meters)</Label>
