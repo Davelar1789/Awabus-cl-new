@@ -4,7 +4,11 @@ const otpTokenSchema = new mongoose.Schema(
   {
     phone: { type: String, required: true, trim: true },
     code: { type: String, required: true },
-    purpose: { type: String, enum: ['password_reset'], default: 'password_reset' },
+    purpose: {
+      type: String,
+      enum: ['password_reset', 'driver_password_reset'],
+      default: 'password_reset',
+    },
     expiresAt: { type: Date, required: true },
     consumed: { type: Boolean, default: false },
     attempts: { type: Number, default: 0 },

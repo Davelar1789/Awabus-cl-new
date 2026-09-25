@@ -1,6 +1,5 @@
 import asyncHandler from 'express-async-handler';
 import Route from '../models/Route.js';
-import Bus from '../models/Bus.js';
 import Driver from '../models/Driver.js';
 import Student from '../models/Student.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
@@ -49,7 +48,13 @@ export const getRouteById = asyncHandler(async (req, res) => {
 // @desc    Create route
 // @route   POST /api/routes
 export const createRoute = asyncHandler(async (req, res) => {
-  const { name, assignedBus, assignedDriver, students, stops, status } = req.body;
+  // Routes are the root of the assignment chain (bus -> route, driver -> bus,
+  // student -> route), so a route never takes a bus/driver/students at
+  // creation — those are always assigned from that entity's own side, never
+  // the other way around, so this side of the relationship can't drift out
+  // of sync with the derivation logic in busController/driverController/
+  // studentController.
+  const { name, stops, status } = req.body;
   if (!name) {
     res.status(400);
     throw new Error('Route name is required');
@@ -60,16 +65,9 @@ export const createRoute = asyncHandler(async (req, res) => {
   const route = await Route.create({
     routeId,
     name,
-    assignedBus: assignedBus || null,
-    assignedDriver: assignedDriver || null,
-    students: students || [],
     stops: stops || [],
     status: status || 'Active',
   });
-
-  if (assignedBus) await Bus.findByIdAndUpdate(assignedBus, { assignedRoute: route._id });
-  if (assignedDriver) await Driver.findByIdAndUpdate(assignedDriver, { assignedRoute: route._id });
-  if (students?.length) await Student.updateMany({ _id: { $in: students } }, { route: route._id });
 
   const populated = await populateRoute(Route.findById(route._id));
   res.status(201).json({ success: true, data: populated });
@@ -84,19 +82,12 @@ export const updateRoute = asyncHandler(async (req, res) => {
     throw new Error('Route not found');
   }
 
-  const { name, assignedBus, assignedDriver, students, stops, status } = req.body;
+  const { name, stops, status } = req.body;
   if (name !== undefined) route.name = name;
-  if (assignedBus !== undefined) route.assignedBus = assignedBus || null;
-  if (assignedDriver !== undefined) route.assignedDriver = assignedDriver || null;
-  if (students !== undefined) route.students = students;
   if (stops !== undefined) route.stops = stops;
   if (status !== undefined) route.status = status;
 
   await route.save();
-
-  if (assignedBus) await Bus.findByIdAndUpdate(assignedBus, { assignedRoute: route._id });
-  if (assignedDriver) await Driver.findByIdAndUpdate(assignedDriver, { assignedRoute: route._id });
-  if (students?.length) await Student.updateMany({ _id: { $in: students } }, { route: route._id });
 
   const populated = await populateRoute(Route.findById(route._id));
   res.json({ success: true, data: populated });
@@ -110,10 +101,17 @@ export const deleteRoute = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Route not found');
   }
+  // A bus must always belong to a route (enforced at bus creation) — deleting
+  // a route out from under an assigned bus would leave that bus, and its
+  // driver's derived route, in a state the rest of the system assumes can't
+  // happen. Reassigning/deleting the bus first keeps that invariant intact.
+  if (route.assignedBus) {
+    res.status(400);
+    throw new Error('This route still has a bus assigned to it — reassign or delete the bus first.');
+  }
   await Promise.all([
-    Bus.updateMany({ assignedRoute: route._id }, { assignedRoute: null }),
     Driver.updateMany({ assignedRoute: route._id }, { assignedRoute: null }),
-    Student.updateMany({ route: route._id }, { route: null }),
+    Student.updateMany({ route: route._id }, { route: null, bus: null }),
   ]);
   await route.deleteOne();
   res.json({ success: true, message: 'Route deleted' });
@@ -122,6 +120,10 @@ export const deleteRoute = asyncHandler(async (req, res) => {
 // @desc    Lightweight options list for selects (id + name + status)
 // @route   GET /api/routes/meta/options
 export const getRouteOptions = asyncHandler(async (req, res) => {
-  const routes = await Route.find().select('routeId name status').sort({ createdAt: 1 });
+  const routes = await Route.find()
+    .select('routeId name status assignedBus assignedDriver')
+    .populate('assignedBus', 'plateNumber name capacity')
+    .populate('assignedDriver', 'firstName lastName')
+    .sort({ createdAt: 1 });
   res.json({ success: true, data: routes });
 });

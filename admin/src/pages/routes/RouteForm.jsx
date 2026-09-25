@@ -1,25 +1,25 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { getBusOptions } from '../../api/buses.js';
-import { getDriverOptions } from '../../api/drivers.js';
-import { getStudentOptions } from '../../api/students.js';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import { Label } from '../../components/ui/Input.jsx';
 import Input from '../../components/ui/Input.jsx';
-import { SearchableSelect, MultiSearchSelect } from '../../components/ui/SearchableSelect.jsx';
 import Button from '../../components/ui/Button.jsx';
+import { Link } from 'react-router-dom';
 
-export default function RouteForm({ mode, values, onChange, onSubmit, submitting, routeIdDisplay }) {
-  const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
-  const { data: driverOptions = [] } = useQuery({ queryKey: ['driver-options'], queryFn: () => getDriverOptions() });
-  const { data: studentOptions = [] } = useQuery({ queryKey: ['student-options'], queryFn: () => getStudentOptions() });
-
+// Routes are the root of the assignment chain — buses assign themselves to a
+// route, drivers assign themselves to a bus, and students assign themselves
+// to a route. None of that is editable from here, so this form only ever
+// collects the route's own details.
+export default function RouteForm({ mode, values, onChange, onSubmit, submitting, routeIdDisplay, error }) {
   const set = (key) => (val) => onChange({ ...values, [key]: val });
 
   return (
     <form onSubmit={onSubmit}>
       <Card>
         <CardHeader title="Route details" />
+        {error && (
+          <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+            {error}
+          </div>
+        )}
         <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <Label>Route ID</Label>
@@ -34,49 +34,6 @@ export default function RouteForm({ mode, values, onChange, onSubmit, submitting
               required
             />
           </div>
-          <div>
-            <Label>Assigned bus</Label>
-            <SearchableSelect
-              placeholder="Select bus capacity / plate"
-              value={values.assignedBus}
-              onChange={set('assignedBus')}
-              options={busOptions.map((b) => ({
-                value: b._id,
-                label: `${b.name} (${b.plateNumber})`,
-                description: `Capacity: ${b.capacity}`,
-              }))}
-            />
-          </div>
-          <div>
-            <Label>Assigned driver</Label>
-            <SearchableSelect
-              placeholder="Select pilot"
-              value={values.assignedDriver}
-              onChange={set('assignedDriver')}
-              options={driverOptions.map((d) => ({ value: d._id, label: `${d.firstName} ${d.lastName}` }))}
-            />
-          </div>
-        </CardBody>
-
-        <CardHeader
-          title="Students section"
-          subtitle="Add students to this route"
-          action={
-            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-              {values.students.length} students assigned
-            </span>
-          }
-        />
-        <CardBody>
-          <MultiSearchSelect
-            placeholder="Search and select students..."
-            value={values.students}
-            onChange={set('students')}
-            options={studentOptions.map((s) => ({
-              value: s._id,
-              label: `${s.firstName} ${s.lastName}`,
-            }))}
-          />
         </CardBody>
 
         <div className="flex justify-end gap-3 border-t border-slate-100 p-5 dark:border-slate-800">

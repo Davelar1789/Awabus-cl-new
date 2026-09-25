@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ShieldAlert, ShieldCheck, Upload } from 'lucide-react';
+import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck, Upload } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
@@ -10,17 +10,17 @@ import Input, { Label, FieldError } from '../../components/ui/Input.jsx';
 import { Select } from '../../components/ui/Input.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import Button from '../../components/ui/Button.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
-import Spinner from '../../components/ui/Spinner.jsx';
+import Spinner, { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBusOptions } from '../../api/buses.js';
-import { getRouteOptions } from '../../api/routes.js';
 import { createDriver, validateLicense } from '../../api/drivers.js';
 
 const STEPS = [
   'Personal Information',
   'License Information',
   'License Validation',
-  'Bus & Route Assignment',
+  'Bus Assignment',
   'Review',
 ];
 
@@ -36,7 +36,6 @@ const initialForm = {
   licenseExpiry: '',
   licenseClass: 'Class F (Heavy Duty / Bus)',
   assignedBus: null,
-  assignedRoute: null,
   emergencyContactName: '',
   emergencyContactRelation: 'Wife',
   emergencyContactPhone: '',
@@ -51,11 +50,11 @@ export default function AddDriver() {
   const [form, setForm] = useState(initialForm);
   const [validation, setValidation] = useState(null);
   const [created, setCreated] = useState(null);
+  const [busError, setBusError] = useState('');
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
-  const { data: routeOptions = [] } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
+  const { data: busOptions, isLoading: busesLoading } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
 
   const validateMutation = useMutation({
     mutationFn: () =>
@@ -76,7 +75,13 @@ export default function AddDriver() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length));
+  const goNext = () => {
+    if (step === 4 && !form.assignedBus) {
+      setBusError('Select the bus this driver will operate');
+      return;
+    }
+    setStep((s) => Math.min(s + 1, STEPS.length));
+  };
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleCreate = () => {
@@ -89,6 +94,33 @@ export default function AddDriver() {
       },
     });
   };
+
+  if (busesLoading) return <PageLoader />;
+
+  // Drivers must be assigned to a bus (buses come before drivers), so there's
+  // nothing to assign until at least one bus is registered.
+  if (!created && (busOptions || []).length === 0) {
+    return (
+      <div>
+        <PageHeader title="Add driver" subtitle="Create a new driver profile and verify license details." />
+        <Card>
+          <EmptyState
+            icon={BusIcon}
+            title="No buses yet"
+            description="A driver has to be assigned to a bus, so register a bus first before adding a driver."
+            action={
+              <Button as={Link} to="/buses/new">
+                Register a bus
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  const selectedBus = busOptions.find((b) => b._id === form.assignedBus);
+  const selectedRoute = selectedBus?.assignedRoute;
 
   if (created) {
     return (
@@ -264,28 +296,29 @@ export default function AddDriver() {
 
           {step === 4 && (
             <div>
-              <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Bus &amp; Route Assignment</h3>
+              <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Bus Assignment</h3>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
-                  <Label>Assigned Bus</Label>
+                  <Label required>Assigned Bus</Label>
                   <SearchableSelect
                     placeholder="Select the primary vehicle"
                     value={form.assignedBus}
-                    onChange={set('assignedBus')}
+                    onChange={(val) => {
+                      set('assignedBus')(val);
+                      setBusError('');
+                    }}
+                    error={Boolean(busError)}
                     options={busOptions.map((b) => ({ value: b._id, label: `${b.name} (${b.plateNumber})`, description: `Capacity: ${b.capacity}` }))}
                   />
-                  <FieldError />
+                  <FieldError>{busError}</FieldError>
                   <p className="mt-1.5 text-xs text-slate-400">Select the primary vehicle active on this shift.</p>
                 </div>
                 <div>
-                  <Label>Assigned Route</Label>
-                  <SearchableSelect
-                    placeholder="Select primary route"
-                    value={form.assignedRoute}
-                    onChange={set('assignedRoute')}
-                    options={routeOptions.map((r) => ({ value: r._id, label: `${r.routeId} - ${r.name}` }))}
-                  />
-                  <p className="mt-1.5 text-xs text-slate-400">Primary service area assigned for student pickup.</p>
+                  <Label>Route (from selected bus)</Label>
+                  <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-navy dark:text-slate-300">
+                    {selectedRoute ? `${selectedRoute.routeId} - ${selectedRoute.name}` : 'Select a bus to see its route'}
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-400">A bus is always tied to one route, so this follows automatically.</p>
                 </div>
               </div>
 
@@ -308,26 +341,28 @@ export default function AddDriver() {
                 </div>
               </div>
 
-              {form.assignedBus && (
+              {selectedBus && (
                 <Card className="mt-6 bg-slate-50 dark:bg-navy">
                   <CardHeader title="Selected Shift Summary" />
                   <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                    <SummaryStat
-                      label="Capacity"
-                      value={`${busOptions.find((b) => b._id === form.assignedBus)?.capacity || '—'} Seater Coach`}
-                    />
-                    <SummaryStat label="Stops On Route" value="12 Scheduled Stops" />
-                    <SummaryStat label="Est. Student Riders" value="38 Registered Students" />
+                    <SummaryStat label="Capacity" value={`${selectedBus.capacity} Seater Coach`} />
+                    <SummaryStat label="Stops On Route" value={selectedRoute ? `${selectedRoute.stops?.length || 0} Scheduled Stops` : '—'} />
+                    <SummaryStat label="Students On Route" value={selectedRoute ? `${selectedRoute.students?.length || 0} Registered Students` : '—'} />
                   </CardBody>
                 </Card>
               )}
             </div>
           )}
 
-          {step === 5 && (
-            <ReviewStep form={form} validation={validation} busOptions={busOptions} routeOptions={routeOptions} />
-          )}
+          {step === 5 && <ReviewStep form={form} validation={validation} busOptions={busOptions} />}
         </CardBody>
+
+        {createMutation.error && (
+          <div className="mx-6 mb-5 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            {createMutation.error.message}
+          </div>
+        )}
 
         <div className="flex justify-between border-t border-slate-100 p-5 dark:border-slate-800">
           {step > 1 ? (
@@ -395,9 +430,9 @@ function PhotoUpload({ value, onChange }) {
   );
 }
 
-function ReviewStep({ form, validation, busOptions, routeOptions }) {
+function ReviewStep({ form, validation, busOptions }) {
   const bus = busOptions.find((b) => b._id === form.assignedBus);
-  const route = routeOptions.find((r) => r._id === form.assignedRoute);
+  const route = bus?.assignedRoute;
   return (
     <div className="space-y-6">
       <h3 className="text-base font-bold text-slate-900 dark:text-white">Review Driver Profile</h3>

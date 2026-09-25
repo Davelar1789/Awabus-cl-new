@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { tenantScope } from '../plugins/tenantScope.js';
 
 const assignmentHistorySchema = new mongoose.Schema(
   {
@@ -14,9 +15,11 @@ const assignmentHistorySchema = new mongoose.Schema(
 
 const driverSchema = new mongoose.Schema(
   {
+    school: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true, index: true },
+
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, unique: true, trim: true },
+    phone: { type: String, required: true, trim: true }, // unique per school
     email: { type: String, trim: true, lowercase: true },
     dob: { type: Date },
     gender: { type: String, enum: ['Male', 'Female'] },
@@ -24,7 +27,7 @@ const driverSchema = new mongoose.Schema(
     password: { type: String, default: '', select: false }, // for future driver-app login
 
     // License information
-    licenseNumber: { type: String, required: true, trim: true },
+    licenseNumber: { type: String, required: true, trim: true }, // unique per school
     licenseExpiry: { type: Date },
     licenseClass: {
       type: String,
@@ -69,7 +72,14 @@ driverSchema.pre('save', async function preSave(next) {
   next();
 });
 
+// phone/licenseNumber only need to be unique within a school, not globally
+driverSchema.index({ school: 1, phone: 1 }, { unique: true });
+driverSchema.index({ school: 1, licenseNumber: 1 }, { unique: true });
+driverSchema.index({ school: 1, status: 1 });
+
 driverSchema.set('toJSON', { virtuals: true });
 driverSchema.set('toObject', { virtuals: true });
+
+driverSchema.plugin(tenantScope);
 
 export default mongoose.model('Driver', driverSchema);

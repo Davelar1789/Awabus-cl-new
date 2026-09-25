@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { MapTiles } from '../../components/map/GeofenceMap.jsx';
 import { Layers, Navigation2, MapPin as MapPinIcon } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import { useSocketEvent } from '../../hooks/useSocket.js';
@@ -118,7 +119,7 @@ export default function LiveTracking() {
             </div>
             <div className="h-[520px] w-full">
               <MapContainer center={center} zoom={13} className="h-full w-full" zoomControl={false}>
-                <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <MapTiles />
                 <RecenterOnSelect position={selected?.liveLocation ? [selected.liveLocation.lat, selected.liveLocation.lng] : null} />
                 {filtered.map((b) => {
                   if (!b.liveLocation) return null;

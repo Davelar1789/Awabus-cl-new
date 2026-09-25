@@ -1,21 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Home, MapPin, Route as RouteIcon, Unlink, Upload } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Stepper from '../../components/ui/Stepper.jsx';
-import Input, { Label, Textarea } from '../../components/ui/Input.jsx';
+import Input, { Label, Textarea, FieldError } from '../../components/ui/Input.jsx';
 import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
+import { PageLoader } from '../../components/ui/Spinner.jsx';
+import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
+import GeofenceMap from '../../components/map/GeofenceMap.jsx';
+import GpsAddressInput from '../../components/ui/GpsAddressInput.jsx';
+import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
 import { getRouteOptions } from '../../api/routes.js';
-import { getBusOptions } from '../../api/buses.js';
 import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
 
 const STEPS = ['Student Information', 'Parents & Guardian', 'Transport Assignment', 'Home Location', 'Review & Finalize'];
+
+const CLASS_GRADE_OPTIONS = [
+  'Creche',
+  'Nursery 1',
+  'Nursery 2',
+  'KG 1',
+  'KG 2',
+  'Basic 1',
+  'Basic 2',
+  'Basic 3',
+  'Basic 4',
+  'Basic 5',
+  'Basic 6',
+  'Basic 7',
+  'Basic 8',
+  'Basic 9',
+];
+
+const DRAFT_KEY = 'addStudentDraft';
 
 const initial = {
   firstName: '',
@@ -34,25 +58,56 @@ const initial = {
   secondContactPhone: '',
   emergencyInstructions: '',
   route: null,
-  bus: null,
   pickupPoint: '',
   dropoffPoint: '',
   homeAddress: '',
   geofenceRadius: 200,
   lat: '',
   lng: '',
+  linkLocationWith: null, // sibling/neighbour whose home location is shared
+  linkedLocationName: '',
 };
+
+function loadDraft() {
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export default function AddStudent() {
   usePageHeader({ breadcrumb: ['AwaBus', 'Students', 'Add student'] });
   const queryClient = useQueryClient();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState(initial);
+
+  // Restore saved draft (form + step) if one exists, otherwise start fresh
+  const [step, setStep] = useState(() => loadDraft()?.step ?? 1);
+  const [form, setForm] = useState(() => loadDraft()?.form ?? initial);
+
   const [created, setCreated] = useState(null);
+  const [routeError, setRouteError] = useState('');
+  const [mapOpen, setMapOpen] = useState(false);
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const { data: routeOptions = [] } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
-  const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
+  // Persist to localStorage whenever the form or step changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
+    } catch {
+      // storage full or unavailable — fail silently, not critical
+    }
+  }, [form, step]);
+
+  const { data: routeOptions, isLoading: routesLoading } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
   const { data: guardianOptions = [] } = useQuery({ queryKey: ['guardian-options'], queryFn: () => getGuardians() });
 
   const mutation = useMutation({
@@ -60,13 +115,44 @@ export default function AddStudent() {
     onSuccess: (student) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       setCreated(student);
+      clearDraft();
     },
   });
 
-  const selectedRoute = routeOptions.find((r) => r._id === form.route);
-  const selectedBus = busOptions.find((b) => b._id === form.bus);
+  if (routesLoading) return <PageLoader />;
 
-  const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length));
+  // Students must be assigned to a route (routes are created first), so
+  // there's nothing to assign a student to until at least one exists.
+  if (!created && (routeOptions || []).length === 0) {
+    return (
+      <div>
+        <PageHeader title="Add Student" />
+        <Card>
+          <EmptyState
+            icon={RouteIcon}
+            title="No routes yet"
+            description="A student has to be assigned to a route, so create a route first before enrolling a student."
+            action={
+              <Button as={Link} to="/routes/new">
+                Create a route
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  const selectedRoute = routeOptions.find((r) => r._id === form.route);
+  const selectedBus = selectedRoute?.assignedBus;
+
+  const goNext = () => {
+    if (step === 3 && !form.route) {
+      setRouteError('Select the route this student will use');
+      return;
+    }
+    setStep((s) => Math.min(s + 1, STEPS.length));
+  };
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleSubmit = () => {
@@ -90,13 +176,13 @@ export default function AddStudent() {
       secondContactPhone: form.secondContactPhone,
       emergencyInstructions: form.emergencyInstructions,
       route: form.route,
-      bus: form.bus,
       pickupPoint: form.pickupPoint,
       dropoffPoint: form.dropoffPoint,
       homeAddress: form.homeAddress,
       geofenceRadius: Number(form.geofenceRadius),
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
+      linkLocationWith: form.linkLocationWith || undefined,
     });
   };
 
@@ -114,7 +200,7 @@ export default function AddStudent() {
             <Row label="Student Name" value={`${created.firstName} ${created.lastName}`} />
             <Row label="Student ID" value={created.studentCode} />
             <Row label="Assigned Route" value={created.route?.name || '—'} />
-            <Row label="Assigned Bus" value={created.bus ? `${created.bus.plateNumber} (${created.bus.name})` : '—'} />
+            <Row label="Assigned Bus" value={created.bus ? `${created.bus.plateNumber} (${created.bus.name})` : 'Not assigned yet'} />
             <Row
               label="Primary Contact"
               value={created.primaryGuardian ? `${created.primaryGuardian.firstName} (${created.primaryGuardian.phone})` : '—'}
@@ -129,9 +215,10 @@ export default function AddStudent() {
                 setCreated(null);
                 setForm(initial);
                 setStep(1);
+                clearDraft();
               }}
             >
-              Add Student
+              Add Another Student
             </Button>
           </div>
         </Card>
@@ -173,7 +260,20 @@ export default function AddStudent() {
               </div>
               <div>
                 <Label>Class / Grade</Label>
-                <Input value={form.classGrade} onChange={(e) => set('classGrade')(e.target.value)} placeholder="e.g. Primary 4B" />
+                <select
+                  value={form.classGrade}
+                  onChange={(e) => set('classGrade')(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="" disabled>
+                    Select class / grade
+                  </option>
+                  {CLASS_GRADE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label>Student ID</Label>
@@ -261,26 +361,24 @@ export default function AddStudent() {
               <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Transport Assignment</h3>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
-                  <Label>Primary Route</Label>
+                  <Label required>Route</Label>
                   <SearchableSelect
                     placeholder="Select route"
                     value={form.route}
                     onChange={(val) => {
                       set('route')(val);
-                      const r = routeOptions.find((x) => x._id === val);
-                      if (r?.assignedBus) set('bus')(r.assignedBus._id || r.assignedBus);
+                      setRouteError('');
                     }}
+                    error={Boolean(routeError)}
                     options={routeOptions.map((r) => ({ value: r._id, label: `${r.routeId} - ${r.name}` }))}
                   />
+                  <FieldError>{routeError}</FieldError>
                 </div>
                 <div>
-                  <Label>Assigned Bus</Label>
-                  <SearchableSelect
-                    placeholder="Select bus"
-                    value={form.bus}
-                    onChange={set('bus')}
-                    options={busOptions.map((b) => ({ value: b._id, label: `${b.name} (${b.plateNumber})` }))}
-                  />
+                  <Label>Assigned Bus (from selected route)</Label>
+                  <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-navy dark:text-slate-300">
+                    {selectedBus ? `${selectedBus.name} (${selectedBus.plateNumber})` : selectedRoute ? 'No bus assigned to this route yet' : 'Select a route to see its bus'}
+                  </div>
                 </div>
                 <div>
                   <Label>Pick-up Point</Label>
@@ -292,14 +390,13 @@ export default function AddStudent() {
                 </div>
               </div>
 
-              {selectedBus && (
+              {selectedRoute && (
                 <Card className="mt-6 bg-slate-50 dark:bg-navy">
                   <CardHeader title="Route & Operational Summary" />
-                  <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-4">
-                    <SummaryStat label="Estimated Pick-up Time" value="07:15 AM" />
-                    <SummaryStat label="Estimated Drop-off Time" value="03:45 PM" />
-                    <SummaryStat label="Bus Driver" value={selectedRoute?.assignedDriver ? `${selectedRoute.assignedDriver.firstName} ${selectedRoute.assignedDriver.lastName}` : '—'} />
-                    <SummaryStat label="Seats Available" value={`${selectedBus.capacity} Seats`} />
+                  <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                    <SummaryStat label="Stops On Route" value={`${selectedRoute.stops?.length || 0} Scheduled Stops`} />
+                    <SummaryStat label="Bus Driver" value={selectedRoute.assignedDriver ? `${selectedRoute.assignedDriver.firstName} ${selectedRoute.assignedDriver.lastName}` : 'Not assigned yet'} />
+                    <SummaryStat label="Seats Available" value={selectedBus ? `${selectedBus.capacity} Seats` : '—'} />
                   </CardBody>
                 </Card>
               )}
@@ -309,30 +406,119 @@ export default function AddStudent() {
           {step === 4 && (
             <div>
               <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Home Location & Geofencing</h3>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label>Street Address</Label>
-                  <Input value={form.homeAddress} onChange={(e) => set('homeAddress')(e.target.value)} placeholder="e.g. 12 Boundary Road, East Legon" />
+
+              <Card className="mb-6 bg-slate-50 dark:bg-navy">
+                <CardBody>
+                  <p className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                    <Home className="h-4 w-4 text-brand-600" />
+                    Share home location with a sibling or neighbour
+                  </p>
+                  <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                    Linked students share one GPS address, map pin and geofence. Changing the location of any of them
+                    later updates all of them.
+                  </p>
+                  {form.linkLocationWith ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-400">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Sharing home location with {form.linkedLocationName}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setForm((f) => ({ ...f, linkLocationWith: null, linkedLocationName: '' }))}
+                      >
+                        <Unlink className="h-4 w-4" />
+                        Unlink
+                      </Button>
+                    </div>
+                  ) : (
+                    <HouseholdLinkPicker
+                      guardianId={form.guardianId}
+                      onSelect={(s) =>
+                        setForm((f) => ({
+                          ...f,
+                          linkLocationWith: s._id,
+                          linkedLocationName: `${s.firstName} ${s.lastName}`,
+                          homeAddress: s.homeAddress || '',
+                          lat: s.lat != null ? String(s.lat) : '',
+                          lng: s.lng != null ? String(s.lng) : '',
+                          geofenceRadius: s.geofenceRadius || f.geofenceRadius,
+                        }))
+                      }
+                    />
+                  )}
+                </CardBody>
+              </Card>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="grid grid-cols-1 content-start gap-5 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <GpsAddressInput
+                      disabled={Boolean(form.linkLocationWith)}
+                      value={form.homeAddress}
+                      onChange={set('homeAddress')}
+                      onResolve={({ lat, lng }) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Geofence Radius (meters)</Label>
+                    <Select
+                      disabled={Boolean(form.linkLocationWith)}
+                      value={form.geofenceRadius}
+                      onChange={(e) => set('geofenceRadius')(e.target.value)}
+                    >
+                      {[...new Set([100, 150, 200, 300, 500, Number(form.geofenceRadius)])].filter(Boolean).sort((a, b) => a - b).map((r) => (
+                        <option key={r} value={r}>
+                          {r}m Notification Zone
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Latitude</Label>
+                    <Input disabled={Boolean(form.linkLocationWith)} value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
+                  </div>
+                  <div>
+                    <Label>Longitude</Label>
+                    <Input disabled={Boolean(form.linkLocationWith)} value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button type="button" variant="outline" onClick={() => setMapOpen(true)} disabled={Boolean(form.linkLocationWith)}>
+                      <MapPin className="h-4 w-4" />
+                      Pick on map
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label>Geofence Radius (meters)</Label>
-                  <Select value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)}>
-                    {[100, 150, 200, 300, 500].map((r) => (
-                      <option key={r} value={r}>
-                        {r}m Notification Zone
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label>Latitude</Label>
-                  <Input value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
-                </div>
-                <div>
-                  <Label>Longitude</Label>
-                  <Input value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
-                </div>
+
+                <Card className="flex flex-col overflow-hidden">
+                  <CardHeader title="Interactive Geofence Picker" />
+                  <div className="h-72 px-5 pt-1 sm:h-80">
+                    <GeofenceMap
+                      readOnly={Boolean(form.linkLocationWith)}
+                      lat={form.lat}
+                      lng={form.lng}
+                      radius={form.geofenceRadius}
+                      onMove={(lat, lng) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
+                    />
+                  </div>
+                  <p className="p-5 text-xs text-slate-400">
+                    {form.linkLocationWith
+                      ? `Location shared with ${form.linkedLocationName}. Unlink to set a different home location.`
+                      : 'Click the map or drag the pin to update the latitude and longitude.'}{' '}
+                    The green circle shows the {form.geofenceRadius}m geofence radius.
+                  </p>
+                </Card>
               </div>
+              <LocationPickerModal
+                open={mapOpen}
+                onClose={() => setMapOpen(false)}
+                lat={form.lat}
+                lng={form.lng}
+                radius={form.geofenceRadius}
+                onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
+              />
             </div>
           )}
 
@@ -359,7 +545,7 @@ export default function AddStudent() {
                 <p className="mb-3 text-sm font-bold text-brand-700 dark:text-brand-400">Transit Assignments</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <SummaryStat label="Route" value={selectedRoute?.name || '—'} />
-                  <SummaryStat label="Bus" value={selectedBus ? `${selectedBus.name} (${selectedBus.plateNumber})` : '—'} />
+                  <SummaryStat label="Bus" value={selectedBus ? `${selectedBus.name} (${selectedBus.plateNumber})` : 'Not assigned yet'} />
                   <SummaryStat label="Pick-up Point" value={form.pickupPoint || '—'} />
                 </div>
               </section>
@@ -369,11 +555,19 @@ export default function AddStudent() {
                   <SummaryStat label="Address" value={form.homeAddress || '—'} />
                   <SummaryStat label="Geofence" value={`${form.geofenceRadius}m`} />
                   <SummaryStat label="Coordinates" value={form.lat && form.lng ? `${form.lat}, ${form.lng}` : '—'} />
+                  <SummaryStat label="Shares home with" value={form.linkedLocationName || '—'} />
                 </div>
               </section>
             </div>
           )}
         </CardBody>
+
+        {mutation.error && (
+          <div className="mx-6 mb-5 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            {mutation.error.message}
+          </div>
+        )}
 
         <div className="flex justify-between border-t border-slate-100 p-5 dark:border-slate-800">
           {step > 1 ? (
@@ -401,7 +595,7 @@ export default function AddStudent() {
 const STEP_SUBTITLES = [
   "Enter student's personal information and select their class.",
   'Link parent or primary guardian profiles to this student.',
-  'Assign the default daily route, bus and pick-up timing.',
+  'Assign the route this student will use for pick-up and drop-off.',
   'Indicate home coordinates and configure geographic notifications.',
   'Verify all student and family details before saving.',
 ];

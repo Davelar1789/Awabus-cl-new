@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
+import { tenantScope } from '../plugins/tenantScope.js';
 
 const busSchema = new mongoose.Schema(
   {
-    plateNumber: { type: String, required: true, unique: true, uppercase: true, trim: true },
+    school: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true, index: true },
+
+    plateNumber: { type: String, required: true, uppercase: true, trim: true }, // unique per school
     name: { type: String, required: true, trim: true }, // e.g. "Bus A (Yellow Submarine)"
     type: {
       type: String,
@@ -29,7 +32,14 @@ busSchema.virtual('seatsFilled').get(function seatsFilled() {
   return this._seatsFilled || 0;
 });
 
+// plateNumber only needs to be unique within a school, not globally
+// (two different school tenants could otherwise never both onboard, say, a leased/rebadged bus record)
+busSchema.index({ school: 1, plateNumber: 1 }, { unique: true });
+busSchema.index({ school: 1, status: 1 });
+
 busSchema.set('toJSON', { virtuals: true });
 busSchema.set('toObject', { virtuals: true });
+
+busSchema.plugin(tenantScope);
 
 export default mongoose.model('Bus', busSchema);

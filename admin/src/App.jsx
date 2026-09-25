@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from './components/layout/AdminLayout.jsx';
 import ProtectedRoute from './components/layout/ProtectedRoute.jsx';
+import SuperadminRoute from './components/layout/SuperadminRoute.jsx';
 
 import SignIn from './pages/auth/SignIn.jsx';
 import ForgotPassword from './pages/auth/ForgotPassword.jsx';
@@ -9,6 +10,7 @@ import ResetPassword from './pages/auth/ResetPassword.jsx';
 import ResetSuccess from './pages/auth/ResetSuccess.jsx';
 
 import Dashboard from './pages/dashboard/Dashboard.jsx';
+import SuperadminDashboard from './pages/superadmin/SuperadminDashboard.jsx';
 
 import RoutesList from './pages/routes/RoutesList.jsx';
 import AddRoute from './pages/routes/AddRoute.jsx';
@@ -47,6 +49,10 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
           <Route path="/" element={<Dashboard />} />
+
+          <Route element={<SuperadminRoute />}>
+            <Route path="/platform" element={<SuperadminDashboard />} />
+          </Route>
 
           <Route path="/routes" element={<RoutesList />} />
           <Route path="/routes/new" element={<AddRoute />} />

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import connectDB from '../config/db.js';
 
+import School from '../models/School.js';
 import Admin from '../models/Admin.js';
 import Driver from '../models/Driver.js';
 import Bus from '../models/Bus.js';
@@ -11,34 +12,36 @@ import Guardian from '../models/Guardian.js';
 import Trip from '../models/Trip.js';
 import OtpToken from '../models/OtpToken.js';
 
-import { ADMIN, PLACES, DRIVERS, BUSES, ROUTES, buildStudents, TRIP_STATUSES } from './data.js';
+import { tenantContext } from '../utils/tenantContext.js';
+import { SCHOOL, ADMIN, PLACES, DRIVERS, BUSES, ROUTES, buildStudents, TRIP_STATUSES } from './data.js';
 
 const pad = (n, size = 3) => String(n).padStart(size, '0');
 
+// Wiping the DB touches every tenant, so this runs outside any single
+// school's context — it's the one place in this script that legitimately
+// needs to bypass tenant scoping.
 const destroy = async () => {
-  await Promise.all([
-    Admin.deleteMany(),
-    Driver.deleteMany(),
-    Bus.deleteMany(),
-    Route.deleteMany(),
-    Student.deleteMany(),
-    Guardian.deleteMany(),
-    Trip.deleteMany(),
-    OtpToken.deleteMany(),
-  ]);
+  await tenantContext.runAsSystem(async () => {
+    await Promise.all([
+      School.deleteMany(),
+      Admin.deleteMany(),
+      Driver.deleteMany(),
+      Bus.deleteMany(),
+      Route.deleteMany(),
+      Student.deleteMany(),
+      Guardian.deleteMany(),
+      Trip.deleteMany(),
+      OtpToken.deleteMany(),
+    ]);
+  });
   console.log('[seed] All collections cleared');
 };
 
-const run = async () => {
-  await connectDB();
-
-  if (process.argv.includes('--destroy')) {
-    await destroy();
-    return mongoose.disconnect();
-  }
-
-  await destroy();
-
+// Everything below is the *same* seeding logic as before — it doesn't need
+// to know about `school` at all. Because it all runs inside
+// tenantContext.run(school._id, ...), the tenantScope mongoose plugin stamps
+// `school` onto every create/insertMany/findByIdAndUpdate automatically.
+const seedSchoolData = async (school) => {
   // 1. Admin
   await Admin.create(ADMIN);
   console.log(`[seed] Admin created: ${ADMIN.phone} / ${ADMIN.password}`);
@@ -48,12 +51,18 @@ const run = async () => {
   console.log(`[seed] ${buses.length} buses created`);
 
   // 3. Drivers
-  const drivers = await Driver.insertMany(
-    DRIVERS.map((d) => ({
+  // Created one at a time (not insertMany) so the pre('save') hook actually
+  // hashes each driver's seeded `password` — insertMany skips document
+  // middleware, which would otherwise leave passwords stored in plaintext.
+  const drivers = [];
+  for (const d of DRIVERS) {
+    // eslint-disable-next-line no-await-in-loop
+    const driver = await Driver.create({
       ...d,
       licenseValidation: { status: 'verified', message: 'DVLA Verified', checkedAt: new Date() },
-    }))
-  );
+    });
+    drivers.push(driver);
+  }
   console.log(`[seed] ${drivers.length} drivers created`);
 
   // 4. Routes (paired 1:1 by index with drivers/buses)
@@ -96,6 +105,7 @@ const run = async () => {
   console.log(`[seed] ${routes.length} routes created`);
 
   // 5. Guardians + Students (attached to a route + that route's bus)
+  // Note: Guardian isn't tenant-scoped yet, so these creates are unaffected either way.
   const studentSeeds = buildStudents(36);
   const students = [];
   for (let i = 0; i < studentSeeds.length; i += 1) {
@@ -219,9 +229,37 @@ const run = async () => {
   }
   console.log('[seed] 2 live in-progress trips created');
 
-  console.log('\n[seed] Done! Sign in with:');
-  console.log(`        phone:    ${ADMIN.phone}`);
-  console.log(`        password: ${ADMIN.password}\n`);
+  return { drivers };
+};
+
+const run = async () => {
+  await connectDB();
+
+  if (process.argv.includes('--destroy')) {
+    await destroy();
+    return mongoose.disconnect();
+  }
+
+  await destroy();
+
+  // The School itself is created outside any tenant context (nothing to scope it to yet).
+  const school = await tenantContext.runAsSystem(() => School.create(SCHOOL));
+  console.log(`[seed] School created: ${school.name} (${school.code})`);
+
+  // Everything else runs inside this school's tenant context, so every
+  // create/insertMany/findByIdAndUpdate above gets `school` stamped on
+  // automatically by the tenantScope plugin.
+  const { drivers } = await tenantContext.run(school._id, () => seedSchoolData(school));
+  const demoDriver = drivers[0];
+
+  console.log('\n[seed] Done!\n');
+  console.log('  Admin Portal:');
+  console.log(`    school:   ${school.name} (${school.code})`);
+  console.log(`    email:    ${ADMIN.email}`);
+  console.log(`    password: ${ADMIN.password}\n`);
+  console.log('  Driver App:');
+  console.log(`    phone:    ${demoDriver.phone}`);
+  console.log(`    password: Driver@123\n`);
 
   await mongoose.disconnect();
 };

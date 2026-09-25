@@ -10,6 +10,14 @@ export const sendOtpSms = async (phone, code) => {
   return true;
 };
 
+// Generic SMS send, used for driver delay broadcasts to parents.
+// Same "log instead of send" placeholder as sendOtpSms until a real
+// gateway is wired up.
+export const sendSms = async (phone, message) => {
+  console.log(`[sms] To ${phone}: ${message}`);
+  return true;
+};
+
 export const getOtpExpiry = () => {
   const minutes = Number(process.env.OTP_EXPIRES_MINUTES || 10);
   return new Date(Date.now() + minutes * 60 * 1000);

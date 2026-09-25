@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
+import { MapContainer, Marker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
+import { MapTiles } from '../../components/map/GeofenceMap.jsx';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import { getTrip } from '../../api/trips.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
@@ -79,7 +80,7 @@ export default function TripDetails() {
             <CardHeader title="Route and drop-off points" subtitle={`${droppedOff} of ${trip.studentProgress?.length || 0} dropped off`} />
             <div className="h-80 px-5 pb-5 sm:h-96">
               <MapContainer center={center} zoom={13} className="h-full w-full">
-                <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <MapTiles />
                 {positions.length > 1 && <Polyline positions={positions} color="#0d9488" weight={4} />}
                 {stops.map((s, i) => (s.lat && s.lng ? <Marker key={i} position={[s.lat, s.lng]} icon={stopIcon(s.order || i + 1)} /> : null))}
               </MapContainer>

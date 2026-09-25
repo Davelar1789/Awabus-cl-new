@@ -103,7 +103,6 @@ export const createDriver = asyncHandler(async (req, res) => {
     licenseClass,
     licenseValidation,
     assignedBus,
-    assignedRoute,
     emergencyContactName,
     emergencyContactRelation,
     emergencyContactPhone,
@@ -115,6 +114,25 @@ export const createDriver = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('First name, last name, phone and license number are required');
   }
+  if (!assignedBus) {
+    res.status(400);
+    throw new Error('A driver must be assigned to a bus — register a bus first if none exist yet');
+  }
+
+  const bus = await Bus.findById(assignedBus);
+  if (!bus) {
+    res.status(400);
+    throw new Error('Selected bus was not found');
+  }
+  if (!bus.assignedRoute) {
+    res.status(400);
+    throw new Error('This bus is not yet assigned to a route — assign it to a route before assigning a driver');
+  }
+
+  // The driver's route is derived from the bus, not chosen independently —
+  // a bus can only ever be on one route (enforced at bus creation), so this
+  // is always correct and can never drift out of sync with the bus.
+  const assignedRoute = bus.assignedRoute;
 
   const driver = await Driver.create({
     firstName,
@@ -128,11 +146,9 @@ export const createDriver = asyncHandler(async (req, res) => {
     licenseExpiry,
     licenseClass,
     licenseValidation: licenseValidation || { status: 'verified', message: 'DVLA Verified', checkedAt: new Date() },
-    assignedBus: assignedBus || null,
-    assignedRoute: assignedRoute || null,
-    assignmentHistory: assignedBus
-      ? [{ bus: assignedBus, route: assignedRoute || null, from: new Date(), status: 'Active' }]
-      : [],
+    assignedBus,
+    assignedRoute,
+    assignmentHistory: [{ bus: assignedBus, route: assignedRoute, from: new Date(), status: 'Active' }],
     emergencyContactName,
     emergencyContactRelation,
     emergencyContactPhone,
@@ -140,8 +156,8 @@ export const createDriver = asyncHandler(async (req, res) => {
     status: status || 'Active',
   });
 
-  if (assignedBus) await Bus.findByIdAndUpdate(assignedBus, { assignedDriver: driver._id });
-  if (assignedRoute) await Route.findByIdAndUpdate(assignedRoute, { assignedDriver: driver._id });
+  await Bus.findByIdAndUpdate(assignedBus, { assignedDriver: driver._id });
+  await Route.findByIdAndUpdate(assignedRoute, { assignedDriver: driver._id });
 
   const populated = await populateDriver(Driver.findById(driver._id));
   res.status(201).json({ success: true, data: populated });
@@ -176,13 +192,43 @@ export const updateDriver = asyncHandler(async (req, res) => {
   fields.forEach((f) => {
     if (req.body[f] !== undefined) driver[f] = req.body[f];
   });
-  if (req.body.assignedBus !== undefined) driver.assignedBus = req.body.assignedBus || null;
-  if (req.body.assignedRoute !== undefined) driver.assignedRoute = req.body.assignedRoute || null;
+
+  const previousBus = driver.assignedBus ? String(driver.assignedBus) : null;
+  const previousRoute = driver.assignedRoute ? String(driver.assignedRoute) : null;
+  let busChanged = false;
+
+  if (req.body.assignedBus !== undefined) {
+    const newBusId = req.body.assignedBus || null;
+    if (newBusId) {
+      const bus = await Bus.findById(newBusId);
+      if (!bus) {
+        res.status(400);
+        throw new Error('Selected bus was not found');
+      }
+      if (!bus.assignedRoute) {
+        res.status(400);
+        throw new Error('This bus is not yet assigned to a route — assign it to a route before assigning a driver');
+      }
+      driver.assignedBus = newBusId;
+      // Derived from the bus, same as on creation — never chosen independently.
+      driver.assignedRoute = bus.assignedRoute;
+    } else {
+      driver.assignedBus = null;
+      driver.assignedRoute = null;
+    }
+    busChanged = newBusId !== previousBus;
+  }
 
   await driver.save();
 
-  if (req.body.assignedBus) await Bus.findByIdAndUpdate(req.body.assignedBus, { assignedDriver: driver._id });
-  if (req.body.assignedRoute) await Route.findByIdAndUpdate(req.body.assignedRoute, { assignedDriver: driver._id });
+  if (busChanged) {
+    if (previousBus) await Bus.findByIdAndUpdate(previousBus, { assignedDriver: null });
+    if (previousRoute) await Route.findByIdAndUpdate(previousRoute, { assignedDriver: null });
+    if (driver.assignedBus) {
+      await Bus.findByIdAndUpdate(driver.assignedBus, { assignedDriver: driver._id });
+      await Route.findByIdAndUpdate(driver.assignedRoute, { assignedDriver: driver._id });
+    }
+  }
 
   const populated = await populateDriver(Driver.findById(driver._id));
   res.json({ success: true, data: populated });

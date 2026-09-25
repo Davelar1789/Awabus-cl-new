@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { tenantScope } from '../plugins/tenantScope.js';
 
 const timelineEventSchema = new mongoose.Schema(
   {
@@ -38,9 +39,23 @@ const studentProgressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const delayBroadcastSchema = new mongoose.Schema(
+  {
+    reason: { type: String, required: true },
+    message: { type: String, default: '' },
+    sentAt: { type: Date, default: Date.now },
+    recipientCount: { type: Number, default: 0 },
+    deliveredCount: { type: Number, default: 0 },
+    failedCount: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
-    tripCode: { type: String, required: true, unique: true }, // TRP-0108
+    school: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true, index: true },
+
+    tripCode: { type: String, required: true, trim: true }, // TRP-0108, unique per school
     route: { type: mongoose.Schema.Types.ObjectId, ref: 'Route', required: true },
     bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus', required: true },
     driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', required: true },
@@ -49,6 +64,10 @@ const tripSchema = new mongoose.Schema(
     departureTime: { type: String, default: '' },
     arrivalTime: { type: String, default: '' },
     durationMinutes: { type: Number, default: 0 },
+    // Raw timestamps (departureTime/arrivalTime above are display strings) —
+    // used by the driver app to compute a live elapsed timer and an exact duration.
+    startedAt: { type: Date, default: null },
+    endedAt: { type: Date, default: null },
 
     status: {
       type: String,
@@ -70,8 +89,18 @@ const tripSchema = new mongoose.Schema(
     gpsSignal: { type: String, enum: ['ok', 'lost', 'offline'], default: 'ok' },
     distanceCoveredKm: { type: Number, default: 0 },
     etaMinutes: { type: Number, default: 0 },
+
+    delayBroadcasts: [delayBroadcastSchema],
   },
   { timestamps: true }
 );
+
+// tripCode only needs to be unique within a school, not globally
+tripSchema.index({ school: 1, tripCode: 1 }, { unique: true });
+// common query pattern: "today's trips for this school"
+tripSchema.index({ school: 1, date: -1 });
+tripSchema.index({ school: 1, status: 1 });
+
+tripSchema.plugin(tenantScope);
 
 export default mongoose.model('Trip', tripSchema);

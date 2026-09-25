@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import Student from '../models/Student.js';
 import Guardian from '../models/Guardian.js';
 import Route from '../models/Route.js';
@@ -14,6 +15,44 @@ const populateStudent = (query) =>
       select: 'plateNumber name assignedDriver',
       populate: { path: 'assignedDriver', select: 'firstName lastName' },
     });
+
+// Home location fields shared by every student in a household.
+const LOCATION_FIELDS = ['homeAddress', 'geofenceRadius', 'lat', 'lng'];
+
+const pickLocation = (doc) => Object.fromEntries(LOCATION_FIELDS.map((f) => [f, doc[f]]));
+
+// Loads the student whose home location is being shared, giving it a household
+// id first if it doesn't have one yet.
+async function getLinkSource(sourceId, res, selfId) {
+  if (!mongoose.isValidObjectId(sourceId) || (selfId && String(sourceId) === String(selfId))) {
+    res.status(400);
+    throw new Error('Choose another student to share the home location with');
+  }
+  const source = await Student.findById(sourceId);
+  if (!source) {
+    res.status(400);
+    throw new Error('The student to share the home location with was not found');
+  }
+  if (!source.household) {
+    source.household = new mongoose.Types.ObjectId();
+    await Student.updateOne({ _id: source._id }, { household: source.household });
+  }
+  return source;
+}
+
+// A household with a single member left is no longer shared.
+async function tidyHousehold(householdId) {
+  if (!householdId) return;
+  const remaining = await Student.find({ household: householdId }).select('_id').limit(2);
+  if (remaining.length === 1) await Student.updateOne({ _id: remaining[0]._id }, { household: null });
+}
+
+const getHouseholdMembers = (student) =>
+  student.household
+    ? Student.find({ household: student.household, _id: { $ne: student._id } })
+        .select('firstName lastName studentCode classGrade')
+        .sort({ createdAt: 1 })
+    : [];
 
 // @desc    List students (search + pagination) + directory stats
 // @route   GET /api/students
@@ -55,7 +94,8 @@ export const getStudentById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Student not found');
   }
-  res.json({ success: true, data: student });
+  const householdMembers = await getHouseholdMembers(student);
+  res.json({ success: true, data: { ...student.toJSON(), householdMembers } });
 });
 
 // @desc    Create student (final step of Add Student wizard)
@@ -73,7 +113,6 @@ export const createStudent = asyncHandler(async (req, res) => {
     secondContactPhone,
     emergencyInstructions,
     route,
-    bus,
     pickupPoint,
     dropoffPoint,
     pickupTime,
@@ -82,11 +121,34 @@ export const createStudent = asyncHandler(async (req, res) => {
     geofenceRadius,
     lat,
     lng,
+    linkLocationWith, // id of a sibling/neighbour whose home location this student shares
   } = req.body;
 
   if (!firstName || !lastName) {
     res.status(400);
     throw new Error('First name and last name are required');
+  }
+  if (!route) {
+    res.status(400);
+    throw new Error('A student must be assigned to a route — create a route first if none exist yet');
+  }
+
+  const routeDoc = await Route.findById(route);
+  if (!routeDoc) {
+    res.status(400);
+    throw new Error('Selected route was not found');
+  }
+  // The student's bus follows whichever bus currently services this route
+  // (may be null if a bus hasn't been assigned to the route yet) — never
+  // chosen independently, so it can't drift out of sync with the route.
+  const bus = routeDoc.assignedBus || null;
+
+  let location = { homeAddress, geofenceRadius, lat, lng };
+  let household = null;
+  if (linkLocationWith) {
+    const source = await getLinkSource(linkLocationWith, res);
+    location = pickLocation(source);
+    household = source.household;
   }
 
   let guardianId = guardian?.id || null;
@@ -121,10 +183,8 @@ export const createStudent = asyncHandler(async (req, res) => {
     dropoffPoint,
     pickupTime,
     dropoffTime,
-    homeAddress,
-    geofenceRadius,
-    lat,
-    lng,
+    ...location,
+    household,
   });
 
   if (route) await Route.findByIdAndUpdate(route, { $addToSet: { students: student._id } });
@@ -162,18 +222,41 @@ export const updateStudent = asyncHandler(async (req, res) => {
     'lng',
     'status',
   ];
+  const locationBefore = JSON.stringify(pickLocation(student));
+  const householdBefore = student.household;
+
   fields.forEach((f) => {
     if (req.body[f] !== undefined) student[f] = req.body[f];
   });
 
+  // Household (shared home location) changes. Linking copies the other
+  // student's location; unlinking keeps the current location but stops sharing.
+  if (req.body.unlinkLocation) {
+    student.household = null;
+  } else if (req.body.linkLocationWith) {
+    const source = await getLinkSource(req.body.linkLocationWith, res, student._id);
+    Object.assign(student, pickLocation(source));
+    student.household = source.household;
+  }
+
   if (req.body.route !== undefined) {
+    if (!req.body.route) {
+      res.status(400);
+      throw new Error('A student must remain assigned to a route');
+    }
+    const routeDoc = await Route.findById(req.body.route);
+    if (!routeDoc) {
+      res.status(400);
+      throw new Error('Selected route was not found');
+    }
     if (student.route && String(student.route) !== String(req.body.route)) {
       await Route.findByIdAndUpdate(student.route, { $pull: { students: student._id } });
     }
-    student.route = req.body.route || null;
-    if (req.body.route) await Route.findByIdAndUpdate(req.body.route, { $addToSet: { students: student._id } });
+    student.route = req.body.route;
+    // Derived from the route, same as on creation — never chosen independently.
+    student.bus = routeDoc.assignedBus || null;
+    await Route.findByIdAndUpdate(req.body.route, { $addToSet: { students: student._id } });
   }
-  if (req.body.bus !== undefined) student.bus = req.body.bus || null;
 
   if (req.body.guardian) {
     const g = req.body.guardian;
@@ -199,8 +282,17 @@ export const updateStudent = asyncHandler(async (req, res) => {
 
   await student.save();
 
+  if (student.household && JSON.stringify(pickLocation(student)) !== locationBefore) {
+    await Student.updateMany(
+      { household: student.household, _id: { $ne: student._id } },
+      { $set: pickLocation(student) }
+    );
+  }
+  if (householdBefore && String(householdBefore) !== String(student.household)) await tidyHousehold(householdBefore);
+
   const populated = await populateStudent(Student.findById(student._id));
-  res.json({ success: true, data: populated });
+  const householdMembers = await getHouseholdMembers(populated);
+  res.json({ success: true, data: { ...populated.toJSON(), householdMembers } });
 });
 
 // @desc    Delete student
@@ -213,14 +305,17 @@ export const deleteStudent = asyncHandler(async (req, res) => {
   }
   if (student.route) await Route.findByIdAndUpdate(student.route, { $pull: { students: student._id } });
   await student.deleteOne();
+  await tidyHousehold(student.household);
   res.json({ success: true, message: 'Student deleted' });
 });
 
 // @desc    Options list for selects / route builder multi-select search
 // @route   GET /api/students/meta/options
 export const getStudentOptions = asyncHandler(async (req, res) => {
-  const { q } = req.query;
+  const { q, guardian, exclude } = req.query;
   const filter = {};
+  if (guardian && mongoose.isValidObjectId(guardian)) filter.primaryGuardian = guardian;
+  if (exclude && mongoose.isValidObjectId(exclude)) filter._id = { $ne: exclude };
   if (q) {
     filter.$or = [
       { firstName: { $regex: q, $options: 'i' } },
@@ -229,7 +324,7 @@ export const getStudentOptions = asyncHandler(async (req, res) => {
     ];
   }
   const students = await Student.find(filter)
-    .select('firstName lastName studentCode classGrade route')
+    .select('firstName lastName studentCode classGrade route primaryGuardian household homeAddress geofenceRadius lat lng')
     .sort({ createdAt: 1 })
     .limit(50);
   res.json({ success: true, data: students });
