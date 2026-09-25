@@ -118,10 +118,10 @@ export function toPoint(lat, lng) {
   return { lat: la, lng: ln };
 }
 
-function PinController({ point, radius, onMove }) {
+function PinController({ point, radius, onMove, readOnly }) {
   useMapEvents({
     click(e) {
-      onMove(e.latlng.lat, e.latlng.lng);
+      if (!readOnly) onMove(e.latlng.lat, e.latlng.lng);
     },
   });
   if (!point) return null;
@@ -131,7 +131,7 @@ function PinController({ point, radius, onMove }) {
       <Marker
         position={[point.lat, point.lng]}
         icon={pinIcon}
-        draggable
+        draggable={!readOnly}
         eventHandlers={{
           dragend: (e) => {
             const { lat, lng } = e.target.getLatLng();
@@ -158,14 +158,20 @@ function FollowPin({ point }) {
 /**
  * Leaflet map with a draggable pin and a green geofence circle.
  * Click the map or drag the pin to move it; onMove receives (lat, lng).
+ * readOnly shows the pin and circle without letting them be moved.
  */
-export default function GeofenceMap({ lat, lng, radius, onMove, zoom, className = 'h-full w-full', children }) {
+export default function GeofenceMap({ lat, lng, radius, onMove, zoom, readOnly = false, className = 'h-full w-full', children }) {
   const point = toPoint(lat, lng);
   const center = point ?? ACCRA_DEFAULT;
   return (
     <MapContainer center={[center.lat, center.lng]} zoom={zoom ?? (point ? 16 : 13)} scrollWheelZoom className={className}>
       <MapLayers />
-      <PinController point={point} radius={Number(radius) || 0} onMove={(la, ln) => onMove(round6(la), round6(ln))} />
+      <PinController
+        point={point}
+        radius={Number(radius) || 0}
+        readOnly={readOnly}
+        onMove={(la, ln) => onMove(round6(la), round6(ln))}
+      />
       <FollowPin point={point} />
       {children}
     </MapContainer>

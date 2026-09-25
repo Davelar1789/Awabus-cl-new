@@ -32,6 +32,10 @@ const studentSchema = new mongoose.Schema(
     geofenceRadius: { type: Number, default: 200 },
     lat: Number,
     lng: Number,
+    // Students sharing a home (siblings, neighbours) carry the same household id.
+    // Each keeps its own copy of the location fields above; changing the location
+    // of one member is propagated to the rest of the household.
+    household: { type: mongoose.Schema.Types.ObjectId, default: null },
 
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     todayAttendance: {
@@ -60,6 +64,7 @@ studentSchema.virtual('fullName').get(function fullName() {
 studentSchema.index({ school: 1, studentCode: 1 }, { unique: true });
 studentSchema.index({ school: 1, status: 1 });
 studentSchema.index({ school: 1, route: 1 });
+studentSchema.index({ school: 1, household: 1 });
 
 studentSchema.set('toJSON', { virtuals: true });
 studentSchema.set('toObject', { virtuals: true });

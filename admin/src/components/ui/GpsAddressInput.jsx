@@ -22,7 +22,7 @@ export function formatGpsAddress(raw) {
  * GhanaPostGPS address field. Once a complete address is typed (or "Find" is
  * clicked) it is resolved to coordinates and passed to onResolve(location).
  */
-export default function GpsAddressInput({ value, onChange, onResolve }) {
+export default function GpsAddressInput({ value, onChange, onResolve, disabled = false }) {
   const [status, setStatus] = useState({ state: 'idle' });
   const requestId = useRef(0);
 
@@ -54,6 +54,7 @@ export default function GpsAddressInput({ value, onChange, onResolve }) {
         <Input
           wrapperClassName="flex-1"
           value={value}
+          disabled={disabled}
           onChange={(e) => {
             const next = formatGpsAddress(e.target.value);
             onChange(next);
@@ -72,14 +73,14 @@ export default function GpsAddressInput({ value, onChange, onResolve }) {
           type="button"
           variant="outline"
           onClick={() => lookup(value)}
-          disabled={!complete}
+          disabled={disabled || !complete}
           loading={status.state === 'loading'}
         >
           {status.state !== 'loading' && <Search className="h-4 w-4" />}
           Find
         </Button>
       </div>
-      {status.state === 'idle' && (
+      {status.state === 'idle' && !disabled && (
         <p className="mt-1 text-xs text-slate-500">Enter your GhanaPostGPS digital address</p>
       )}
       {status.state === 'loading' && <p className="mt-1 text-xs text-slate-500">Looking up address…</p>}

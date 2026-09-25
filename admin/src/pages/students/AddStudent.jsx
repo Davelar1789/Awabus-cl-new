@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, MapPin, Route as RouteIcon, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Home, MapPin, Route as RouteIcon, Unlink, Upload } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
@@ -15,6 +15,7 @@ import { PageLoader } from '../../components/ui/Spinner.jsx';
 import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap from '../../components/map/GeofenceMap.jsx';
 import GpsAddressInput from '../../components/ui/GpsAddressInput.jsx';
+import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
 import { getRouteOptions } from '../../api/routes.js';
 import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
@@ -63,6 +64,8 @@ const initial = {
   geofenceRadius: 200,
   lat: '',
   lng: '',
+  linkLocationWith: null, // sibling/neighbour whose home location is shared
+  linkedLocationName: '',
 };
 
 function loadDraft() {
@@ -179,6 +182,7 @@ export default function AddStudent() {
       geofenceRadius: Number(form.geofenceRadius),
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
+      linkLocationWith: form.linkLocationWith || undefined,
     });
   };
 
@@ -402,10 +406,57 @@ export default function AddStudent() {
           {step === 4 && (
             <div>
               <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Home Location & Geofencing</h3>
+
+              <Card className="mb-6 bg-slate-50 dark:bg-navy">
+                <CardBody>
+                  <p className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                    <Home className="h-4 w-4 text-brand-600" />
+                    Share home location with a sibling or neighbour
+                  </p>
+                  <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                    Linked students share one GPS address, map pin and geofence. Changing the location of any of them
+                    later updates all of them.
+                  </p>
+                  {form.linkLocationWith ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-400">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Sharing home location with {form.linkedLocationName}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setForm((f) => ({ ...f, linkLocationWith: null, linkedLocationName: '' }))}
+                      >
+                        <Unlink className="h-4 w-4" />
+                        Unlink
+                      </Button>
+                    </div>
+                  ) : (
+                    <HouseholdLinkPicker
+                      guardianId={form.guardianId}
+                      onSelect={(s) =>
+                        setForm((f) => ({
+                          ...f,
+                          linkLocationWith: s._id,
+                          linkedLocationName: `${s.firstName} ${s.lastName}`,
+                          homeAddress: s.homeAddress || '',
+                          lat: s.lat != null ? String(s.lat) : '',
+                          lng: s.lng != null ? String(s.lng) : '',
+                          geofenceRadius: s.geofenceRadius || f.geofenceRadius,
+                        }))
+                      }
+                    />
+                  )}
+                </CardBody>
+              </Card>
+
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div className="grid grid-cols-1 content-start gap-5 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <GpsAddressInput
+                      disabled={Boolean(form.linkLocationWith)}
                       value={form.homeAddress}
                       onChange={set('homeAddress')}
                       onResolve={({ lat, lng }) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
@@ -413,8 +464,12 @@ export default function AddStudent() {
                   </div>
                   <div className="sm:col-span-2">
                     <Label>Geofence Radius (meters)</Label>
-                    <Select value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)}>
-                      {[100, 150, 200, 300, 500].map((r) => (
+                    <Select
+                      disabled={Boolean(form.linkLocationWith)}
+                      value={form.geofenceRadius}
+                      onChange={(e) => set('geofenceRadius')(e.target.value)}
+                    >
+                      {[...new Set([100, 150, 200, 300, 500, Number(form.geofenceRadius)])].filter(Boolean).sort((a, b) => a - b).map((r) => (
                         <option key={r} value={r}>
                           {r}m Notification Zone
                         </option>
@@ -423,14 +478,14 @@ export default function AddStudent() {
                   </div>
                   <div>
                     <Label>Latitude</Label>
-                    <Input value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
+                    <Input disabled={Boolean(form.linkLocationWith)} value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
                   </div>
                   <div>
                     <Label>Longitude</Label>
-                    <Input value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
+                    <Input disabled={Boolean(form.linkLocationWith)} value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
                   </div>
                   <div className="sm:col-span-2">
-                    <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
+                    <Button type="button" variant="outline" onClick={() => setMapOpen(true)} disabled={Boolean(form.linkLocationWith)}>
                       <MapPin className="h-4 w-4" />
                       Pick on map
                     </Button>
@@ -441,6 +496,7 @@ export default function AddStudent() {
                   <CardHeader title="Interactive Geofence Picker" />
                   <div className="h-72 px-5 pt-1 sm:h-80">
                     <GeofenceMap
+                      readOnly={Boolean(form.linkLocationWith)}
                       lat={form.lat}
                       lng={form.lng}
                       radius={form.geofenceRadius}
@@ -448,8 +504,10 @@ export default function AddStudent() {
                     />
                   </div>
                   <p className="p-5 text-xs text-slate-400">
-                    Click the map or drag the pin to update the latitude and longitude. The green circle shows the{' '}
-                    {form.geofenceRadius}m geofence radius.
+                    {form.linkLocationWith
+                      ? `Location shared with ${form.linkedLocationName}. Unlink to set a different home location.`
+                      : 'Click the map or drag the pin to update the latitude and longitude.'}{' '}
+                    The green circle shows the {form.geofenceRadius}m geofence radius.
                   </p>
                 </Card>
               </div>
@@ -497,6 +555,7 @@ export default function AddStudent() {
                   <SummaryStat label="Address" value={form.homeAddress || '—'} />
                   <SummaryStat label="Geofence" value={`${form.geofenceRadius}m`} />
                   <SummaryStat label="Coordinates" value={form.lat && form.lng ? `${form.lat}, ${form.lng}` : '—'} />
+                  <SummaryStat label="Shares home with" value={form.linkedLocationName || '—'} />
                 </div>
               </section>
             </div>

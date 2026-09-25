@@ -79,6 +79,20 @@ export default function StudentProfile() {
               <InfoRow label="Geofence" value={`${student.geofenceRadius || 200}m buffer zone around residence`} />
               <InfoRow label="Latitude" value={student.lat?.toFixed?.(4)} />
               <InfoRow label="Longitude" value={student.lng?.toFixed?.(4)} />
+              <div className="sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Shares home with</p>
+                {student.householdMembers?.length ? (
+                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm font-medium">
+                    {student.householdMembers.map((m) => (
+                      <Link key={m._id} to={`/students/${m._id}`} className="text-brand-600 hover:underline">
+                        {m.firstName} {m.lastName}
+                      </Link>
+                    ))}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">—</p>
+                )}
+              </div>
             </div>
           </Card>
         </div>

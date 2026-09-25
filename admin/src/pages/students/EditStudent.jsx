@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Home, Unlink } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
@@ -12,6 +13,7 @@ import { PageLoader } from '../../components/ui/Spinner.jsx';
 import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
 import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
+import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -25,8 +27,10 @@ export default function EditStudent() {
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
 
+  // Initialise the form once; later refetches (e.g. after linking a household)
+  // must not wipe unsaved edits.
   useEffect(() => {
-    if (student) {
+    if (student && !form) {
       setForm({
         firstName: student.firstName,
         lastName: student.lastName,
@@ -41,7 +45,7 @@ export default function EditStudent() {
         geofenceRadius: student.geofenceRadius || 200,
       });
     }
-  }, [student]);
+  }, [student, form]);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -54,6 +58,22 @@ export default function EditStudent() {
     },
   });
 
+  // Link / unlink the shared home location immediately (separate from "Update Student").
+  const householdMutation = useMutation({
+    mutationFn: (payload) => updateStudent(id, payload),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['student', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['student-options'] });
+      setForm((f) => ({
+        ...f,
+        lat: updated.lat ?? f.lat,
+        lng: updated.lng ?? f.lng,
+        geofenceRadius: updated.geofenceRadius || f.geofenceRadius,
+      }));
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteStudent(id),
     onSuccess: () => {
@@ -63,6 +83,8 @@ export default function EditStudent() {
   });
 
   if (isLoading || !form) return <PageLoader />;
+
+  const householdMembers = student.householdMembers || [];
 
   return (
     <div>
@@ -169,6 +191,55 @@ export default function EditStudent() {
                 radius={form.geofenceRadius}
                 onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
               />
+            </Card>
+
+            <Card>
+              <CardHeader title="Shared Home Location" subtitle="Siblings or neighbours using the same home and geofence" />
+              <CardBody>
+                {householdMembers.length > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Shares home location with:</p>
+                    <ul className="space-y-2">
+                      {householdMembers.map((m) => (
+                        <li key={m._id} className="flex items-center gap-2 text-sm">
+                          <Home className="h-4 w-4 text-green-600" />
+                          <Link to={`/students/${m._id}`} className="font-semibold text-slate-800 hover:underline dark:text-slate-100">
+                            {m.firstName} {m.lastName}
+                          </Link>
+                          <span className="text-xs text-slate-400">{[m.studentCode, m.classGrade].filter(Boolean).join(' · ')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Changing this student&apos;s location or geofence also updates the students listed above.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      loading={householdMutation.isPending}
+                      onClick={() => householdMutation.mutate({ unlinkLocation: true })}
+                    >
+                      <Unlink className="h-4 w-4" />
+                      Unlink from household
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Pick a sibling or neighbour to copy their home location and keep both in sync.
+                    </p>
+                    <HouseholdLinkPicker
+                      guardianId={student.primaryGuardian?._id}
+                      excludeId={id}
+                      onSelect={(s) => householdMutation.mutate({ linkLocationWith: s._id })}
+                    />
+                  </div>
+                )}
+                {householdMutation.isError && (
+                  <p className="mt-2 text-sm text-red-600">{householdMutation.error.message}</p>
+                )}
+              </CardBody>
             </Card>
           </div>
 
