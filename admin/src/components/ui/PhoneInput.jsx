@@ -17,7 +17,8 @@ export default function PhoneInput({ value, onChange, error, placeholder = 'Ente
         type="tel"
         inputMode="numeric"
         value={value}
-        onChange={(e) => onChange?.(e.target.value.replace(/[^\d\s]/g, ''))}
+        // The +233 prefix replaces the local leading 0 (024… -> +233 24…).
+        onChange={(e) => onChange?.(e.target.value.replace(/[^\d\s]/g, '').replace(/^\s*0/, ''))}
         placeholder={placeholder}
         className="h-full flex-1 bg-transparent px-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
         {...props}

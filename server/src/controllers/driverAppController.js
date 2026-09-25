@@ -1,6 +1,7 @@
 // Driver App API (mobile) — backend surface for the AwaBus Driver App in /driver.
 
 import asyncHandler from 'express-async-handler';
+import { ghanaPhoneVariants } from '../utils/phone.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Driver from '../models/Driver.js';
@@ -34,7 +35,8 @@ const driverProfile = (driver) => ({
 // normally.
 const findDriverByPhone = (phone, withPassword = false) =>
   tenantContext.runAsSystem(() => {
-    const query = Driver.findOne({ phone });
+    // Also match numbers saved before phones were normalized (e.g. "0248250754").
+    const query = Driver.findOne({ phone: { $in: ghanaPhoneVariants(phone) } });
     return withPassword ? query.select('+password') : query;
   });
 
