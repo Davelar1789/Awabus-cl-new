@@ -73,7 +73,6 @@ export const createStudent = asyncHandler(async (req, res) => {
     secondContactPhone,
     emergencyInstructions,
     route,
-    bus,
     pickupPoint,
     dropoffPoint,
     pickupTime,
@@ -88,6 +87,20 @@ export const createStudent = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('First name and last name are required');
   }
+  if (!route) {
+    res.status(400);
+    throw new Error('A student must be assigned to a route — create a route first if none exist yet');
+  }
+
+  const routeDoc = await Route.findById(route);
+  if (!routeDoc) {
+    res.status(400);
+    throw new Error('Selected route was not found');
+  }
+  // The student's bus follows whichever bus currently services this route
+  // (may be null if a bus hasn't been assigned to the route yet) — never
+  // chosen independently, so it can't drift out of sync with the route.
+  const bus = routeDoc.assignedBus || null;
 
   let guardianId = guardian?.id || null;
   if (!guardianId && guardian?.phone) {
@@ -167,13 +180,23 @@ export const updateStudent = asyncHandler(async (req, res) => {
   });
 
   if (req.body.route !== undefined) {
+    if (!req.body.route) {
+      res.status(400);
+      throw new Error('A student must remain assigned to a route');
+    }
+    const routeDoc = await Route.findById(req.body.route);
+    if (!routeDoc) {
+      res.status(400);
+      throw new Error('Selected route was not found');
+    }
     if (student.route && String(student.route) !== String(req.body.route)) {
       await Route.findByIdAndUpdate(student.route, { $pull: { students: student._id } });
     }
-    student.route = req.body.route || null;
-    if (req.body.route) await Route.findByIdAndUpdate(req.body.route, { $addToSet: { students: student._id } });
+    student.route = req.body.route;
+    // Derived from the route, same as on creation — never chosen independently.
+    student.bus = routeDoc.assignedBus || null;
+    await Route.findByIdAndUpdate(req.body.route, { $addToSet: { students: student._id } });
   }
-  if (req.body.bus !== undefined) student.bus = req.body.bus || null;
 
   if (req.body.guardian) {
     const g = req.body.guardian;

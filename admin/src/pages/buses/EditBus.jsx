@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody } from '../../components/ui/Card.jsx';
-import Input, { Label } from '../../components/ui/Input.jsx';
+import Input, { Label, FieldError } from '../../components/ui/Input.jsx';
 import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
@@ -12,7 +12,6 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBus, updateBus, deleteBus } from '../../api/buses.js';
 import { getRouteOptions } from '../../api/routes.js';
-import { getDriverOptions } from '../../api/drivers.js';
 
 export default function EditBus() {
   const { id } = useParams();
@@ -22,10 +21,10 @@ export default function EditBus() {
 
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [routeError, setRouteError] = useState('');
 
   const { data, isLoading } = useQuery({ queryKey: ['bus', id], queryFn: () => getBus(id) });
   const { data: routeOptions = [] } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
-  const { data: driverOptions = [] } = useQuery({ queryKey: ['driver-options'], queryFn: () => getDriverOptions() });
 
   useEffect(() => {
     if (data?.data) {
@@ -35,7 +34,6 @@ export default function EditBus() {
         name: bus.name,
         capacity: bus.capacity,
         assignedRoute: bus.assignedRoute?._id || null,
-        assignedDriver: bus.assignedDriver?._id || null,
         status: bus.status,
       });
     }
@@ -63,16 +61,26 @@ export default function EditBus() {
   if (isLoading || !form) return <PageLoader />;
   const bus = data.data;
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setRouteError('');
+    if (!form.assignedRoute) {
+      setRouteError('A bus must remain assigned to a route');
+      return;
+    }
+    updateMutation.mutate({ ...form, capacity: Number(form.capacity) });
+  };
+
   return (
     <div>
       <PageHeader title={`Edit Bus ${bus.plateNumber}`} />
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          updateMutation.mutate({ ...form, capacity: Number(form.capacity) });
-        }}
-      >
+      <form onSubmit={handleSubmit}>
         <Card>
+          {updateMutation.error && (
+            <div className="mx-6 mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+              {updateMutation.error.message}
+            </div>
+          )}
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <Label required>Bus Plate Number</Label>
@@ -95,22 +103,18 @@ export default function EditBus() {
               </Select>
             </div>
             <div>
-              <Label>Assigned Route</Label>
+              <Label required>Assigned Route</Label>
               <SearchableSelect
                 placeholder="Select route"
                 value={form.assignedRoute}
-                onChange={set('assignedRoute')}
+                onChange={(val) => {
+                  set('assignedRoute')(val);
+                  setRouteError('');
+                }}
+                error={Boolean(routeError)}
                 options={routeOptions.map((r) => ({ value: r._id, label: r.name }))}
               />
-            </div>
-            <div>
-              <Label>Assigned Driver</Label>
-              <SearchableSelect
-                placeholder="Select driver"
-                value={form.assignedDriver}
-                onChange={set('assignedDriver')}
-                options={driverOptions.map((d) => ({ value: d._id, label: `${d.firstName} ${d.lastName}` }))}
-              />
+              <FieldError>{routeError}</FieldError>
             </div>
           </CardBody>
 
@@ -150,6 +154,9 @@ export default function EditBus() {
         }
       >
         <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
+        {deleteMutation.error && (
+          <p className="mt-3 text-sm font-medium text-red-600">{deleteMutation.error.message}</p>
+        )}
       </Modal>
     </div>
   );

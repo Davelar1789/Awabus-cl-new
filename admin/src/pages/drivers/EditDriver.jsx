@@ -12,7 +12,6 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getDriver, updateDriver, deleteDriver } from '../../api/drivers.js';
 import { getBusOptions } from '../../api/buses.js';
-import { getRouteOptions } from '../../api/routes.js';
 
 export default function EditDriver() {
   const { id } = useParams();
@@ -25,7 +24,6 @@ export default function EditDriver() {
 
   const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id) });
   const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
-  const { data: routeOptions = [] } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
 
   useEffect(() => {
     if (driver) {
@@ -37,7 +35,6 @@ export default function EditDriver() {
         licenseNumber: driver.licenseNumber,
         licenseExpiry: driver.licenseExpiry ? driver.licenseExpiry.slice(0, 10) : '',
         assignedBus: driver.assignedBus?._id || null,
-        assignedRoute: driver.assignedRoute?._id || null,
         status: driver.status,
       });
     }
@@ -64,6 +61,9 @@ export default function EditDriver() {
 
   if (isLoading || !form) return <PageLoader />;
 
+  const selectedBus = busOptions.find((b) => b._id === form.assignedBus);
+  const selectedRoute = selectedBus?.assignedRoute;
+
   return (
     <div>
       <PageHeader title="Edit Driver" subtitle="Update personal information, licensing status, and assigned fleet assets." />
@@ -74,6 +74,11 @@ export default function EditDriver() {
         }}
       >
         <Card>
+          {updateMutation.error && (
+            <div className="mx-6 mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+              {updateMutation.error.message}
+            </div>
+          )}
           <CardHeader title="Personal Information" />
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
@@ -109,7 +114,7 @@ export default function EditDriver() {
           <CardHeader title="Asset Assignment" />
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
-              <Label>Assigned Bus</Label>
+              <Label required>Assigned Bus</Label>
               <SearchableSelect
                 placeholder="Select bus"
                 value={form.assignedBus}
@@ -118,13 +123,10 @@ export default function EditDriver() {
               />
             </div>
             <div>
-              <Label>Assigned Route</Label>
-              <SearchableSelect
-                placeholder="Select route"
-                value={form.assignedRoute}
-                onChange={set('assignedRoute')}
-                options={routeOptions.map((r) => ({ value: r._id, label: r.name }))}
-              />
+              <Label>Route (from selected bus)</Label>
+              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-navy dark:text-slate-300">
+                {selectedRoute ? `${selectedRoute.routeId} - ${selectedRoute.name}` : 'No bus selected'}
+              </div>
             </div>
           </CardBody>
 
@@ -164,6 +166,9 @@ export default function EditDriver() {
         }
       >
         <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
+        {deleteMutation.error && (
+          <p className="mt-3 text-sm font-medium text-red-600">{deleteMutation.error.message}</p>
+        )}
       </Modal>
     </div>
   );
