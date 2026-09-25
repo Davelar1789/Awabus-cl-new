@@ -3,6 +3,7 @@ import { CheckCircle2, Search } from 'lucide-react';
 import Input, { Label } from './Input.jsx';
 import Button from './Button.jsx';
 import { lookupGhanaPostGps } from '../../api/geocode.js';
+import apiClient from '../../api/client.js';
 
 export const GPS_ADDRESS_RE = /^[A-Z]{2}-[0-9]{3}-[0-9]{4}$/;
 
@@ -35,7 +36,12 @@ export default function GpsAddressInput({ value, onChange, onResolve }) {
       onResolve(location);
     } catch (err) {
       if (id !== requestId.current) return;
-      setStatus({ state: 'error', message: err.message });
+      // "Not Found - /api/..." comes from Express when the route itself is missing,
+      // i.e. the connected server hasn't been updated with the geocode endpoint.
+      const message = /^Not Found - \//.test(err.message)
+        ? `Address lookup isn't available on the connected server (${apiClient.defaults.baseURL}). Restart or redeploy the backend with the latest code.`
+        : err.message;
+      setStatus({ state: 'error', message });
     }
   };
 

@@ -17,9 +17,32 @@ export function MapTiles() {
 }
 
 const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-const ESRI_LABELS_URL =
+const ESRI_ROADS_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}';
+const ESRI_PLACES_URL =
   'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
 const ESRI_ATTRIBUTION = 'Imagery &copy; Esri, Maxar, Earthstar Geographics';
+
+// With a Mapbox token, Hybrid uses Mapbox "Satellite Streets", which labels roads,
+// buildings and points of interest. Without one it falls back to Esri imagery with
+// road names and place labels.
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MAPBOX_HYBRID_URL = `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`;
+const MAPBOX_ATTRIBUTION =
+  '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+function HybridLayer() {
+  if (MAPBOX_TOKEN) {
+    return <TileLayer url={MAPBOX_HYBRID_URL} attribution={MAPBOX_ATTRIBUTION} tileSize={512} zoomOffset={-1} maxZoom={20} />;
+  }
+  return (
+    <LayerGroup>
+      <TileLayer url={ESRI_IMAGERY_URL} attribution={ESRI_ATTRIBUTION} maxZoom={19} />
+      <TileLayer url={ESRI_ROADS_URL} maxZoom={19} />
+      <TileLayer url={ESRI_PLACES_URL} maxZoom={19} />
+    </LayerGroup>
+  );
+}
 
 const BASE_LAYERS = ['Street', 'Satellite', 'Hybrid', 'Terrain'];
 const LAYER_STORAGE_KEY = 'awabus.mapLayer';
@@ -59,10 +82,7 @@ export function MapLayers() {
           <TileLayer url={ESRI_IMAGERY_URL} attribution={ESRI_ATTRIBUTION} maxZoom={19} />
         </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Hybrid" checked={active === 'Hybrid'}>
-          <LayerGroup>
-            <TileLayer url={ESRI_IMAGERY_URL} attribution={ESRI_ATTRIBUTION} maxZoom={19} />
-            <TileLayer url={ESRI_LABELS_URL} maxZoom={19} />
-          </LayerGroup>
+          <HybridLayer />
         </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Terrain" checked={active === 'Terrain'}>
           <TileLayer
