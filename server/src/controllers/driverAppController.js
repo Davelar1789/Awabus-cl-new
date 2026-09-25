@@ -163,6 +163,50 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
     .populate('studentProgress.student', 'firstName lastName studentCode');
 };
 
+// Once a trip exists for today, its studentProgress is a snapshot taken at
+// creation time — it's never touched again by getTodaysTrip, so a student
+// added to the route (or removed from it) *after* today's trip was already
+// provisioned would otherwise never show up for the driver no matter how
+// many times they pull-to-refresh. Safe to reconcile only while the trip is
+// still 'Scheduled': once it's started, studentProgress carries real
+// attendance/dropoff state that must not be clobbered.
+const reconcileStudentProgress = async (trip) => {
+  if (trip.status !== 'Scheduled') return trip;
+
+  const route = await RouteModel.findById(trip.route._id).populate('students', '_id');
+  if (!route) return trip;
+
+  const currentIds = new Set((route.students || []).map((s) => String(s._id)));
+  const existingIds = new Set(trip.studentProgress.map((p) => String(p.student?._id || p.student)));
+
+  const sameMembership =
+    currentIds.size === existingIds.size && [...currentIds].every((id) => existingIds.has(id));
+  if (sameMembership) return trip;
+
+  // Rebuild as plain objects (not populated subdocuments) and write via
+  // findByIdAndUpdate rather than mutating + saving the populated `trip`
+  // document directly — keeps this from depending on how Mongoose casts an
+  // already-populated path back down when reassigned.
+  const kept = trip.studentProgress
+    .filter((p) => currentIds.has(String(p.student?._id || p.student)))
+    .map((p) => ({
+      student: p.student?._id || p.student,
+      attendance: p.attendance,
+      alertStatus: p.alertStatus,
+      alertTime: p.alertTime,
+      dropoffStatus: p.dropoffStatus,
+    }));
+  const added = [...currentIds]
+    .filter((id) => !existingIds.has(id))
+    .map((id) => ({ student: id, attendance: 'Present', dropoffStatus: 'Pending' }));
+
+  await Trip.findByIdAndUpdate(trip._id, { studentProgress: [...kept, ...added] });
+  return Trip.findById(trip._id)
+    .populate('route', 'routeId name stops')
+    .populate('bus', 'plateNumber name capacity')
+    .populate('studentProgress.student', 'firstName lastName studentCode');
+};
+
 // @desc    Get today's scheduled/active trip for the logged-in driver
 //          (auto-creates one from the driver's current assignment if missing)
 // @route   GET /api/driver-app/trips/today
@@ -182,6 +226,8 @@ export const getTodaysTrip = asyncHandler(async (req, res) => {
 
   if (!trip) {
     trip = await provisionTodaysTrip(req.driver, start, end);
+  } else {
+    trip = await reconcileStudentProgress(trip);
   }
 
   res.json({ success: true, data: trip });
