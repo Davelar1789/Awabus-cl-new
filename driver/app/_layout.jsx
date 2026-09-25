@@ -1,14 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import { useAuthStore } from '../src/store/authStore.js';
 import { useUiStore } from '../src/store/uiStore.js';
 import { useOfflineQueueStore } from '../src/store/offlineQueueStore.js';
 import { useOfflineSync } from '../src/hooks/useOfflineSync.js';
+import BrandSplash from '../src/components/layout/BrandSplash.jsx';
+
+// How long the in-app splash stays up at minimum, so it doesn't just flicker.
+const MIN_SPLASH_MS = 1200;
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -27,7 +32,8 @@ export default function RootLayout() {
   const queueHydrated = useOfflineQueueStore((s) => s.isHydrated);
   const hydrateQueue = useOfflineQueueStore((s) => s.hydrate);
 
-  const ready = authHydrated && uiHydrated && queueHydrated;
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const ready = authHydrated && uiHydrated && queueHydrated && minTimeElapsed;
 
   useOfflineSync();
 
@@ -38,10 +44,20 @@ export default function RootLayout() {
   }, [hydrateAuth, hydrateUi, hydrateQueue]);
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
+    const t = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
+    return () => clearTimeout(t);
+  }, []);
 
-  if (!ready) return null;
+  // Hand over from the native splash to the identical in-app one straight away;
+  // BrandSplash stays up until the stores have loaded.
+  if (!ready) {
+    return (
+      <View style={{ flex: 1 }} onLayout={() => SplashScreen.hideAsync().catch(() => {})}>
+        <StatusBar style="light" />
+        <BrandSplash />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
