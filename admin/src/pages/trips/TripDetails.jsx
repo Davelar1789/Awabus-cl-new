@@ -26,7 +26,7 @@ export default function TripDetails() {
   const [tab, setTab] = useState('route');
   const { data: trip, isLoading } = useQuery({ queryKey: ['trip', id], queryFn: () => getTrip(id) });
 
-  usePageHeader({ breadcrumb: ['AwaBus', 'Trip Details', trip?.tripCode || '...'] });
+  usePageHeader({ breadcrumb: ['AwaBus', 'Trip History', trip?.tripCode || '...'] });
 
   if (isLoading || !trip) return <PageLoader />;
 

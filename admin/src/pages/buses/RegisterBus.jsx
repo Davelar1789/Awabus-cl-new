@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Route as RouteIcon } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useCreateDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Input, { Label, FieldError } from '../../components/ui/Input.jsx';
@@ -18,7 +20,7 @@ const initial = { plateNumber: '', name: '', type: 'Standard', capacity: '', ass
 export default function RegisterBus() {
   usePageHeader({ breadcrumb: ['AwaBus', 'Buses', 'Register Bus'] });
   const queryClient = useQueryClient();
-  const [form, setForm] = useState(initial);
+  const [form, setForm, draft] = useCreateDraft('bus:new', initial);
   const [created, setCreated] = useState(null);
   const [routeError, setRouteError] = useState('');
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
@@ -30,6 +32,7 @@ export default function RegisterBus() {
     onSuccess: (bus) => {
       queryClient.invalidateQueries({ queryKey: ['buses'] });
       setCreated(bus);
+      draft.clear();
     },
   });
 
@@ -103,6 +106,7 @@ export default function RegisterBus() {
         ← Back to Bus List
       </Link>
       <PageHeader title="Register Bus" />
+      <DraftNotice show={draft.restored} onDiscard={draft.clear} />
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader title="Vehicle Information" />

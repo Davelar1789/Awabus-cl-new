@@ -1,9 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Bell, ChevronDown, LogOut, Menu, Search, Settings, UserCircle } from 'lucide-react';
 import { useTopbarStore } from '../../store/topbarStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import Avatar from '../ui/Avatar.jsx';
+
+// Section names used in page breadcrumbs, mapped to their list pages. A crumb can
+// also be given explicitly as { label, to } (e.g. a record's profile page).
+const SECTION_LINKS = {
+  awabus: '/',
+  dashboard: '/',
+  platform: '/platform',
+  routes: '/routes',
+  buses: '/buses',
+  drivers: '/drivers',
+  students: '/students',
+  'trip history': '/trip-history',
+  'live tracking': '/live-tracking',
+};
+
+const resolveCrumb = (crumb) =>
+  typeof crumb === 'string' ? { label: crumb, to: SECTION_LINKS[crumb.toLowerCase()] } : crumb;
 
 export default function Topbar() {
   const { breadcrumb, searchValue, searchPlaceholder, onSearchChange } = useTopbarStore();
@@ -31,20 +49,30 @@ export default function Topbar() {
       </button>
 
       <nav className="hidden shrink-0 items-center gap-1.5 text-sm md:flex">
-        {breadcrumb.map((crumb, i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-slate-300 dark:text-slate-600">/</span>}
-            <span
-              className={
-                i === breadcrumb.length - 1
-                  ? 'font-bold text-slate-900 dark:text-white'
-                  : 'text-slate-400 dark:text-slate-500'
-              }
-            >
-              {crumb}
+        {breadcrumb.map((crumb, i) => {
+          const { label, to } = resolveCrumb(crumb);
+          const isLast = i === breadcrumb.length - 1;
+          return (
+            <span key={i} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-slate-300 dark:text-slate-600">/</span>}
+              {isLast || !to ? (
+                <span
+                  aria-current={isLast ? 'page' : undefined}
+                  className={isLast ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}
+                >
+                  {label}
+                </span>
+              ) : (
+                <Link
+                  to={to}
+                  className="text-slate-400 hover:text-brand-600 hover:underline dark:text-slate-500 dark:hover:text-brand-400"
+                >
+                  {label}
+                </Link>
+              )}
             </span>
-          </span>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="mx-auto flex max-w-lg flex-1 items-center">

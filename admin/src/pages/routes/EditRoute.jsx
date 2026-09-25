@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useEditDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import Card, { CardHeader, CardBody } from '../../components/ui/Card.jsx';
@@ -9,23 +11,21 @@ import RouteForm from './RouteForm.jsx';
 import { getRoute, updateRoute } from '../../api/routes.js';
 
 export default function EditRoute() {
-  usePageHeader({ breadcrumb: ['Awabus', 'Routes', 'Edit route'] });
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState(null);
 
   const { data: route, isLoading } = useQuery({ queryKey: ['route', id], queryFn: () => getRoute(id) });
+  usePageHeader({ breadcrumb: ['AwaBus', 'Routes', route?.name || 'Edit route', 'Edit'] });
 
-  useEffect(() => {
-    if (route) {
-      setValues({ name: route.name });
-    }
-  }, [route]);
+  const baseline = useMemo(() => (route ? { name: route.name } : null), [route]);
+  // Unsaved edits are kept as a draft until saved or discarded.
+  const [values, setValues, draft] = useEditDraft(`route:${id}`, baseline);
 
   const mutation = useMutation({
     mutationFn: (payload) => updateRoute(id, payload),
     onSuccess: () => {
+      draft.clear();
       queryClient.invalidateQueries({ queryKey: ['routes'] });
       navigate('/routes');
     },
@@ -36,6 +36,7 @@ export default function EditRoute() {
   return (
     <div>
       <PageHeader title="Edit route" subtitle="Modify this route's name and status." />
+      <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
 
       <Card className="mb-6">
         <CardHeader title="Current assignments" subtitle="Managed from the Buses/Drivers/Students pages, not here." />

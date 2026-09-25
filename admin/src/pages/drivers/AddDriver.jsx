@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck, Upload } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { useWizardDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Stepper from '../../components/ui/Stepper.jsx';
@@ -46,8 +48,8 @@ export default function AddDriver() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState(initialForm);
+  // The wizard (form + step) is saved as a draft so leaving the page doesn't lose it.
+  const { form, setForm, step, setStep, restored, clear: clearDraft } = useWizardDraft('driver:new', initialForm);
   const [validation, setValidation] = useState(null);
   const [created, setCreated] = useState(null);
   const [busError, setBusError] = useState('');
@@ -67,21 +69,36 @@ export default function AddDriver() {
     onSuccess: (driver) => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       setCreated(driver);
+      clearDraft();
     },
   });
 
+  // License validation runs on reaching step 3, and also when a restored draft
+  // or a stepper jump lands beyond it.
   useEffect(() => {
-    if (step === 3 && !validation) validateMutation.mutate();
+    if (step >= 3 && !validation) validateMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const goNext = () => {
-    if (step === 4 && !form.assignedBus) {
+  // Checks that must pass before leaving a step (same rules for Continue and for
+  // jumping ahead via the stepper).
+  const validateStep = (n) => {
+    if (n === 4 && !form.assignedBus) {
       setBusError('Select the bus this driver will operate');
-      return;
+      return false;
     }
-    setStep((s) => Math.min(s + 1, STEPS.length));
+    return true;
   };
+  const goTo = (target) => {
+    for (let n = step; n < target; n += 1) {
+      if (!validateStep(n)) {
+        setStep(n);
+        return;
+      }
+    }
+    setStep(target);
+  };
+  const goNext = () => goTo(Math.min(step + 1, STEPS.length));
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleCreate = () => {
@@ -149,9 +166,8 @@ export default function AddDriver() {
             <Button
               onClick={() => {
                 setCreated(null);
-                setForm(initialForm);
                 setValidation(null);
-                setStep(1);
+                clearDraft();
               }}
             >
               Add Another Driver
@@ -165,7 +181,15 @@ export default function AddDriver() {
   return (
     <div>
       <PageHeader title="Add driver" subtitle="Create a new driver profile and verify license details." />
-      <Stepper steps={STEPS} activeStep={step} />
+      <Stepper steps={STEPS} activeStep={step} onStepClick={goTo} />
+      <DraftNotice
+        show={restored}
+        onDiscard={() => {
+          setValidation(null);
+          clearDraft();
+        }}
+        discardLabel="Start over"
+      />
 
       <Card>
         <CardBody>

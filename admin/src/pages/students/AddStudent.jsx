@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useWizardDraft } from '../../hooks/useFormDraft.js';
+import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Home, MapPin, Route as RouteIcon, Unlink, Upload } from 'lucide-react';
@@ -39,8 +41,6 @@ const CLASS_GRADE_OPTIONS = [
   'Basic 9',
 ];
 
-const DRAFT_KEY = 'addStudentDraft';
-
 const initial = {
   firstName: '',
   lastName: '',
@@ -68,44 +68,26 @@ const initial = {
   linkedLocationName: '',
 };
 
-function loadDraft() {
-  try {
-    const saved = localStorage.getItem(DRAFT_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
-}
-
-function clearDraft() {
-  try {
-    localStorage.removeItem(DRAFT_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 export default function AddStudent() {
   usePageHeader({ breadcrumb: ['AwaBus', 'Students', 'Add student'] });
   const queryClient = useQueryClient();
 
-  // Restore saved draft (form + step) if one exists, otherwise start fresh
-  const [step, setStep] = useState(() => loadDraft()?.step ?? 1);
-  const [form, setForm] = useState(() => loadDraft()?.form ?? initial);
+  // The wizard (form + step) is saved as a draft so leaving the page doesn't lose it.
+  const { form, setForm, step, setStep, restored, clear: clearDraft } = useWizardDraft('student:new', initial);
 
   const [created, setCreated] = useState(null);
   const [routeError, setRouteError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // Persist to localStorage whenever the form or step changes
+  // Drafts used to live under this key (not namespaced per admin); drop it.
   useEffect(() => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
+      localStorage.removeItem('addStudentDraft');
     } catch {
-      // storage full or unavailable — fail silently, not critical
+      // ignore
     }
-  }, [form, step]);
+  }, []);
 
   const { data: routeOptions, isLoading: routesLoading } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
   const { data: guardianOptions = [] } = useQuery({ queryKey: ['guardian-options'], queryFn: () => getGuardians() });
@@ -146,13 +128,25 @@ export default function AddStudent() {
   const selectedRoute = routeOptions.find((r) => r._id === form.route);
   const selectedBus = selectedRoute?.assignedBus;
 
-  const goNext = () => {
-    if (step === 3 && !form.route) {
+  // Checks that must pass before leaving a step (same rules for Continue and for
+  // jumping ahead via the stepper).
+  const validateStep = (n) => {
+    if (n === 3 && !form.route) {
       setRouteError('Select the route this student will use');
-      return;
+      return false;
     }
-    setStep((s) => Math.min(s + 1, STEPS.length));
+    return true;
   };
+  const goTo = (target) => {
+    for (let n = step; n < target; n += 1) {
+      if (!validateStep(n)) {
+        setStep(n);
+        return;
+      }
+    }
+    setStep(target);
+  };
+  const goNext = () => goTo(Math.min(step + 1, STEPS.length));
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleSubmit = () => {
@@ -213,8 +207,6 @@ export default function AddStudent() {
             <Button
               onClick={() => {
                 setCreated(null);
-                setForm(initial);
-                setStep(1);
                 clearDraft();
               }}
             >
@@ -229,7 +221,8 @@ export default function AddStudent() {
   return (
     <div>
       <PageHeader title={`Add Student — Step ${step}`} subtitle={STEP_SUBTITLES[step - 1]} />
-      <Stepper steps={STEPS} activeStep={step} />
+      <Stepper steps={STEPS} activeStep={step} onStepClick={goTo} />
+      <DraftNotice show={restored} onDiscard={clearDraft} discardLabel="Start over" />
 
       <Card>
         <CardBody>
