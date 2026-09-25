@@ -60,7 +60,7 @@ export default function Sidebar() {
         <div className="mb-8 flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
             <img 
-            src="/awabus.svg" 
+            src="/awabus1.png" 
             alt="AWABUS Logo" 
             className="w-70 h-auto"
           />
