@@ -47,6 +47,10 @@ export default function HouseholdLinkPicker({ guardianId, excludeId, onSelect })
     queryKey: ['student-options', 'siblings', guardianId, excludeId],
     queryFn: () => getStudentOptions({ guardian: guardianId, exclude: excludeId }),
     enabled: Boolean(guardianId),
+    // Re-check on the client: an older server ignores the guardian filter and
+    // would otherwise make every student look like a sibling.
+    select: (list) =>
+      list.filter((s) => String(s.primaryGuardian) === String(guardianId) && String(s._id) !== String(excludeId)),
   });
 
   const { data: results = [], isFetching } = useQuery({
