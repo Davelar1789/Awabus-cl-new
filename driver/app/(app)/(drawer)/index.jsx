@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,10 +25,15 @@ export default function Home() {
   const {
     data: trip,
     isLoading,
+    isRefetching,
     isError,
     error,
     refetch,
   } = useQuery({ queryKey: ['todays-trip'], queryFn: getTodaysTrip });
+
+  const refreshControl = (
+    <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.trip600} colors={[colors.trip600]} />
+  );
 
   useEffect(() => {
     if (trip?.status === 'In Progress' || trip?.status === 'Delayed') {
@@ -68,7 +73,7 @@ export default function Home() {
     return (
       <View style={{ flex: 1 }}>
         <Header title="AwaBus Driver" />
-        <View style={styles.centerPad}>
+        <ScrollView contentContainerStyle={styles.centerPad} refreshControl={refreshControl}>
           <Card style={styles.centerCard}>
             <AlertTriangle size={28} color={colors.red500} />
             <Text style={styles.emptyTitle}>Couldn't load your trip</Text>
@@ -77,7 +82,7 @@ export default function Home() {
               Retry
             </Button>
           </Card>
-        </View>
+        </ScrollView>
       </View>
     );
   }
@@ -86,7 +91,7 @@ export default function Home() {
     return (
       <View style={{ flex: 1 }}>
         <Header title="AwaBus Driver" />
-        <View style={styles.centerPad}>
+        <ScrollView contentContainerStyle={styles.centerPad} refreshControl={refreshControl}>
           <Card style={styles.centerCard}>
             <AlertTriangle size={28} color={colors.amber500} />
             <Text style={styles.emptyTitle}>No trip assigned yet</Text>
@@ -94,7 +99,7 @@ export default function Home() {
               You don't have a bus or route assigned. Contact your school admin to get set up.
             </Text>
           </Card>
-        </View>
+        </ScrollView>
       </View>
     );
   }
@@ -107,7 +112,7 @@ export default function Home() {
   return (
     <View style={{ flex: 1 }}>
       <Header title="AwaBus Driver" />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} refreshControl={refreshControl}>
         <Card>
           <View style={styles.rowBetween}>
             <View>
@@ -204,7 +209,7 @@ const SummaryRow = ({ label, value }) => (
 
 const styles = StyleSheet.create({
   scroll: { padding: 16, gap: 20, paddingBottom: 32 },
-  centerPad: { flex: 1, padding: 16, justifyContent: 'center' },
+  centerPad: { flexGrow: 1, padding: 16, justifyContent: 'center' },
   centerCard: { alignItems: 'center', gap: 8, paddingVertical: 40 },
   emptyTitle: { fontWeight: '800', color: colors.slate800, fontSize: 15 },
   emptyText: { color: colors.slate500, fontSize: 13, textAlign: 'center' },
