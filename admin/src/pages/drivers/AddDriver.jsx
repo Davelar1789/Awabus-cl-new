@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck, Upload } from 'lucide-react';
+import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
+import { shrinkPhoto } from '../../lib/image.js';
+import PhotoUpload from '../../components/ui/PhotoUpload.jsx';
 import { useWizardDraft } from '../../hooks/useFormDraft.js';
 import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
@@ -101,9 +103,12 @@ export default function AddDriver() {
   const goNext = () => goTo(Math.min(step + 1, STEPS.length));
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     createMutation.mutate({
       ...form,
+      phone: form.phone ? `+233${form.phone.replace(/\s/g, '')}` : '',
+      emergencyContactPhone: form.emergencyContactPhone ? `+233${form.emergencyContactPhone.replace(/\s/g, '')}` : '',
+      profilePhotoUrl: await shrinkPhoto(form.profilePhotoUrl),
       licenseValidation: {
         status: validation?.valid ? 'verified' : 'pending',
         message: validation?.message || '',
@@ -430,29 +435,6 @@ const Row = ({ label, value }) => (
     <span className="font-semibold text-slate-800 dark:text-slate-100">{value}</span>
   </div>
 );
-
-function PhotoUpload({ value, onChange }) {
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center hover:border-brand-300 dark:border-slate-700 dark:bg-navy">
-      {value ? (
-        <img src={value} alt="Preview" className="h-20 w-20 rounded-full object-cover" />
-      ) : (
-        <Upload className="h-6 w-6 text-slate-400" />
-      )}
-      <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Click to upload profile photo</span>
-      <span className="text-xs text-slate-400">PNG or JPG up to 5MB</span>
-      <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleFile} />
-    </label>
-  );
-}
 
 function ReviewStep({ form, validation, busOptions }) {
   const bus = busOptions.find((b) => b._id === form.assignedBus);

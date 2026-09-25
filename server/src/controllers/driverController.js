@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import { normalizeGhanaPhone } from '../utils/phone.js';
 import Driver from '../models/Driver.js';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
@@ -137,7 +138,7 @@ export const createDriver = asyncHandler(async (req, res) => {
   const driver = await Driver.create({
     firstName,
     lastName,
-    phone,
+    phone: normalizeGhanaPhone(phone),
     email,
     dob,
     gender,
@@ -151,7 +152,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     assignmentHistory: [{ bus: assignedBus, route: assignedRoute, from: new Date(), status: 'Active' }],
     emergencyContactName,
     emergencyContactRelation,
-    emergencyContactPhone,
+    emergencyContactPhone: normalizeGhanaPhone(emergencyContactPhone),
     residentialAddress,
     status: status || 'Active',
   });
@@ -192,6 +193,10 @@ export const updateDriver = asyncHandler(async (req, res) => {
   fields.forEach((f) => {
     if (req.body[f] !== undefined) driver[f] = req.body[f];
   });
+  if (req.body.phone !== undefined) driver.phone = normalizeGhanaPhone(req.body.phone);
+  if (req.body.emergencyContactPhone !== undefined) {
+    driver.emergencyContactPhone = normalizeGhanaPhone(req.body.emergencyContactPhone);
+  }
 
   const previousBus = driver.assignedBus ? String(driver.assignedBus) : null;
   const previousRoute = driver.assignedRoute ? String(driver.assignedRoute) : null;
