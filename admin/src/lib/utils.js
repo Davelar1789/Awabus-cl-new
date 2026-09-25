@@ -35,6 +35,9 @@ export const initials = (name = '') =>
     .map((p) => p[0]?.toUpperCase())
     .join('');
 
+// jane.doe@school.com -> j*******@school.com
+export const maskEmail = (email = '') => email.replace(/^(.)(.*)(@.*)$/, (_, a, b, c) => `${a}${'*'.repeat(Math.max(b.length, 1))}${c}`);
+
 export const maskPhone = (phone = '') => {
   // +233 24 *** ** 83
   const digits = phone.replace(/\D/g, '');

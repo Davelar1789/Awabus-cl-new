@@ -2,9 +2,10 @@ import mongoose from 'mongoose';
 
 const otpTokenSchema = new mongoose.Schema(
   {
-    // Password-reset codes are keyed by phone. Account-change codes belong to a
-    // signed-in admin and record where the code was sent (target) and, for
-    // email/phone changes, the value that becomes active once verified.
+    // Driver password-reset codes are keyed by phone; admin reset codes by the
+    // email in `target`. Account-change codes belong to a signed-in admin and
+    // record where the code was sent (target) and, for email/phone changes,
+    // the value that becomes active once verified.
     phone: { type: String, trim: true },
     admin: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
     target: { type: String, trim: true },
@@ -24,5 +25,6 @@ const otpTokenSchema = new mongoose.Schema(
 
 otpTokenSchema.index({ phone: 1, purpose: 1 });
 otpTokenSchema.index({ admin: 1, purpose: 1 });
+otpTokenSchema.index({ target: 1, purpose: 1 });
 
 export default mongoose.model('OtpToken', otpTokenSchema);
