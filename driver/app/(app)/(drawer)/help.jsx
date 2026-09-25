@@ -35,7 +35,7 @@ export default function HelpSupport() {
       <Header title="Help & support" back />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.iconWrap}>
-          <HelpCircle size={28} color={colors.trip600} />
+          <HelpCircle size={28} color={colors.navy} />
         </View>
         <Text style={styles.title}>We're here to help</Text>
         <Text style={styles.subtitle}>Reach the school's support team or check answers to common questions.</Text>
@@ -48,7 +48,7 @@ export default function HelpSupport() {
               style={[styles.contactRow, index < CONTACTS.length - 1 && styles.rowBorder]}
             >
               <View style={styles.contactIcon}>
-                <Icon size={18} color={colors.trip600} />
+                <Icon size={18} color={colors.navy} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.contactLabel}>{label}</Text>
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.trip50,
+    backgroundColor: colors.brand50,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.trip50,
+    backgroundColor: colors.brand50,
     alignItems: 'center',
     justifyContent: 'center',
   },

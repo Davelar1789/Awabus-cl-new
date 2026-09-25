@@ -33,7 +33,7 @@ export default function BroadcastHistory() {
             <Card style={styles.card}>
               <View style={styles.row}>
                 <View style={styles.iconWrap}>
-                  <Mail size={16} color={colors.trip600} />
+                  <Mail size={16} color={colors.navy} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.reason}>{item.reason}</Text>
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.trip50,
+    backgroundColor: colors.brand50,
     alignItems: 'center',
     justifyContent: 'center',
   },

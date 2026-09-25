@@ -1,16 +1,14 @@
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bus } from 'lucide-react-native';
 import { colors } from '../../lib/theme.js';
+
+const LOGO = require('../../../assets/awabus-logo.png');
 
 export default function AuthLayout({ children }) {
   return (
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.banner}>
-        <View style={styles.logoRow}>
-          <Bus size={30} color={colors.brand300} />
-          <Text style={styles.wordmark}>AWABUS</Text>
-        </View>
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="AwaBus" />
       </SafeAreaView>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -36,16 +34,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  wordmark: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.brand300,
-    letterSpacing: 1,
+  logo: {
+    width: 200,
+    height: 98,
   },
   body: {
     padding: 24,

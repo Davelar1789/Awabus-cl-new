@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', color: colors.slate400 },
   progressText: { fontSize: 13, fontWeight: '800', color: colors.emerald700 },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.slate200, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: colors.trip600, borderRadius: 4 },
+  progressFill: { height: '100%', backgroundColor: colors.navy, borderRadius: 4 },
   searchInput: {
     height: 44,
     borderRadius: radii.lg,

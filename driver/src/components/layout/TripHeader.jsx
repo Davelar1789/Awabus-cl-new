@@ -27,7 +27,7 @@ export default function TripHeader({ status, isOnline, subtitle, elapsedSeconds 
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: colors.trip600,
+    backgroundColor: colors.navy,
     paddingHorizontal: 16,
     paddingBottom: 16,
   },

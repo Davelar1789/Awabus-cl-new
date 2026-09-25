@@ -67,7 +67,7 @@ export default function Home() {
   if (isError) {
     return (
       <View style={{ flex: 1 }}>
-        <Header title="AwaBus Driver" />
+        <Header logo />
         <View style={styles.centerPad}>
           <Card style={styles.centerCard}>
             <AlertTriangle size={28} color={colors.red500} />
@@ -85,7 +85,7 @@ export default function Home() {
   if (!trip) {
     return (
       <View style={{ flex: 1 }}>
-        <Header title="AwaBus Driver" />
+        <Header logo />
         <View style={styles.centerPad}>
           <Card style={styles.centerCard}>
             <AlertTriangle size={28} color={colors.amber500} />
@@ -106,7 +106,7 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Header title="AwaBus Driver" />
+      <Header logo />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Card>
           <View style={styles.rowBetween}>

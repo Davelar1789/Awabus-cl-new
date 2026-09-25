@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radii } from '../../lib/theme.js';
 
 const VARIANT_STYLES = {
-  primary: { bg: colors.trip600, text: colors.white },
+  primary: { bg: colors.navy, text: colors.white },
   auth: { bg: colors.brand300, text: colors.navy },
   outline: { bg: colors.white, text: colors.brand700, border: colors.brand600 },
   danger: { bg: colors.red600, text: colors.white },

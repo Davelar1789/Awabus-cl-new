@@ -1,5 +1,5 @@
-// Shared design tokens — mirrors the color system used in /admin and the
-// original web driver app so the native app stays visually consistent.
+// Shared design tokens — mirrors the color system used in /admin (navy from the
+// sign-in page, mint/teal from the AwaBus logo) so both apps look the same.
 export const colors = {
   navy: '#0b1b2b',
   navyLight: '#132a40',
@@ -11,12 +11,6 @@ export const colors = {
   brand500: '#1cb894',
   brand600: '#0d9488',
   brand700: '#0c7a6f',
-
-  trip50: '#eaf6ee',
-  trip100: '#cfead9',
-  trip500: '#2e7d4f',
-  trip600: '#256640',
-  trip700: '#1f5636',
 
   slate50: '#f8fafc',
   slate100: '#f1f5f9',

@@ -47,7 +47,7 @@ export default function DelayBroadcast() {
       <Header title="Delay broadcast" back />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.iconWrap}>
-          <Mail size={28} color={colors.trip600} />
+          <Mail size={28} color={colors.navy} />
         </View>
         <Text style={styles.title}>Notify attending parents</Text>
         <Text style={styles.subtitle}>Sends one SMS to the parents of the {attending} students attending today.</Text>

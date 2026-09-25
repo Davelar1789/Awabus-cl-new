@@ -73,7 +73,7 @@ const Row = ({ label, value, last }) => (
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: colors.trip600,
+    backgroundColor: colors.navy,
     alignItems: 'center',
     paddingBottom: 32,
     paddingTop: 8,

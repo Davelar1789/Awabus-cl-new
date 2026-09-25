@@ -83,7 +83,7 @@ export default function TripHistoryDetail() {
             broadcasts.map((b, index) => (
               <View key={b._id || index} style={[styles.broadcastRow, index < broadcasts.length - 1 && styles.studentRowBorder]}>
                 <View style={styles.broadcastIcon}>
-                  <Mail size={16} color={colors.trip600} />
+                  <Mail size={16} color={colors.navy} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.studentName}>{b.reason}</Text>
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.trip50,
+    backgroundColor: colors.brand50,
     alignItems: 'center',
     justifyContent: 'center',
   },
