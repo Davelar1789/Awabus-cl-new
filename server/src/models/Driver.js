@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { normalizePhones } from '../plugins/normalizePhones.js';
 import bcrypt from 'bcryptjs';
 import { tenantScope } from '../plugins/tenantScope.js';
 
@@ -82,4 +83,5 @@ driverSchema.set('toObject', { virtuals: true });
 
 driverSchema.plugin(tenantScope);
 
+driverSchema.plugin(normalizePhones, { paths: ['phone', 'emergencyContactPhone'] });
 export default mongoose.model('Driver', driverSchema);

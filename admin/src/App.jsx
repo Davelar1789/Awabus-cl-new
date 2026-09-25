@@ -37,6 +37,9 @@ import TripDetails from './pages/trips/TripDetails.jsx';
 import LiveTracking from './pages/tracking/LiveTracking.jsx';
 import LiveTripDetail from './pages/tracking/LiveTripDetail.jsx';
 
+import MyProfile from './pages/account/MyProfile.jsx';
+import AccountSettings from './pages/account/AccountSettings.jsx';
+
 export default function App() {
   return (
     <Routes>
@@ -49,6 +52,10 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
           <Route path="/" element={<Dashboard />} />
+
+          <Route path="/account" element={<Navigate to="/account/profile" replace />} />
+          <Route path="/account/profile" element={<MyProfile />} />
+          <Route path="/account/settings" element={<AccountSettings />} />
 
           <Route element={<SuperadminRoute />}>
             <Route path="/platform" element={<SuperadminDashboard />} />

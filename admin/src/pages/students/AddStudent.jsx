@@ -7,6 +7,8 @@ import { AlertCircle, CheckCircle2, Home, MapPin, Route as RouteIcon, Unlink } f
 import usePageHeader from '../../hooks/usePageHeader.js';
 import { shrinkPhoto } from '../../lib/image.js';
 import PhotoUpload from '../../components/ui/PhotoUpload.jsx';
+import PhoneInput from '../../components/ui/PhoneInput.jsx';
+import { formatPhone, fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Stepper from '../../components/ui/Stepper.jsx';
@@ -79,6 +81,7 @@ export default function AddStudent() {
 
   const [created, setCreated] = useState(null);
   const [routeError, setRouteError] = useState('');
+  const [stepError, setStepError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -133,6 +136,14 @@ export default function AddStudent() {
   // Checks that must pass before leaving a step (same rules for Continue and for
   // jumping ahead via the stepper).
   const validateStep = (n) => {
+    if (n === 2 && !form.guardianId && !isValidPhone(form.guardianPhone)) {
+      setStepError('Enter the guardian\'s phone number: 10 digits starting with 0, e.g. 024 412 3456');
+      return false;
+    }
+    if (n === 2 && form.secondContactPhone && !isValidPhone(form.secondContactPhone)) {
+      setStepError('The second contact phone must be 10 digits starting with 0');
+      return false;
+    }
     if (n === 3 && !form.route) {
       setRouteError('Select the route this student will use');
       return false;
@@ -140,6 +151,7 @@ export default function AddStudent() {
     return true;
   };
   const goTo = (target) => {
+    setStepError('');
     for (let n = step; n < target; n += 1) {
       if (!validateStep(n)) {
         setStep(n);
@@ -166,11 +178,11 @@ export default function AddStudent() {
             firstName: form.guardianFirst,
             lastName: form.guardianLast,
             relation: form.guardianRelation,
-            phone: form.guardianPhone,
+            phone: toLocalPhone(form.guardianPhone),
             email: form.guardianEmail,
           },
       secondContactName: form.secondContactName,
-      secondContactPhone: form.secondContactPhone,
+      secondContactPhone: toLocalPhone(form.secondContactPhone),
       emergencyInstructions: form.emergencyInstructions,
       route: form.route,
       pickupPoint: form.pickupPoint,
@@ -299,7 +311,7 @@ export default function AddStudent() {
                     if (g) {
                       set('guardianFirst')(g.firstName);
                       set('guardianLast')(g.lastName);
-                      set('guardianPhone')(g.phone);
+                      set('guardianPhone')(fromStoredPhone(g.phone));
                       set('guardianEmail')(g.email || '');
                     }
                   }}
@@ -326,7 +338,7 @@ export default function AddStudent() {
                 </div>
                 <div>
                   <Label required>Guardian Phone</Label>
-                  <Input value={form.guardianPhone} onChange={(e) => set('guardianPhone')(e.target.value)} placeholder="+233 24 412 3456" />
+                  <PhoneInput value={form.guardianPhone} onChange={set('guardianPhone')} />
                 </div>
                 <div className="sm:col-span-2">
                   <Label>Guardian Email</Label>
@@ -338,7 +350,7 @@ export default function AddStudent() {
                 </div>
                 <div>
                   <Label>Second Contact Phone</Label>
-                  <Input value={form.secondContactPhone} onChange={(e) => set('secondContactPhone')(e.target.value)} placeholder="e.g. +233 20 111 2233" />
+                  <PhoneInput value={form.secondContactPhone} onChange={set('secondContactPhone')} placeholder="020 111 2233" />
                 </div>
                 <div className="sm:col-span-2">
                   <Label>Emergency Instructions</Label>
@@ -533,7 +545,7 @@ export default function AddStudent() {
                 <p className="mb-3 text-sm font-bold text-brand-700 dark:text-brand-400">Guardian Information</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <SummaryStat label="Guardian" value={`${form.guardianFirst} ${form.guardianLast} (${form.guardianRelation})`} />
-                  <SummaryStat label="Phone" value={form.guardianPhone || '—'} />
+                  <SummaryStat label="Phone" value={form.guardianPhone ? formatPhone(form.guardianPhone) : '—'} />
                   <SummaryStat label="Email" value={form.guardianEmail || '—'} />
                 </div>
               </section>
@@ -565,6 +577,11 @@ export default function AddStudent() {
           </div>
         )}
 
+        {stepError && (
+          <div className="mx-5 mb-0 mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+            {stepError}
+          </div>
+        )}
         <div className="flex justify-between border-t border-slate-100 p-5 dark:border-slate-800">
           {step > 1 ? (
             <Button variant="outline" onClick={goBack} type="button">

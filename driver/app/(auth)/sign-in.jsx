@@ -8,6 +8,7 @@ import PhoneInput from '../../src/components/ui/PhoneInput.jsx';
 import { PasswordInput, Label, FieldError } from '../../src/components/ui/Input.jsx';
 import Button from '../../src/components/ui/Button.jsx';
 import { checkPhone, login as loginApi, setPassword as setPasswordApi } from '../../src/api/driverApp.js';
+import { formatPhone, isValidPhone, toLocalPhone } from '../../src/lib/phone.js';
 import { useAuthStore } from '../../src/store/authStore.js';
 import { colors, radii } from '../../src/lib/theme.js';
 
@@ -38,8 +39,9 @@ export default function SignIn() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [createError, setCreateError] = useState('');
 
-  const digits = phone.replace(/\s/g, '');
-  const fullPhone = `+233${digits}`;
+  // Sent as 0XXXXXXXXX; the server normalizes it to +233XXXXXXXXX.
+  const fullPhone = toLocalPhone(phone);
+  const phoneValid = isValidPhone(phone);
 
   const checkPhoneMutation = useMutation({
     mutationFn: () => checkPhone(fullPhone),
@@ -101,7 +103,7 @@ export default function SignIn() {
 
   const handlePhoneSubmit = () => {
     setPhoneError(null);
-    if (digits.length !== 9) return;
+    if (!phoneValid) return;
     checkPhoneMutation.mutate();
   };
 
@@ -132,7 +134,7 @@ export default function SignIn() {
 
         <View style={styles.field}>
           <Label>Phone Number</Label>
-          <PhoneInput value={phone} onChange={setPhone} maxLength={11} />
+          <PhoneInput value={phone} onChange={setPhone} />
         </View>
 
         {phoneError && (
@@ -153,7 +155,7 @@ export default function SignIn() {
         <Button
           variant="auth"
           loading={checkPhoneMutation.isPending}
-          disabled={digits.length !== 9}
+          disabled={!phoneValid}
           onPress={handlePhoneSubmit}
           style={{ marginTop: 4 }}
         >
@@ -172,7 +174,7 @@ export default function SignIn() {
       <AuthLayout>
         <Pressable onPress={backToPhone} style={styles.backRow} hitSlop={10}>
           <ArrowLeft size={16} color={colors.slate500} />
-          <Text style={styles.backText}>+233 {phone}</Text>
+          <Text style={styles.backText}>{formatPhone(fullPhone)}</Text>
         </Pressable>
 
         <Text style={styles.title}>Create your password</Text>
@@ -215,7 +217,7 @@ export default function SignIn() {
     <AuthLayout>
       <Pressable onPress={backToPhone} style={styles.backRow} hitSlop={10}>
         <ArrowLeft size={16} color={colors.slate500} />
-        <Text style={styles.backText}>+233 {phone}</Text>
+        <Text style={styles.backText}>{formatPhone(fullPhone)}</Text>
       </Pressable>
 
       <Text style={styles.title}>Enter your password</Text>

@@ -7,6 +7,7 @@ import PhoneInput from '../../src/components/ui/PhoneInput.jsx';
 import { Label, FieldError } from '../../src/components/ui/Input.jsx';
 import Button from '../../src/components/ui/Button.jsx';
 import { forgotPassword } from '../../src/api/driverApp.js';
+import { isValidPhone, toLocalPhone } from '../../src/lib/phone.js';
 import { useResetFlowStore } from '../../src/store/resetFlowStore.js';
 import { colors } from '../../src/lib/theme.js';
 
@@ -15,12 +16,12 @@ export default function ForgotPassword() {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
 
-  const digits = value.replace(/\s/g, '');
+  const phone = toLocalPhone(value);
 
   const mutation = useMutation({
-    mutationFn: () => forgotPassword(`+233${digits}`),
+    mutationFn: () => forgotPassword(phone),
     onSuccess: () => {
-      setPhone(`+233${digits}`);
+      setPhone(phone);
       router.push('/verify-otp');
     },
     onError: (err) => setError(err.message),
@@ -28,8 +29,8 @@ export default function ForgotPassword() {
 
   const handleSubmit = () => {
     setError('');
-    if (digits.length !== 9) {
-      setError('Enter a valid 9-digit phone number');
+    if (!isValidPhone(value)) {
+      setError('Enter a 10-digit number starting with 0, e.g. 055 123 4567');
       return;
     }
     mutation.mutate();
@@ -42,7 +43,7 @@ export default function ForgotPassword() {
 
       <View style={styles.field}>
         <Label>Phone Number</Label>
-        <PhoneInput value={value} onChange={setValue} error={Boolean(error)} maxLength={11} />
+        <PhoneInput value={value} onChange={setValue} error={Boolean(error)} />
         <FieldError>{error}</FieldError>
       </View>
 

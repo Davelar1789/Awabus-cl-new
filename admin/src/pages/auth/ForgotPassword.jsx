@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import AuthLayout from '../../components/layout/AuthLayout.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
+import { isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import { Label, FieldError } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { forgotPassword } from '../../api/auth.js';
@@ -14,12 +15,12 @@ export default function ForgotPassword() {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
 
-  const digits = value.replace(/\s/g, '');
+  const phone = toLocalPhone(value);
 
   const mutation = useMutation({
-    mutationFn: () => forgotPassword(`+233${digits}`),
+    mutationFn: () => forgotPassword(phone),
     onSuccess: () => {
-      setPhone(`+233${digits}`);
+      setPhone(phone);
       navigate('/verify-otp');
     },
     onError: (err) => setError(err.message),
@@ -28,8 +29,8 @@ export default function ForgotPassword() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    if (digits.length !== 9) {
-      setError('Enter a valid 9-digit phone number');
+    if (!isValidPhone(value)) {
+      setError('Enter a 10-digit number starting with 0, e.g. 024 412 3456');
       return;
     }
     mutation.mutate();
@@ -45,7 +46,7 @@ export default function ForgotPassword() {
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <div>
           <Label htmlFor="phone">Phone number</Label>
-          <PhoneInput id="phone" value={value} onChange={setValue} error={Boolean(error)} maxLength={11} />
+          <PhoneInput id="phone" value={value} onChange={setValue} error={Boolean(error)} />
           <FieldError>{error}</FieldError>
         </div>
 

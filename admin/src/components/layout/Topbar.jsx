@@ -18,6 +18,8 @@ const SECTION_LINKS = {
   students: '/students',
   'trip history': '/trip-history',
   'live tracking': '/live-tracking',
+  'my profile': '/account/profile',
+  'account settings': '/account/settings',
 };
 
 const resolveCrumb = (crumb) =>
@@ -103,26 +105,32 @@ export default function Topbar() {
               <p className="text-sm font-bold leading-tight text-slate-900 dark:text-white">
                 {admin?.name || 'Admin'}
               </p>
-              <p className="text-xs text-slate-400">Administrator</p>
+              <p className="text-xs text-slate-400">{admin?.role === 'superadmin' ? 'Superadmin' : 'Administrator'}</p>
             </div>
             <Avatar name={admin?.name} src={admin?.avatarUrl} size="sm" />
             <ChevronDown className="h-4 w-4 text-slate-400" />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-700 dark:bg-navy-light">
-              <button
+            <div className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-700 dark:bg-navy-light">
+              <div className="border-b border-slate-100 px-4 pb-2.5 pt-1 dark:border-slate-800">
+                <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{admin?.name}</p>
+                <p className="truncate text-xs text-slate-400">{admin?.email || admin?.phone}</p>
+              </div>
+              <Link
+                to="/account/profile"
                 onClick={() => setMenuOpen(false)}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
+                className="mt-1 flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
               >
                 <UserCircle className="h-4 w-4" /> My profile
-              </button>
-              <button
+              </Link>
+              <Link
+                to="/account/settings"
                 onClick={() => setMenuOpen(false)}
                 className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
               >
                 <Settings className="h-4 w-4" /> Account settings
-              </button>
+              </Link>
               <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
               <button
                 onClick={logout}

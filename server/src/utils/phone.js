@@ -17,3 +17,5 @@ export function ghanaPhoneVariants(input) {
   const local = normalized.slice(4);
   return [normalized, `0${local}`, local, `+2330${local}`, `233${local}`];
 }
+
+export const isValidGhanaPhone = (input) => /^\+233\d{9}$/.test(normalizeGhanaPhone(input) || '');

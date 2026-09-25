@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { normalizePhones } from '../plugins/normalizePhones.js';
 import bcrypt from 'bcryptjs';
 import { tenantScope } from '../plugins/tenantScope.js';
 
@@ -51,4 +52,5 @@ adminSchema.index({ school: 1, role: 1 });
 
 adminSchema.plugin(tenantScope);
 
+adminSchema.plugin(normalizePhones, { paths: ['phone'] });
 export default mongoose.model('Admin', adminSchema);

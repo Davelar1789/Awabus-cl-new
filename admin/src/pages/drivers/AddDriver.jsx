@@ -5,6 +5,7 @@ import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck } f
 import usePageHeader from '../../hooks/usePageHeader.js';
 import { shrinkPhoto } from '../../lib/image.js';
 import PhotoUpload from '../../components/ui/PhotoUpload.jsx';
+import { formatPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import { useWizardDraft } from '../../hooks/useFormDraft.js';
 import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
@@ -55,6 +56,7 @@ export default function AddDriver() {
   const [validation, setValidation] = useState(null);
   const [created, setCreated] = useState(null);
   const [busError, setBusError] = useState('');
+  const [stepError, setStepError] = useState('');
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -85,6 +87,14 @@ export default function AddDriver() {
   // Checks that must pass before leaving a step (same rules for Continue and for
   // jumping ahead via the stepper).
   const validateStep = (n) => {
+    if (n === 1 && !isValidPhone(form.phone)) {
+      setStepError('Enter the driver\'s phone number: 10 digits starting with 0, e.g. 024 412 3456');
+      return false;
+    }
+    if (n === 4 && form.emergencyContactPhone && !isValidPhone(form.emergencyContactPhone)) {
+      setStepError('The emergency contact phone must be 10 digits starting with 0');
+      return false;
+    }
     if (n === 4 && !form.assignedBus) {
       setBusError('Select the bus this driver will operate');
       return false;
@@ -92,6 +102,7 @@ export default function AddDriver() {
     return true;
   };
   const goTo = (target) => {
+    setStepError('');
     for (let n = step; n < target; n += 1) {
       if (!validateStep(n)) {
         setStep(n);
@@ -106,8 +117,8 @@ export default function AddDriver() {
   const handleCreate = async () => {
     createMutation.mutate({
       ...form,
-      phone: form.phone ? `+233${form.phone.replace(/\s/g, '')}` : '',
-      emergencyContactPhone: form.emergencyContactPhone ? `+233${form.emergencyContactPhone.replace(/\s/g, '')}` : '',
+      phone: toLocalPhone(form.phone),
+      emergencyContactPhone: toLocalPhone(form.emergencyContactPhone),
       profilePhotoUrl: await shrinkPhoto(form.profilePhotoUrl),
       licenseValidation: {
         status: validation?.valid ? 'verified' : 'pending',
@@ -393,6 +404,11 @@ export default function AddDriver() {
           </div>
         )}
 
+        {stepError && (
+          <div className="mx-5 mb-0 mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+            {stepError}
+          </div>
+        )}
         <div className="flex justify-between border-t border-slate-100 p-5 dark:border-slate-800">
           {step > 1 ? (
             <Button variant="outline" onClick={goBack} type="button">
@@ -447,7 +463,7 @@ function ReviewStep({ form, validation, busOptions }) {
         <p className="mb-3 text-sm font-bold text-brand-700 dark:text-brand-400">1. Personal Information</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <SummaryStat label="Full Name" value={`${form.firstName} ${form.lastName}`} />
-          <SummaryStat label="Phone Number" value={form.phone ? `+233${form.phone}` : '—'} />
+          <SummaryStat label="Phone Number" value={form.phone ? formatPhone(form.phone) : '—'} />
           <SummaryStat label="Email" value={form.email || '—'} />
         </div>
         <div className="mt-3">

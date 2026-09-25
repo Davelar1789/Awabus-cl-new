@@ -1,12 +1,22 @@
+import crypto from 'node:crypto';
+
 // OTP generation + mock "SMS" delivery.
 // There is no SMS gateway wired up yet, so in development the code is written
 // to the server console/log instead of being texted to the phone.
 
-export const generateOtpCode = () => String(Math.floor(100000 + Math.random() * 900000));
+export const generateOtpCode = () => String(crypto.randomInt(100000, 1000000));
 
 export const sendOtpSms = async (phone, code) => {
   // TODO: integrate a real SMS gateway (e.g. Twilio, Hubtel, Arkesel) here.
   console.log(`[otp] Verification code for ${phone}: ${code}`);
+  return true;
+};
+
+// Same placeholder for email: no mail provider is configured yet, so the code
+// is written to the server log.
+export const sendOtpEmail = async (email, code) => {
+  // TODO: integrate a real email provider (e.g. SendGrid, Mailgun, SES) here.
+  console.log(`[otp] Verification code for ${email}: ${code}`);
   return true;
 };
 

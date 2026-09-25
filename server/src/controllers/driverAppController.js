@@ -1,7 +1,7 @@
 // Driver App API (mobile) — backend surface for the AwaBus Driver App in /driver.
 
 import asyncHandler from 'express-async-handler';
-import { ghanaPhoneVariants } from '../utils/phone.js';
+import { ghanaPhoneVariants, normalizeGhanaPhone } from '../utils/phone.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Driver from '../models/Driver.js';
@@ -45,7 +45,7 @@ const saveDriverAsSystem = (driver) => tenantContext.runAsSystem(() => driver.sa
 // @desc    Check if a phone number exists and whether the driver has a password set
 // @route   POST /api/driver-app/auth/check-phone
 export const checkDriverPhone = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
   if (!phone) {
     res.status(400);
     throw new Error('Phone number is required');
@@ -68,7 +68,8 @@ export const checkDriverPhone = asyncHandler(async (req, res) => {
 // @desc    Set a password for a first-time driver account and sign in
 // @route   POST /api/driver-app/auth/set-password
 export const setDriverPassword = asyncHandler(async (req, res) => {
-  const { phone, password } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
+  const { password } = req.body;
   if (!phone || !password) {
     res.status(400);
     throw new Error('Phone number and password are required');
@@ -99,7 +100,8 @@ export const setDriverPassword = asyncHandler(async (req, res) => {
 // @desc    Driver app sign in
 // @route   POST /api/driver-app/auth/login
 export const driverLogin = asyncHandler(async (req, res) => {
-  const { phone, password } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
+  const { password } = req.body;
   if (!phone || !password) {
     res.status(400);
     throw new Error('Phone number and password are required');
@@ -406,7 +408,7 @@ export const getBroadcastHistory = asyncHandler(async (req, res) => {
 // @desc    Request an OTP to begin the driver password reset flow
 // @route   POST /api/driver-app/auth/forgot-password
 export const driverForgotPassword = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
   if (!phone) {
     res.status(400);
     throw new Error('Phone number is required');
@@ -433,7 +435,8 @@ export const driverForgotPassword = asyncHandler(async (req, res) => {
 // @desc    Verify the OTP sent to the driver's phone
 // @route   POST /api/driver-app/auth/verify-otp
 export const driverVerifyOtp = asyncHandler(async (req, res) => {
-  const { phone, code } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
+  const { code } = req.body;
   if (!phone || !code) {
     res.status(400);
     throw new Error('Phone number and code are required');
@@ -473,7 +476,7 @@ export const driverVerifyOtp = asyncHandler(async (req, res) => {
 // @desc    Resend a fresh OTP
 // @route   POST /api/driver-app/auth/resend-otp
 export const driverResendOtp = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
   if (!phone) {
     res.status(400);
     throw new Error('Phone number is required');

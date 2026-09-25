@@ -1,15 +1,23 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radii } from '../../lib/theme.js';
+import { sanitizePhone, toLocalPhone } from '../../lib/phone.js';
 
-// Ghana-only phone input: fixed +233 prefix + 9-digit local number.
-export default function PhoneInput({ value, onChange, error, placeholder = '55 123 4567', ...props }) {
+// Ghana phone input: 10 digits starting with 0 (0551234567), or the 9 digits
+// without it (551234567) - the leading 0 is added when the field loses focus.
+export default function PhoneInput({ value, onChange, onBlur, error, placeholder = '055 123 4567', ...props }) {
   return (
     <View style={[styles.wrap, error && styles.wrapError]}>
-      <Text style={styles.prefix}>+233</Text>
+      <Text style={styles.prefix}>GH</Text>
       <TextInput
         keyboardType="phone-pad"
         value={value}
-        onChangeText={(text) => onChange?.(text.replace(/[^\d\s]/g, ''))}
+        maxLength={String(value || '').startsWith('0') || !value ? 10 : 9}
+        onChangeText={(text) => onChange?.(sanitizePhone(text))}
+        onBlur={(e) => {
+          const local = toLocalPhone(value);
+          if (local !== value) onChange?.(local);
+          onBlur?.(e);
+        }}
         placeholder={placeholder}
         placeholderTextColor={colors.slate400}
         style={styles.input}

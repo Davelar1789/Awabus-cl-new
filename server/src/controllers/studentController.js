@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
+import { normalizeGhanaPhone } from '../utils/phone.js';
 import Student from '../models/Student.js';
 import Guardian from '../models/Guardian.js';
 import Route from '../models/Route.js';
@@ -264,7 +265,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
       await Guardian.findByIdAndUpdate(g.id, {
         firstName: g.firstName,
         lastName: g.lastName,
-        phone: g.phone,
+        phone: normalizeGhanaPhone(g.phone),
         email: g.email,
       });
       student.primaryGuardian = g.id;

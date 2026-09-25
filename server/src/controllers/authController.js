@@ -5,6 +5,11 @@ import OtpToken from '../models/OtpToken.js';
 import generateToken from '../utils/generateToken.js';
 import { generateOtpCode, sendOtpSms, getOtpExpiry } from '../utils/otp.js';
 import { tenantContext } from '../utils/tenantContext.js';
+import { ghanaPhoneVariants, normalizeGhanaPhone } from '../utils/phone.js';
+import { checkPasswordStrength } from '../utils/password.js';
+
+// Wrong guesses allowed per code before a new one has to be requested.
+export const MAX_OTP_ATTEMPTS = 5;
 
 // These routes all run before anyone is authenticated, so there's no
 // req.school / tenant context yet — finding out *which* school an admin
@@ -24,7 +29,9 @@ const findAdminByEmail = (email) =>
     });
   });
 
-const findAdminByPhone = (phone) => tenantContext.runAsSystem(() => Admin.findOne({ phone }));
+// Matches numbers stored before phone normalization existed (e.g. "0244...").
+const findAdminByPhone = (phone) =>
+  tenantContext.runAsSystem(() => Admin.findOne({ phone: { $in: ghanaPhoneVariants(phone) } }));
 
 const saveAdminAsSystem = (admin) => tenantContext.runAsSystem(() => admin.save());
 
@@ -74,6 +81,12 @@ export const setPassword = asyncHandler(async (req, res) => {
   if (admin.password) {
     res.status(400);
     throw new Error('This account already has a password set');
+  }
+
+  const weak = checkPasswordStrength(password, { email: admin.email, name: admin.name });
+  if (weak) {
+    res.status(400);
+    throw new Error(weak);
   }
 
   admin.password = password;
@@ -134,7 +147,7 @@ export const getMe = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/forgot-password
 // @access  Public
 export const forgotPassword = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
   if (!phone) {
     res.status(400);
     throw new Error('Phone number is required');
@@ -164,7 +177,8 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/verify-otp
 // @access  Public
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const { phone, code } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
+  const { code } = req.body;
   if (!phone || !code) {
     res.status(400);
     throw new Error('Phone number and code are required');
@@ -184,7 +198,12 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     throw new Error('The code has expired');
   }
 
-  if (otp.code !== code) {
+  if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+    res.status(429);
+    throw new Error('Too many incorrect attempts. Request a new code.');
+  }
+
+  if (otp.code !== String(code).trim()) {
     otp.attempts += 1;
     await otp.save();
     res.status(400);
@@ -205,10 +224,15 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/resend-otp
 // @access  Public
 export const resendOtp = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const phone = normalizeGhanaPhone(req.body.phone);
   if (!phone) {
     res.status(400);
     throw new Error('Phone number is required');
+  }
+  // Only text numbers that belong to an account, same as forgot-password.
+  if (!(await findAdminByPhone(phone))) {
+    res.json({ success: true, message: 'If that phone number exists, a new code has been sent.' });
+    return;
   }
   const code = generateOtpCode();
   await OtpToken.create({ phone, code, purpose: 'password_reset', expiresAt: getOtpExpiry() });
@@ -243,6 +267,12 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!admin) {
     res.status(404);
     throw new Error('Account not found');
+  }
+
+  const weak = checkPasswordStrength(newPassword, { email: admin.email, name: admin.name });
+  if (weak) {
+    res.status(400);
+    throw new Error(weak);
   }
 
   admin.password = newPassword;

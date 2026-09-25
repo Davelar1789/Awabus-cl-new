@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { School as SchoolIcon, Users, GraduationCap, Bus, Plus, Inbox } from 'lucide-react';
 import { getSuperadminAnalytics, createSchool, updateSchoolStatus } from '../../api/superadmin.js';
+import PhoneInput from '../../components/ui/PhoneInput.jsx';
+import { isValidPhone } from '../../lib/phone.js';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import Card, { CardHeader } from '../../components/ui/Card.jsx';
 import StatCard from '../../components/ui/StatCard.jsx';
@@ -57,7 +59,7 @@ export default function SuperadminDashboard() {
     if (!form.schoolName.trim()) return setFormError('School name is required');
     if (!form.adminName.trim()) return setFormError('Admin name is required');
     if (!EMAIL_REGEX.test(form.adminEmail.trim())) return setFormError('Enter a valid admin email');
-    if (!form.adminPhone.trim()) return setFormError('Admin phone number is required');
+    if (!isValidPhone(form.adminPhone)) return setFormError('Enter the admin phone: 10 digits starting with 0, e.g. 024 412 3456');
     createMutation.mutate();
   };
 
@@ -122,7 +124,7 @@ export default function SuperadminDashboard() {
               </div>
               <div>
                 <Label htmlFor="adminPhone" required>Admin contact number</Label>
-                <Input id="adminPhone" value={form.adminPhone} onChange={setField('adminPhone')} placeholder="+233 24 000 0000" />
+                <PhoneInput id="adminPhone" value={form.adminPhone} onChange={(v) => setForm((f) => ({ ...f, adminPhone: v }))} />
               </div>
             </div>
 

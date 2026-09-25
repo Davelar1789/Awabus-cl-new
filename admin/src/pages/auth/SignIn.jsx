@@ -7,6 +7,8 @@ import { PasswordInput, Input, Label, FieldError } from '../../components/ui/Inp
 import Checkbox from '../../components/ui/Checkbox.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { checkEmail, login as loginApi, setPassword as setPasswordApi } from '../../api/auth.js';
+import PasswordChecklist from '../../components/account/PasswordChecklist.jsx';
+import { isStrongPassword } from '../../lib/password.js';
 import { useAuthStore } from '../../store/authStore.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,8 +102,8 @@ export default function SignIn() {
   const handleCreatePasswordSubmit = (e) => {
     e.preventDefault();
     setFormError('');
-    if (password.length < 8) {
-      setFormError('Password must be at least 8 characters');
+    if (!isStrongPassword(password, { email })) {
+      setFormError('Your password doesn\'t meet all the password requirements yet');
       return;
     }
     if (password !== confirmPassword) {
@@ -222,6 +224,7 @@ export default function SignIn() {
               placeholder="Create a password"
               autoFocus
             />
+            <PasswordChecklist password={password} email={email} />
           </div>
 
           <div>

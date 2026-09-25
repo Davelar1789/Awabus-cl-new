@@ -16,6 +16,8 @@ import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
 import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
 import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
+import PhoneInput from '../../components/ui/PhoneInput.jsx';
+import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -24,6 +26,7 @@ export default function EditStudent() {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
 
@@ -46,8 +49,8 @@ export default function EditStudent() {
             gender: student.gender || 'Female',
             guardianFirst: student.primaryGuardian?.firstName || '',
             guardianLast: student.primaryGuardian?.lastName || '',
-            guardianPhone: student.primaryGuardian?.phone || '',
-            secondContactPhone: student.secondContactPhone || '',
+            guardianPhone: fromStoredPhone(student.primaryGuardian?.phone),
+            secondContactPhone: fromStoredPhone(student.secondContactPhone),
             lat: student.lat ?? ACCRA_DEFAULT.lat,
             lng: student.lng ?? ACCRA_DEFAULT.lng,
             geofenceRadius: student.geofenceRadius || 200,
@@ -110,13 +113,18 @@ export default function EditStudent() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (!isValidPhone(form.guardianPhone) || (form.secondContactPhone && !isValidPhone(form.secondContactPhone))) {
+            setPhoneError('Phone numbers must be 10 digits starting with 0, e.g. 024 412 3456');
+            return;
+          }
+          setPhoneError('');
           updateMutation.mutate({
             firstName: form.firstName,
             lastName: form.lastName,
             classGrade: form.classGrade,
             gender: form.gender,
-            guardian: { id: student.primaryGuardian?._id, firstName: form.guardianFirst, lastName: form.guardianLast, phone: form.guardianPhone },
-            secondContactPhone: form.secondContactPhone,
+            guardian: { id: student.primaryGuardian?._id, firstName: form.guardianFirst, lastName: form.guardianLast, phone: toLocalPhone(form.guardianPhone) },
+            secondContactPhone: toLocalPhone(form.secondContactPhone),
             lat: Number(form.lat),
             lng: Number(form.lng),
             geofenceRadius: Number(form.geofenceRadius),
@@ -167,12 +175,13 @@ export default function EditStudent() {
                 </div>
                 <div>
                   <Label>Primary Phone Number</Label>
-                  <Input value={form.guardianPhone} onChange={(e) => set('guardianPhone')(e.target.value)} />
+                  <PhoneInput value={form.guardianPhone} onChange={set('guardianPhone')} />
                 </div>
                 <div>
                   <Label>Backup Emergency Phone</Label>
-                  <Input value={form.secondContactPhone} onChange={(e) => set('secondContactPhone')(e.target.value)} />
+                  <PhoneInput value={form.secondContactPhone} onChange={set('secondContactPhone')} placeholder="020 111 2233" />
                 </div>
+                {phoneError && <p className="text-sm font-medium text-red-600 sm:col-span-2">{phoneError}</p>}
               </CardBody>
             </Card>
 

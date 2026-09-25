@@ -6,8 +6,9 @@ import { useEditDraft } from '../../hooks/useFormDraft.js';
 import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
-import Input, { Label } from '../../components/ui/Input.jsx';
+import Input, { Label, FieldError } from '../../components/ui/Input.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
+import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
@@ -21,6 +22,7 @@ export default function EditDriver() {
   const queryClient = useQueryClient();
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
 
   const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id) });
   const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
@@ -39,7 +41,7 @@ export default function EditDriver() {
         ? {
             firstName: driver.firstName,
             lastName: driver.lastName,
-            phone: driver.phone?.replace('+233', '') || '',
+            phone: fromStoredPhone(driver.phone),
             email: driver.email || '',
             licenseNumber: driver.licenseNumber,
             licenseExpiry: driver.licenseExpiry ? driver.licenseExpiry.slice(0, 10) : '',
@@ -84,7 +86,12 @@ export default function EditDriver() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          updateMutation.mutate({ ...form, phone: `+233${form.phone}` });
+          if (!isValidPhone(form.phone)) {
+            setPhoneError('Enter a 10-digit number starting with 0, e.g. 024 412 3456');
+            return;
+          }
+          setPhoneError('');
+          updateMutation.mutate({ ...form, phone: toLocalPhone(form.phone) });
         }}
       >
         <Card>
@@ -105,7 +112,8 @@ export default function EditDriver() {
             </div>
             <div>
               <Label>Phone Number</Label>
-              <PhoneInput value={form.phone} onChange={set('phone')} />
+              <PhoneInput value={form.phone} onChange={set('phone')} error={Boolean(phoneError)} />
+              <FieldError>{phoneError}</FieldError>
             </div>
             <div>
               <Label>Email Address</Label>

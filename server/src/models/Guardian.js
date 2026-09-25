@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { normalizePhones } from '../plugins/normalizePhones.js';
 
 const guardianSchema = new mongoose.Schema(
   {
@@ -22,4 +23,5 @@ guardianSchema.virtual('fullName').get(function fullName() {
 guardianSchema.set('toJSON', { virtuals: true });
 guardianSchema.set('toObject', { virtuals: true });
 
+guardianSchema.plugin(normalizePhones, { paths: ['phone'] });
 export default mongoose.model('Guardian', guardianSchema);

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { normalizePhones } from '../plugins/normalizePhones.js';
 
 const schoolSchema = new mongoose.Schema(
   {
@@ -15,4 +16,5 @@ const schoolSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+schoolSchema.plugin(normalizePhones, { paths: ['contactPhone'] });
 export default mongoose.model('School', schoolSchema);

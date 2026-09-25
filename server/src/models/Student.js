@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { normalizePhones } from '../plugins/normalizePhones.js';
 import { tenantScope } from '../plugins/tenantScope.js';
 
 const studentSchema = new mongoose.Schema(
@@ -71,4 +72,5 @@ studentSchema.set('toObject', { virtuals: true });
 
 studentSchema.plugin(tenantScope);
 
+studentSchema.plugin(normalizePhones, { paths: ['secondContactPhone'] });
 export default mongoose.model('Student', studentSchema);
