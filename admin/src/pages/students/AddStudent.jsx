@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Route as RouteIcon, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, MapPin, Route as RouteIcon, Upload } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
@@ -12,6 +12,7 @@ import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
+import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import { getRouteOptions } from '../../api/routes.js';
 import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
@@ -89,6 +90,7 @@ export default function AddStudent() {
 
   const [created, setCreated] = useState(null);
   const [routeError, setRouteError] = useState('');
+  const [mapOpen, setMapOpen] = useState(false);
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
   // Persist to localStorage whenever the form or step changes
@@ -421,7 +423,20 @@ export default function AddStudent() {
                   <Label>Longitude</Label>
                   <Input value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
                 </div>
+                <div className="sm:col-span-2">
+                  <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
+                    <MapPin className="h-4 w-4" />
+                    Pick on map
+                  </Button>
+                </div>
               </div>
+              <LocationPickerModal
+                open={mapOpen}
+                onClose={() => setMapOpen(false)}
+                lat={form.lat}
+                lng={form.lng}
+                onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
+              />
             </div>
           )}
 

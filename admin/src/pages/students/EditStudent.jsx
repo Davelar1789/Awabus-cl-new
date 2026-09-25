@@ -11,6 +11,7 @@ import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
+import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
 
 const pinIcon = L.divIcon({
@@ -51,6 +52,7 @@ export default function EditStudent() {
 
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
 
@@ -184,7 +186,19 @@ export default function EditStudent() {
                   <Label>Geofence Radius (meters)</Label>
                   <Input type="number" value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)} />
                 </div>
+                <div className="sm:col-span-3">
+                  <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
+                    Open map picker
+                  </Button>
+                </div>
               </CardBody>
+              <LocationPickerModal
+                open={mapOpen}
+                onClose={() => setMapOpen(false)}
+                lat={form.lat}
+                lng={form.lng}
+                onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
+              />
             </Card>
           </div>
 
