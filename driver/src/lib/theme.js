@@ -5,7 +5,7 @@ export const colors = {
   navyLight: '#132a40',
   navyDark: '#081420',
   // Background colour of the AwaBus logo artwork (admin/public/awabus.svg);
-  // used behind the logo on the splash screen and sign-in banner.
+  // used behind the logo on the splash screen.
   logoBg: '#0a1f2a',
 
   brand50: '#ecfdf7',

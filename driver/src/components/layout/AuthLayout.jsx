@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   },
   banner: {
     height: 180,
-    backgroundColor: colors.logoBg,
+    backgroundColor: colors.navy, // same navy as the admin sidebar / sign-in panel
     alignItems: 'center',
     justifyContent: 'center',
   },
