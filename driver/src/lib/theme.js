@@ -7,6 +7,8 @@ export const colors = {
   // Background colour of the AwaBus logo artwork (admin/public/awabus.svg);
   // used behind the logo on the splash screen.
   logoBg: '#0a1f2a',
+  // Left pane / banner behind the logo on the sign-in pages (admin + driver).
+  authBg: '#081922',
 
   brand50: '#ecfdf7',
   brand100: '#d1faec',
