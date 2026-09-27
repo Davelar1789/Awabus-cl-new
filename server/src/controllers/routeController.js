@@ -4,6 +4,7 @@ import Driver from '../models/Driver.js';
 import Student from '../models/Student.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextSequentialCode } from '../utils/idGenerator.js';
+import { searchPattern } from '../utils/search.js';
 
 const populateRoute = (query) =>
   query
@@ -21,8 +22,8 @@ export const getRoutes = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
   if (q) {
     filter.$or = [
-      { routeId: { $regex: q, $options: 'i' } },
-      { name: { $regex: q, $options: 'i' } },
+      { routeId: { $regex: searchPattern(q), $options: 'i' } },
+      { name: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
 

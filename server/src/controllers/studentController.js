@@ -9,6 +9,7 @@ import { nextYearCode } from '../utils/idGenerator.js';
 import { assertFormats, ifChanged } from '../utils/formats.js';
 import Trip from '../models/Trip.js';
 import { normalizeLanguage } from '../utils/languages.js';
+import { searchPattern } from '../utils/search.js';
 
 const populateStudent = (query) =>
   query
@@ -109,9 +110,9 @@ export const getStudents = asyncHandler(async (req, res) => {
   const filter = {};
   if (q) {
     filter.$or = [
-      { firstName: { $regex: q, $options: 'i' } },
-      { lastName: { $regex: q, $options: 'i' } },
-      { studentCode: { $regex: q, $options: 'i' } },
+      { firstName: { $regex: searchPattern(q), $options: 'i' } },
+      { lastName: { $regex: searchPattern(q), $options: 'i' } },
+      { studentCode: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
 
@@ -390,9 +391,9 @@ export const getStudentOptions = asyncHandler(async (req, res) => {
   if (exclude && mongoose.isValidObjectId(exclude)) filter._id = { $ne: exclude };
   if (q) {
     filter.$or = [
-      { firstName: { $regex: q, $options: 'i' } },
-      { lastName: { $regex: q, $options: 'i' } },
-      { studentCode: { $regex: q, $options: 'i' } },
+      { firstName: { $regex: searchPattern(q), $options: 'i' } },
+      { lastName: { $regex: searchPattern(q), $options: 'i' } },
+      { studentCode: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
   const students = await Student.find(filter)

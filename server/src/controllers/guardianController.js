@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Guardian from '../models/Guardian.js';
 import { normalizeLanguage } from '../utils/languages.js';
+import { searchPattern } from '../utils/search.js';
 
 // @desc    Search/list guardians (used by "Link Existing Parent")
 // @route   GET /api/guardians
@@ -9,10 +10,10 @@ export const getGuardians = asyncHandler(async (req, res) => {
   const filter = {};
   if (q) {
     filter.$or = [
-      { firstName: { $regex: q, $options: 'i' } },
-      { lastName: { $regex: q, $options: 'i' } },
-      { phone: { $regex: q, $options: 'i' } },
-      { email: { $regex: q, $options: 'i' } },
+      { firstName: { $regex: searchPattern(q), $options: 'i' } },
+      { lastName: { $regex: searchPattern(q), $options: 'i' } },
+      { phone: { $regex: searchPattern(q), $options: 'i' } },
+      { email: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
   const guardians = await Guardian.find(filter).sort({ createdAt: 1 }).limit(50);

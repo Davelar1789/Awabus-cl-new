@@ -5,6 +5,7 @@ import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { assertFormats, formatProblem, ifChanged, normalizeCode } from '../utils/formats.js';
+import { searchPattern } from '../utils/search.js';
 
 const populateDriver = (query) =>
   query
@@ -34,10 +35,10 @@ export const getDrivers = asyncHandler(async (req, res) => {
   const filter = {};
   if (q) {
     filter.$or = [
-      { firstName: { $regex: q, $options: 'i' } },
-      { lastName: { $regex: q, $options: 'i' } },
-      { licenseNumber: { $regex: q, $options: 'i' } },
-      { phone: { $regex: q, $options: 'i' } },
+      { firstName: { $regex: searchPattern(q), $options: 'i' } },
+      { lastName: { $regex: searchPattern(q), $options: 'i' } },
+      { licenseNumber: { $regex: searchPattern(q), $options: 'i' } },
+      { phone: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
 
@@ -305,10 +306,10 @@ export const getDriverOptions = asyncHandler(async (req, res) => {
   const filter = {};
   if (q) {
     filter.$or = [
-      { firstName: { $regex: q, $options: 'i' } },
-      { lastName: { $regex: q, $options: 'i' } },
-      { phone: { $regex: q, $options: 'i' } },
-      { licenseNumber: { $regex: q, $options: 'i' } },
+      { firstName: { $regex: searchPattern(q), $options: 'i' } },
+      { lastName: { $regex: searchPattern(q), $options: 'i' } },
+      { phone: { $regex: searchPattern(q), $options: 'i' } },
+      { licenseNumber: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
   const drivers = await Driver.find(filter)

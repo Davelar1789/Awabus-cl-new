@@ -7,6 +7,7 @@ import Trip from '../models/Trip.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { assertFormats, ifChanged, normalizeCode } from '../utils/formats.js';
 import { notify } from '../services/notify.js';
+import { searchPattern } from '../utils/search.js';
 
 const populateBus = (query) =>
   query
@@ -31,8 +32,8 @@ export const getBuses = asyncHandler(async (req, res) => {
   if (status && status !== 'All') filter.status = status;
   if (q) {
     filter.$or = [
-      { plateNumber: { $regex: q, $options: 'i' } },
-      { name: { $regex: q, $options: 'i' } },
+      { plateNumber: { $regex: searchPattern(q), $options: 'i' } },
+      { name: { $regex: searchPattern(q), $options: 'i' } },
     ];
   }
 
