@@ -24,6 +24,13 @@ import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/se
 import { inGhana } from '../utils/geo.js';
 import { alertForScan, checkGeofences } from '../services/parentAlerts.js';
 
+// What the driver sees about each student: name, class and the parent to call.
+const STUDENT_FOR_DRIVER = {
+  path: 'studentProgress.student',
+  select: 'firstName lastName studentCode classGrade primaryGuardian',
+  populate: { path: 'primaryGuardian', select: 'firstName lastName relation phone' },
+};
+
 // Trip rules shared by the driver actions below.
 const LIVE = ['In Progress', 'Delayed'];
 const isLive = (trip) => LIVE.includes(trip.status);
@@ -196,10 +203,20 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
     })),
   });
 
-  return Trip.findById(trip._id)
+  // Two requests arriving together could each create a trip: keep the older one.
+  const first = await Trip.findOne({ driver: driver._id, date: { $gte: dayStart, $lte: dayEnd }, status: 'Scheduled' })
+    .sort({ createdAt: 1 })
+    .select('_id');
+  let keep = trip._id;
+  if (first && String(first._id) !== String(trip._id)) {
+    await Trip.deleteOne({ _id: trip._id });
+    keep = first._id;
+  }
+
+  return Trip.findById(keep)
     .populate('route', 'routeId name stops')
     .populate('bus', 'plateNumber name capacity')
-    .populate('studentProgress.student', 'firstName lastName studentCode');
+    .populate(STUDENT_FOR_DRIVER);
 };
 
 // Once a trip exists for today, its studentProgress is a snapshot taken at
@@ -246,7 +263,7 @@ const reconcileStudentProgress = async (trip) => {
   return Trip.findById(trip._id)
     .populate('route', 'routeId name stops')
     .populate('bus', 'plateNumber name capacity')
-    .populate('studentProgress.student', 'firstName lastName studentCode');
+    .populate(STUDENT_FOR_DRIVER);
 };
 
 // @desc    Get today's scheduled/active trip for the logged-in driver
@@ -258,21 +275,28 @@ export const getTodaysTrip = asyncHandler(async (req, res) => {
   const end = new Date();
   end.setHours(23, 59, 59, 999);
 
+  // The trip to show is today's running or not-yet-started one. A driver can
+  // do several runs a day (morning, afternoon, a second loop...): once a trip
+  // has ended, the next request gets a fresh trip, so every run is tracked
+  // live and kept in history on its own.
   let trip = await Trip.findOne({
     driver: req.driver._id,
     date: { $gte: start, $lte: end },
+    status: { $in: ['Scheduled', 'In Progress', 'Delayed'] },
   })
+    .sort({ createdAt: -1 })
     .populate('route', 'routeId name stops')
     .populate('bus', 'plateNumber name capacity')
-    .populate('studentProgress.student', 'firstName lastName studentCode');
+    .populate(STUDENT_FOR_DRIVER);
 
   if (!trip) {
     trip = await provisionTodaysTrip(req.driver, start, end);
   } else {
     trip = await reconcileStudentProgress(trip);
   }
+  const completedToday = await Trip.countDocuments({ driver: req.driver._id, date: { $gte: start, $lte: end }, status: 'Completed' });
 
-  res.json({ success: true, data: trip });
+  res.json({ success: true, data: trip, completedToday });
 });
 
 // @desc    Start a trip
@@ -321,7 +345,7 @@ export const endTrip = asyncHandler(async (req, res) => {
   }
   // Ended already (e.g. the end was sent twice): answer with the trip as it is.
   if (trip.status === 'Completed') {
-    const done = await Trip.findById(trip._id).populate('studentProgress.student', 'firstName lastName studentCode');
+    const done = await Trip.findById(trip._id).populate(STUDENT_FOR_DRIVER);
     return res.json({ success: true, data: done });
   }
   if (!isLive(trip)) {
@@ -355,7 +379,7 @@ export const endTrip = asyncHandler(async (req, res) => {
     });
   }
 
-  const populated = await Trip.findById(trip._id).populate('studentProgress.student', 'firstName lastName studentCode');
+  const populated = await Trip.findById(trip._id).populate(STUDENT_FOR_DRIVER);
   res.json({ success: true, data: populated });
 });
 
@@ -584,13 +608,90 @@ export const getTripHistory = asyncHandler(async (req, res) => {
   res.json({ success: true, data: trips, meta: buildPaginationMeta(total, page, limit) });
 });
 
+// @desc    The driver's notifications (newest first), worked out from their
+//          own records: licence expiry, new bus/route, trips AwaBus ended for
+//          them, and delay texts that did not reach every parent.
+// @route   GET /api/driver-app/notifications
+export const getDriverNotifications = asyncHandler(async (req, res) => {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const since = new Date(now - 14 * day);
+  const items = [];
+
+  const driver = await Driver.findById(req.driver._id)
+    .select('licenseExpiry assignmentHistory')
+    .populate('assignmentHistory.bus', 'plateNumber')
+    .populate('assignmentHistory.route', 'name')
+    .lean();
+
+  if (driver?.licenseExpiry) {
+    const expiry = new Date(driver.licenseExpiry);
+    const daysLeft = Math.ceil((expiry.getTime() - now) / day);
+    if (daysLeft <= 30) {
+      items.push({
+        id: `license:${expiry.toISOString().slice(0, 10)}`,
+        type: daysLeft < 0 ? 'danger' : 'warning',
+        title: daysLeft < 0 ? 'Your driving licence has expired' : 'Your driving licence expires soon',
+        message:
+          daysLeft < 0
+            ? `It expired on ${expiry.toDateString()}. Renew it and give the new details to the school office.`
+            : `It expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} (${expiry.toDateString()}). Renew it in good time.`,
+        // When it became news: the day it expired, or the day it entered the last 30 days.
+        at: new Date(Math.min(now, daysLeft < 0 ? expiry.getTime() : expiry.getTime() - 30 * day)),
+      });
+    }
+  }
+
+  (driver?.assignmentHistory || [])
+    .filter((a) => a.from && new Date(a.from) >= since)
+    .forEach((a) => {
+      items.push({
+        id: `assignment:${new Date(a.from).getTime()}`,
+        type: 'info',
+        title: 'New bus assignment',
+        message: `You now drive ${a.bus?.plateNumber || 'a new bus'}${a.route?.name ? ` on ${a.route.name}` : ''}.`,
+        at: a.from,
+      });
+    });
+
+  const [autoEnded, delayed] = await Promise.all([
+    Trip.find({ driver: req.driver._id, autoEnded: true, endedAt: { $gte: since } }).select('tripCode endedAt').lean(),
+    Trip.find({ driver: req.driver._id, 'delayBroadcasts.sentAt': { $gte: since } }).select('tripCode delayBroadcasts').lean(),
+  ]);
+  autoEnded.forEach((t) => {
+    items.push({
+      id: `autoended:${t._id}`,
+      type: 'warning',
+      title: 'A trip was ended for you',
+      message: `${t.tripCode} was still running hours later, so AwaBus ended it. Remember to tap End trip when you finish.`,
+      at: t.endedAt,
+    });
+  });
+  delayed.forEach((t) => {
+    (t.delayBroadcasts || [])
+      .filter((b) => b.failedCount > 0 && new Date(b.sentAt) >= since)
+      .forEach((b) => {
+        items.push({
+          id: `delayfail:${t._id}:${new Date(b.sentAt).getTime()}`,
+          type: 'warning',
+          title: 'Some parents did not get your delay text',
+          message: `${b.failedCount} of ${b.recipientCount} messages for ${t.tripCode} could not be delivered. Tell the school office.`,
+          at: b.sentAt,
+        });
+      });
+  });
+
+  items.sort((a, b) => new Date(b.at) - new Date(a.at));
+  res.json({ success: true, data: items });
+});
+
 // @desc    Get a single past trip's detail for the logged-in driver
 // @route   GET /api/driver-app/trips/:id
 export const getTripByIdForDriver = asyncHandler(async (req, res) => {
   const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id })
     .populate('route', 'routeId name stops')
     .populate('bus', 'plateNumber name')
-    .populate('studentProgress.student', 'firstName lastName studentCode');
+    .populate(STUDENT_FOR_DRIVER);
   if (!trip) {
     res.status(404);
     throw new Error('Trip not found');
