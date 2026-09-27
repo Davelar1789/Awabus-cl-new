@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { setupCodeFields } from '../utils/setupCode.js';
 import { normalizePhones } from '../plugins/normalizePhones.js';
 import bcrypt from 'bcryptjs';
 import { tenantScope } from '../plugins/tenantScope.js';
@@ -58,6 +59,8 @@ const driverSchema = new mongoose.Schema(
     residentialAddress: { type: String, trim: true },
 
     status: { type: String, enum: ['Active', 'Idle', 'Maintenance', 'Inactive'], default: 'Active' },
+    // One-time code for choosing the first password (utils/setupCode.js).
+    ...setupCodeFields,
     // When the password last changed; sign-ins from before then stop working.
     passwordChangedAt: { type: Date, default: null },
   },

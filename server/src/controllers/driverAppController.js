@@ -20,6 +20,7 @@ import { signResetToken, readResetToken } from '../utils/resetToken.js';
 import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE, DRIVER_INACTIVE_MESSAGE } from '../utils/access.js';
 import { notify, describeTrip } from '../services/notify.js';
 import { emitToSchool } from '../sockets/rooms.js';
+import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/setupCode.js';
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -74,13 +75,15 @@ export const checkDriverPhone = asyncHandler(async (req, res) => {
 // @route   POST /api/driver-app/auth/set-password
 export const setDriverPassword = asyncHandler(async (req, res) => {
   const phone = normalizeGhanaPhone(req.body.phone);
-  const { password } = req.body;
+  const { password, setupCode } = req.body;
   if (!phone || !password) {
     res.status(400);
     throw new Error('Phone number and password are required');
   }
 
-  const driver = await findDriverByPhone(phone, true);
+  const driver = await tenantContext.runAsSystem(() =>
+    Driver.findOne({ phone: { $in: ghanaPhoneVariants(phone) } }).select('+password +setupCodeHash +setupCodeAttempts')
+  );
 
   if (!driver) {
     res.status(404);
@@ -92,7 +95,16 @@ export const setDriverPassword = asyncHandler(async (req, res) => {
     throw new Error('This account already has a password set');
   }
 
+  // Only the driver the school handed the setup code to can set the password.
+  const codeCheck = checkSetupCode(driver, setupCode);
+  if (codeCheck !== 'ok') {
+    if (codeCheck === 'wrong' || codeCheck === 'locked') await saveDriverAsSystem(driver);
+    res.status(400);
+    throw new Error(SETUP_CODE_MESSAGES[codeCheck]);
+  }
+
   driver.password = password;
+  clearSetupCode(driver);
   await saveDriverAsSystem(driver);
 
   res.json({

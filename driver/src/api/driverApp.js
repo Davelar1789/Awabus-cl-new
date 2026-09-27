@@ -6,8 +6,8 @@ import apiClient from './client.js';
 export const checkPhone = (phone) =>
   apiClient.post('/driver-app/auth/check-phone', { phone }).then((r) => r.data);
 
-export const setPassword = (phone, password) =>
-  apiClient.post('/driver-app/auth/set-password', { phone, password }).then((r) => r.data);
+export const setPassword = (phone, password, setupCode) =>
+  apiClient.post('/driver-app/auth/set-password', { phone, password, setupCode }).then((r) => r.data);
 
 export const login = (phone, password) =>
   apiClient.post('/driver-app/auth/login', { phone, password }).then((r) => r.data);

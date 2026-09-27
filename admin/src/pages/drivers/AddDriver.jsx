@@ -20,6 +20,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import Spinner, { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBusOptions } from '../../api/buses.js';
 import { createDriver, getDriverOptions, validateLicense } from '../../api/drivers.js';
+import SetupCodeBox from '../../components/account/SetupCodeBox.jsx';
 import { busAvailable, busHolders, busPickerOptions, busTakenBy } from '../../lib/assignments.js';
 import {
   DATE_LIMITS,
@@ -258,6 +259,14 @@ export default function AddDriver() {
             <Row label="Assigned Route" value={created.assignedRoute?.name || '—'} />
             <Row label="Contact Phone" value={formatPhone(created.phone)} />
           </div>
+          {created.setupCode && (
+            <div className="mt-4">
+              <SetupCodeBox code={created.setupCode} expires={created.setupCodeExpires}>
+                Give this code to {created.firstName}. They enter it with their phone number the first time they open the AwaBus
+                driver app, then choose their own password.
+              </SetupCodeBox>
+            </div>
+          )}
           <div className="mt-6 flex justify-center gap-3">
             <Button as={Link} to="/drivers" variant="outline">
               Back to Drivers

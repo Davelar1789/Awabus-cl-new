@@ -6,11 +6,22 @@ import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { assertFormats, formatProblem, ifChanged, normalizeCode } from '../utils/formats.js';
 import { searchPattern } from '../utils/search.js';
+import { issueSetupCode } from '../utils/setupCode.js';
 
 const populateDriver = (query) =>
   query
     .populate('assignedBus', 'plateNumber name capacity')
     .populate('assignedRoute', 'routeId name');
+
+// Which of these drivers have chosen a password (signed in to the driver app
+// at least once). The password itself never leaves the server.
+async function withAccountState(drivers) {
+  const ids = drivers.map((d) => d._id);
+  const pending = new Set(
+    (await Driver.find({ _id: { $in: ids }, password: { $in: ['', null] } }).select('_id').lean()).map((d) => String(d._id))
+  );
+  return drivers.map((d) => ({ ...d.toJSON(), accountSetUp: !pending.has(String(d._id)) }));
+}
 
 // A bus (and so its route) has exactly one driver. The drivers collection is
 // the source of truth, so look for any other driver already holding the bus.
@@ -56,7 +67,7 @@ export const getDrivers = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    data: drivers,
+    data: await withAccountState(drivers),
     meta: buildPaginationMeta(total, page, limit),
     stats: { totalDrivers, active, withoutBus, licenseAlerts },
   });
@@ -78,7 +89,7 @@ export const getDriverById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Driver not found');
   }
-  res.json({ success: true, data: driver });
+  res.json({ success: true, data: (await withAccountState([driver]))[0] });
 });
 
 // @desc    Check the license details entered in the Add Driver wizard (step 3).
@@ -188,12 +199,34 @@ export const createDriver = asyncHandler(async (req, res) => {
     residentialAddress,
     status: status || 'Active',
   });
+  // The driver needs this code to choose a password in the driver app.
+  // It is shown to the admin once, here, and only a hash is stored.
+  const setup = issueSetupCode(driver);
+  await driver.save();
 
   await Bus.findByIdAndUpdate(assignedBus, { assignedDriver: driver._id });
   await Route.findByIdAndUpdate(assignedRoute, { assignedDriver: driver._id });
 
   const populated = await populateDriver(Driver.findById(driver._id));
-  res.status(201).json({ success: true, data: populated });
+  res.status(201).json({ success: true, data: { ...populated.toJSON(), accountSetUp: false }, ...setup });
+});
+
+// @desc    New setup code for a driver who has not chosen a password yet
+//          (lost the first one, it expired, or they were added by bulk upload)
+// @route   POST /api/drivers/:id/setup-code
+export const createDriverSetupCode = asyncHandler(async (req, res) => {
+  const driver = await Driver.findById(req.params.id).select('+password firstName lastName phone');
+  if (!driver) {
+    res.status(404);
+    throw new Error('Driver not found');
+  }
+  if (driver.password) {
+    res.status(409);
+    throw new Error('This driver has already set up the app. If they forgot their password, they can use "Forgot password" in the app.');
+  }
+  const setup = issueSetupCode(driver);
+  await driver.save();
+  res.json({ success: true, ...setup });
 });
 
 // @desc    Update driver

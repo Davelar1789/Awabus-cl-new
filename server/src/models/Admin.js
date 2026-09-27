@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { setupCodeFields } from '../utils/setupCode.js';
 import { normalizePhones } from '../plugins/normalizePhones.js';
 import bcrypt from 'bcryptjs';
 import { tenantScope } from '../plugins/tenantScope.js';
@@ -24,6 +25,8 @@ const adminSchema = new mongoose.Schema(
     role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
     avatarUrl: { type: String, default: '' },
     rememberedDevices: [{ type: String }],
+    // One-time code for choosing the first password (utils/setupCode.js).
+    ...setupCodeFields,
     // When the password last changed; sign-ins from before then stop working.
     passwordChangedAt: { type: Date, default: null },
     // Notification types this admin switched off (see services/notificationTypes.js).
@@ -50,6 +53,8 @@ adminSchema.methods.toSafeObject = function toSafeObject() {
   const obj = this.toObject();
   delete obj.password;
   delete obj.rememberedDevices;
+  delete obj.setupCodeHash;
+  delete obj.setupCodeAttempts;
   return obj;
 };
 

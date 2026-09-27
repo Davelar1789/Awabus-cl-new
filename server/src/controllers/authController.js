@@ -8,6 +8,7 @@ import { tenantContext } from '../utils/tenantContext.js';
 import { checkPasswordStrength } from '../utils/password.js';
 import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE } from '../utils/access.js';
 import { signResetToken, readResetToken } from '../utils/resetToken.js';
+import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/setupCode.js';
 
 // Wrong guesses allowed per code before a new one has to be requested.
 export const MAX_OTP_ATTEMPTS = 5;
@@ -57,14 +58,16 @@ export const checkEmail = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/set-password
 // @access  Public
 export const setPassword = asyncHandler(async (req, res) => {
-  const { email, password, deviceId } = req.body;
+  const { email, password, deviceId, setupCode } = req.body;
 
   if (!email || !password) {
     res.status(400);
     throw new Error('Email and password are required');
   }
 
-  const admin = await findAdminByEmail(email);
+  const admin = await tenantContext.runAsSystem(async () =>
+    Admin.findOne({ email: String(email).toLowerCase().trim() }).select('+setupCodeHash +setupCodeAttempts')
+  );
 
   if (!admin) {
     res.status(404);
@@ -76,6 +79,14 @@ export const setPassword = asyncHandler(async (req, res) => {
     throw new Error('This account already has a password set');
   }
 
+  // Only the person the account was made for has the setup code.
+  const codeCheck = checkSetupCode(admin, setupCode);
+  if (codeCheck !== 'ok') {
+    if (codeCheck === 'wrong' || codeCheck === 'locked') await saveAdminAsSystem(admin);
+    res.status(400);
+    throw new Error(SETUP_CODE_MESSAGES[codeCheck]);
+  }
+
   const weak = checkPasswordStrength(password, { email: admin.email, name: admin.name });
   if (weak) {
     res.status(400);
@@ -83,6 +94,7 @@ export const setPassword = asyncHandler(async (req, res) => {
   }
 
   admin.password = password;
+  clearSetupCode(admin);
 
   if (deviceId && !admin.rememberedDevices.includes(deviceId)) {
     admin.rememberedDevices.push(deviceId);
@@ -90,12 +102,11 @@ export const setPassword = asyncHandler(async (req, res) => {
 
   await saveAdminAsSystem(admin);
 
-// setPassword
-res.json({
-  success: true,
-  token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
-  admin: admin.toSafeObject(),
-});
+  res.json({
+    success: true,
+    token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
+    admin: admin.toSafeObject(),
+  });
 });
 
 // @desc    Sign in to the Admin Portal

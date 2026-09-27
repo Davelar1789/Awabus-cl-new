@@ -171,6 +171,9 @@ export default function DriversList() {
                     <Td>{driver.assignedRoute ? `${driver.assignedRoute.name}` : '—'}</Td>
                     <Td>
                       <Badge>{driver.status}</Badge>
+                      {driver.accountSetUp === false && (
+                        <p className="mt-1 whitespace-nowrap text-xs text-slate-400">App not set up</p>
+                      )}
                     </Td>
                     <Td>
                       {driver.emergencyContactName

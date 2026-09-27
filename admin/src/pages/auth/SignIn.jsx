@@ -27,6 +27,7 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [setupCode, setSetupCode] = useState('');
   const [remember, setRemember] = useState(false);
   // Why the last session ended, if the server said (e.g. school suspended).
   const [formError, setFormError] = useState(() => {
@@ -83,6 +84,7 @@ export default function SignIn() {
       setPasswordApi({
         email: email.trim(),
         password,
+        setupCode: setupCode.trim(),
         deviceId: 'web-admin-portal',
       }),
     onSuccess: (data) => {
@@ -117,6 +119,10 @@ export default function SignIn() {
   const handleCreatePasswordSubmit = (e) => {
     e.preventDefault();
     setFormError('');
+    if (!setupCode.trim()) {
+      setFormError('Enter the setup code you were given');
+      return;
+    }
     if (!isStrongPassword(password, { email })) {
       setFormError('Your password doesn\'t meet all the password requirements yet');
       return;
@@ -132,6 +138,7 @@ export default function SignIn() {
     setStep(STEP.EMAIL);
     setPassword('');
     setConfirmPassword('');
+    setSetupCode('');
     setFormError('');
   };
 
@@ -231,13 +238,30 @@ export default function SignIn() {
       {step === STEP.CREATE_PASSWORD && (
         <form onSubmit={handleCreatePasswordSubmit} className="mt-6 space-y-5">
           <div>
+            <Label htmlFor="setup-code">Setup code</Label>
+            <Input
+              id="setup-code"
+              value={setupCode}
+              onChange={(e) => setSetupCode(e.target.value.toUpperCase())}
+              placeholder="e.g. ABCD-EFGH"
+              autoComplete="one-time-code"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={12}
+              autoFocus
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              The code AwaBus gave you when your account was created. Lost it? Ask AwaBus support for a new one.
+            </p>
+          </div>
+
+          <div>
             <Label htmlFor="new-password">New password</Label>
             <PasswordInput
               id="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Create a password"
-              autoFocus
             />
             <PasswordChecklist password={password} email={email} />
           </div>

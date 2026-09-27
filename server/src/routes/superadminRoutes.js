@@ -9,6 +9,7 @@ import {
   listSchools,
   createSchool,
   updateSchoolStatus,
+  createAdminSetupCode,
 } from '../controllers/superadminController.js';
 
 const router = express.Router();
@@ -26,5 +27,6 @@ router.route('/system/errors').get(getErrors).delete(deleteErrors);
 router.get('/schools', listSchools);
 router.post('/schools', createSchool);
 router.patch('/schools/:id/status', updateSchoolStatus);
+router.post('/schools/:id/setup-code', createAdminSetupCode);
 
 export default router;
