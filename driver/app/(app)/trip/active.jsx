@@ -16,7 +16,7 @@ import { useUiStore } from '../../../src/store/uiStore.js';
 import { useAuthStore } from '../../../src/store/authStore.js';
 import { useGeolocation } from '../../../src/hooks/useGeolocation.js';
 import { getTodaysTrip, markAttendance, pushLocation, endTrip } from '../../../src/api/driverApp.js';
-import { formatClock, formatDate, timeAgo } from '../../../src/lib/utils.js';
+import { formatClock, formatDate, formatLat, formatLng, timeAgo } from '../../../src/lib/utils.js';
 import { colors, radii } from '../../../src/lib/theme.js';
 
 const LOCATION_PUSH_INTERVAL_MS = 8000;
@@ -165,13 +165,13 @@ export default function ActiveTrip() {
             <Text style={styles.infoLine}>
               <Text style={styles.infoLabel}>Lat: </Text>
               <Text style={styles.infoValue}>
-                {position ? `${position.lat.toFixed(4)}° N` : trip.liveLocation?.lat ? `${trip.liveLocation.lat.toFixed(4)}° N` : '—'}
+                {formatLat(position ? position.lat : trip.liveLocation?.lat)}
               </Text>
             </Text>
             <Text style={styles.infoLine}>
               <Text style={styles.infoLabel}>Lon: </Text>
               <Text style={styles.infoValue}>
-                {position ? `${Math.abs(position.lng).toFixed(4)}° W` : trip.liveLocation?.lng ? `${Math.abs(trip.liveLocation.lng).toFixed(4)}° W` : '—'}
+                {formatLng(position ? position.lng : trip.liveLocation?.lng)}
               </Text>
             </Text>
           </View>
