@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { UNDO_SECONDS, useUndoDeleteStore } from '../store/undoDeleteStore.js';
-import { AlertTriangle, CheckSquare, Trash2, X } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Pencil, Trash2, X } from 'lucide-react';
 import Button from '../components/ui/Button.jsx';
 import Modal from '../components/ui/Modal.jsx';
+import BulkEditModal from '../components/ui/BulkEditModal.jsx';
 import { cn } from '../lib/utils.js';
 
 const HOLD_MS = 500;
@@ -45,11 +46,12 @@ function SelectBox({ checked, indeterminate = false, onChange, label }) {
  * normal delete endpoint one by one, so every existing safety rule still
  * applies; anything that can't be deleted is reported with the reason.
  */
-export default function useListSelection({ items, getLabel, deletePath, noun, singular, invalidate = [] }) {
+export default function useListSelection({ items, getLabel, deletePath, noun, singular, invalidate = [], bulkEdit = null }) {
   const queryClient = useQueryClient();
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Map()); // id -> item (kept across pages)
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const holdTimer = useRef(null);
   const heldRef = useRef(false);
 
@@ -61,10 +63,10 @@ export default function useListSelection({ items, getLabel, deletePath, noun, si
   // Esc leaves select mode.
   useEffect(() => {
     if (!selecting) return undefined;
-    const onKey = (e) => e.key === 'Escape' && !confirmOpen && stop();
+    const onKey = (e) => e.key === 'Escape' && !confirmOpen && !editOpen && stop();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selecting, confirmOpen, stop]);
+  }, [selecting, confirmOpen, editOpen, stop]);
 
   const toggle = (item, on) =>
     setSelected((prev) => {
@@ -147,13 +149,57 @@ export default function useListSelection({ items, getLabel, deletePath, noun, si
   );
 
   const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  const offerUndoEdit = useUndoDeleteStore((st) => st.offerUndoEdit);
+  const refresh = () =>
+    Promise.all([...invalidate, 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+
+  // Bulk edit: save the same fields on every selected item through the normal
+  // update call, then offer an Undo that puts each item's old values back.
+  const applyEdit = async (payload, onProgress) => {
+    const targets = [...selected.values()];
+    const changed = [];
+    const failures = [];
+    for (const [i, item] of targets.entries()) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await bulkEdit.updateOne(item._id, payload);
+        changed.push(item);
+      } catch (err) {
+        failures.push({ label: getLabel(item), message: err.message });
+      }
+      onProgress(i + 1);
+    }
+    await refresh();
+    if (changed.length) {
+      const keys = Object.keys(payload);
+      offerUndoEdit({
+        title: changed.length === 1 ? getLabel(changed[0]) : `${changed.length} ${noun}`,
+        revert: async () => {
+          const undoFailures = [];
+          for (const item of changed) {
+            const previous = Object.fromEntries(keys.map((k) => [k, bulkEdit.fields.find((fl) => fl.key === k).get(item) ?? '']));
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await bulkEdit.updateOne(item._id, previous);
+            } catch (err) {
+              undoFailures.push({ label: getLabel(item), message: err.message });
+            }
+          }
+          await refresh();
+          return undoFailures;
+        },
+      });
+    }
+    if (!failures.length) stop();
+    return { failures };
+  };
+
   const runDelete = () => {
     const targets = [...selected.values()];
     scheduleDelete({
       title: targets.length === 1 ? getLabel(targets[0]) : `${targets.length} ${noun}`,
       items: targets.map((item) => ({ id: item._id, label: getLabel(item), path: deletePath(item._id) })),
-      onFinished: () =>
-        Promise.all([...invalidate, 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+      onFinished: refresh,
     });
     stop();
   };
@@ -173,6 +219,11 @@ export default function useListSelection({ items, getLabel, deletePath, noun, si
         {count > 0 && (
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Map())}>
             Clear
+          </Button>
+        )}
+        {bulkEdit && (
+          <Button size="sm" variant="outline" disabled={!count} onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4" /> Edit{count ? ` (${count})` : ''}
           </Button>
         )}
         <Button size="sm" variant="danger" disabled={!count} onClick={() => setConfirmOpen(true)}>
@@ -227,6 +278,17 @@ export default function useListSelection({ items, getLabel, deletePath, noun, si
           </div>
         </div>
       </Modal>
+      {bulkEdit && (
+        <BulkEditModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          items={[...selected.values()]}
+          fields={bulkEdit.fields}
+          noun={noun}
+          singular={singular}
+          onApply={applyEdit}
+        />
+      )}
     </>
   );
 

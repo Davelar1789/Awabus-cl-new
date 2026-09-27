@@ -26,25 +26,10 @@ import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.j
 import { getRouteOptions } from '../../api/routes.js';
 import { getGuardians } from '../../api/guardians.js';
 import { createStudent } from '../../api/students.js';
+import { CLASS_GRADE_OPTIONS } from '../../lib/options.js';
 
 const STEPS = ['Student Information', 'Parents & Guardian', 'Transport Assignment', 'Home Location', 'Review & Finalize'];
 
-const CLASS_GRADE_OPTIONS = [
-  'Creche',
-  'Nursery 1',
-  'Nursery 2',
-  'KG 1',
-  'KG 2',
-  'Basic 1',
-  'Basic 2',
-  'Basic 3',
-  'Basic 4',
-  'Basic 5',
-  'Basic 6',
-  'Basic 7',
-  'Basic 8',
-  'Basic 9',
-];
 
 const initial = {
   firstName: '',

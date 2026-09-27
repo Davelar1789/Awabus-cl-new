@@ -7,6 +7,8 @@ import { useAuthStore } from './authStore.js';
 // cancels the wait, so nothing on the server ever has to be rebuilt.
 // If the page is closed or the admin signs out during the wait, the pending
 // deletes are sent straight away (they were already confirmed).
+// Bulk edits are saved at once instead, and offer an Undo that puts the old
+// values back.
 
 export const UNDO_SECONDS = 10;
 
@@ -31,11 +33,32 @@ export const useUndoDeleteStore = create((set, get) => ({
     return key;
   },
 
-  undo(key) {
+  /**
+   * Edits are saved straight away; this offers an Undo for UNDO_SECONDS that
+   * runs revert() (which puts the previous values back). Nothing happens when
+   * the time runs out.
+   */
+  offerUndoEdit({ title, revert }) {
+    const key = `e${(seq += 1)}`;
+    const job = { key, kind: 'edit', title, items: [], expiresAt: Date.now() + UNDO_SECONDS * 1000, status: 'pending', failures: [], revert };
+    set((s) => ({ jobs: [...s.jobs, job] }));
+    timers.set(key, setTimeout(() => get().dismiss(key), UNDO_SECONDS * 1000));
+    return key;
+  },
+
+  async undo(key) {
     const job = get().jobs.find((j) => j.key === key);
     if (!job || job.status !== 'pending') return;
     clearTimeout(timers.get(key));
     timers.delete(key);
+    if (job.kind === 'edit') {
+      set((s) => ({ jobs: s.jobs.map((j) => (j.key === key ? { ...j, status: 'running' } : j)) }));
+      const failures = (await job.revert()) || [];
+      if (failures.length) {
+        set((s) => ({ jobs: s.jobs.map((j) => (j.key === key ? { ...j, status: 'failed', failures, deleted: 0, undoFailed: true } : j)) }));
+        return;
+      }
+    }
     set((s) => ({ jobs: s.jobs.map((j) => (j.key === key ? { ...j, status: 'undone' } : j)) }));
     setTimeout(() => get().dismiss(key), 2500);
   },
@@ -75,7 +98,7 @@ export const useUndoDeleteStore = create((set, get) => ({
 
   /** Sends every pending delete now (page closing, signing out). */
   flushAll() {
-    const pending = get().jobs.filter((j) => j.status === 'pending');
+    const pending = get().jobs.filter((j) => j.status === 'pending' && j.kind !== 'edit');
     if (!pending.length) return;
     const { token } = useAuthStore.getState();
     const base = apiClient.defaults.baseURL?.replace(/\/$/, '') || '';
@@ -91,7 +114,7 @@ export const useUndoDeleteStore = create((set, get) => ({
         }).catch(() => {});
       });
     });
-    set((s) => ({ jobs: s.jobs.filter((j) => j.status !== 'pending') }));
+    set((s) => ({ jobs: s.jobs.filter((j) => j.status !== 'pending' || j.kind === 'edit') }));
   },
 }));
 

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, Milestone, SearchX } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getRoutes } from '../../api/routes.js';
+import { getRoutes, updateRoute } from '../../api/routes.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -16,6 +16,8 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import ListToolbar from '../../components/ui/ListToolbar.jsx';
+import { ROUTE_STATUSES } from '../../lib/options.js';
 import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
@@ -57,6 +59,10 @@ export default function RoutesList() {
     noun: 'routes',
     singular: 'route',
     invalidate,
+    bulkEdit: {
+      updateOne: updateRoute,
+      fields: [{ key: 'status', label: 'Status', type: 'select', options: ROUTE_STATUSES, get: (r) => r.status || '' }],
+    },
   });
   const confirmDelete = (item) => {
     scheduleDelete({
@@ -75,18 +81,17 @@ export default function RoutesList() {
       <PageHeader
         title="Routes"
         subtitle="Manage operational lines, assign drivers, and monitor service capacity."
-        action={
-          <>
-            {selection.toolbarButton}
-            <Button variant="outline" onClick={() => setBulkOpen(true)}>
-              <Upload className="h-4 w-4" /> Bulk upload
-            </Button>
-            <Button as={Link} to="/routes/new">
-              <Plus className="h-4 w-4" /> Add Route
-            </Button>
-          </>
-        }
       />
+
+      <ListToolbar left={meta ? <p className="text-sm text-slate-500 dark:text-slate-400">{meta.total} routes</p> : null}>
+        {selection.toolbarButton}
+        <Button variant="outline" onClick={() => setBulkOpen(true)}>
+          <Upload className="h-4 w-4" /> Bulk upload
+        </Button>
+        <Button as={Link} to="/routes/new">
+          <Plus className="h-4 w-4" /> Add Route
+        </Button>
+      </ListToolbar>
 
       <Card>
         {isLoading ? (

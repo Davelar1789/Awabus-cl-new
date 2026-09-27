@@ -201,15 +201,24 @@ export const GUIDE = [
     id: 'selecting',
     title: 'Selecting and deleting several items',
     icon: CheckSquare,
-    summary: 'Delete many routes, buses, drivers or students in one go.',
+    summary: 'Change or delete many routes, buses, drivers or students in one go.',
     tasks: [
       {
         title: 'Select items',
         steps: [
-          'Click Select at the top of a list, or press and hold any row for about half a second.',
+          'Click Select (above the list, next to Bulk upload), or press and hold any row for about half a second.',
           'Tap rows to tick them, or use "Select all on this page". The count shows at the bottom.',
           'Click Delete, check the list and confirm. A notice with an Undo button appears for 10 seconds; after that the delete is final. Anything that can\'t be deleted comes back with the reason.',
           'Click Done (or press Esc) to stop selecting.',
+        ],
+      },
+      {
+        title: 'Change the same details on many items',
+        steps: [
+          'Select the items, then click Edit in the bar at the bottom.',
+          'Tick each field you want to change (for example Status, Route or Class) and pick the new value. Each field shows what the selected items have now.',
+          'Click Apply. Fields you didn\'t tick stay as they were. For 10 seconds you can press Undo to put the old values back.',
+          'Things that must be different for every item, like a driver\'s bus or a bus\'s route, can only be changed one at a time.',
         ],
       },
     ],

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, Bus as BusIcon, SearchX, Settings2, Ban } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getBuses } from '../../api/buses.js';
+import { getBuses, updateBus } from '../../api/buses.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -18,6 +18,9 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import ListToolbar from '../../components/ui/ListToolbar.jsx';
+import { BUS_STATUSES, BUS_TYPES } from '../../lib/options.js';
+import { CAPACITY_MAX, CAPACITY_MIN, capacityError } from '../../lib/formats.js';
 import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
@@ -62,6 +65,21 @@ export default function BusesList() {
     noun: 'buses',
     singular: 'bus',
     invalidate,
+    bulkEdit: {
+      updateOne: updateBus,
+      fields: [
+      { key: 'status', label: 'Status', type: 'select', options: BUS_STATUSES, get: (b) => b.status || '' },
+      { key: 'type', label: 'Bus type', type: 'select', options: BUS_TYPES, get: (b) => b.type || '' },
+      {
+        key: 'capacity',
+        label: 'Capacity (seats)',
+        type: 'number',
+        get: (b) => b.capacity ?? '',
+        validate: (v) => capacityError(v),
+        hint: `Whole number from ${CAPACITY_MIN} to ${CAPACITY_MAX}.`,
+      },
+    ],
+    },
   });
   const confirmDelete = (item) => {
     scheduleDelete({
@@ -80,17 +98,6 @@ export default function BusesList() {
       <PageHeader
         title="Buses"
         subtitle="Register, assign and manage every vehicle in the school fleet."
-        action={
-          <>
-            {selection.toolbarButton}
-            <Button variant="outline" onClick={() => setBulkOpen(true)}>
-              <Upload className="h-4 w-4" /> Bulk upload
-            </Button>
-            <Button as={Link} to="/buses/new">
-              <Plus className="h-4 w-4" /> Register Bus
-            </Button>
-          </>
-        }
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -99,15 +106,26 @@ export default function BusesList() {
         <StatCard label="Idle Buses" value={stats.idle ?? 0} hint="Available for assignment" icon={Ban} tone="slate" />
       </div>
 
-      <PillTabs
-        className="mb-4"
-        tabs={STATUS_TABS}
-        active={status}
-        onChange={(v) => {
-          setStatus(v);
-          setPage(1);
-        }}
-      />
+      <ListToolbar
+        left={
+          <PillTabs
+            tabs={STATUS_TABS}
+            active={status}
+            onChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+          />
+        }
+      >
+        {selection.toolbarButton}
+        <Button variant="outline" onClick={() => setBulkOpen(true)}>
+          <Upload className="h-4 w-4" /> Bulk upload
+        </Button>
+        <Button as={Link} to="/buses/new">
+          <Plus className="h-4 w-4" /> Register Bus
+        </Button>
+      </ListToolbar>
 
       <Card>
         {isLoading ? (

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, Users, SearchX } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getDrivers } from '../../api/drivers.js';
+import { getDrivers, updateDriver } from '../../api/drivers.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -17,6 +17,8 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import ListToolbar from '../../components/ui/ListToolbar.jsx';
+import { DRIVER_STATUSES, LICENSE_CLASSES } from '../../lib/options.js';
 import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { formatPhone } from '../../lib/phone.js';
@@ -59,6 +61,13 @@ export default function DriversList() {
     noun: 'drivers',
     singular: 'driver',
     invalidate,
+    bulkEdit: {
+      updateOne: updateDriver,
+      fields: [
+      { key: 'status', label: 'Status', type: 'select', options: DRIVER_STATUSES, get: (d) => d.status || '' },
+      { key: 'licenseClass', label: 'License class', type: 'select', options: LICENSE_CLASSES, get: (d) => d.licenseClass || '' },
+    ],
+    },
   });
   const confirmDelete = (item) => {
     scheduleDelete({
@@ -76,18 +85,17 @@ export default function DriversList() {
       <PageHeader
         title="Drivers"
         subtitle="Manage and assign authorized drivers for the school fleet."
-        action={
-          <>
-            {selection.toolbarButton}
-            <Button variant="outline" onClick={() => setBulkOpen(true)}>
-              <Upload className="h-4 w-4" /> Bulk upload
-            </Button>
-            <Button as={Link} to="/drivers/new">
-              <Plus className="h-4 w-4" /> Add Driver
-            </Button>
-          </>
-        }
       />
+
+      <ListToolbar left={meta ? <p className="text-sm text-slate-500 dark:text-slate-400">{meta.total} drivers</p> : null}>
+        {selection.toolbarButton}
+        <Button variant="outline" onClick={() => setBulkOpen(true)}>
+          <Upload className="h-4 w-4" /> Bulk upload
+        </Button>
+        <Button as={Link} to="/drivers/new">
+          <Plus className="h-4 w-4" /> Add Driver
+        </Button>
+      </ListToolbar>
 
       <Card>
         {isLoading ? (

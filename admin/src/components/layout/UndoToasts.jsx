@@ -51,19 +51,32 @@ export default function UndoToasts() {
               {job.status === 'failed' && <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />}
 
               <div className="min-w-0 flex-1 text-sm">
-                {job.status === 'pending' && (
+                {job.status === 'pending' && job.kind === 'edit' && (
+                  <>
+                    <p className="font-semibold">Updated {job.title}</p>
+                    <p className="text-xs text-slate-300">Undo within {left}s to put the old values back.</p>
+                  </>
+                )}
+                {job.status === 'pending' && job.kind !== 'edit' && (
                   <>
                     <p className="font-semibold">Deleted {job.title}</p>
                     <p className="text-xs text-slate-300">Undo within {left}s, after that it&apos;s gone for good.</p>
                   </>
                 )}
-                {job.status === 'running' && <p className="font-semibold">Deleting {job.title}…</p>}
-                {job.status === 'undone' && <p className="font-semibold">Restored {job.title}. Nothing was deleted.</p>}
+                {job.status === 'running' && (
+                  <p className="font-semibold">{job.kind === 'edit' ? `Undoing changes to ${job.title}…` : `Deleting ${job.title}…`}</p>
+                )}
+                {job.status === 'undone' && (
+                  <p className="font-semibold">
+                    {job.kind === 'edit' ? `Changes to ${job.title} undone.` : `Restored ${job.title}. Nothing was deleted.`}
+                  </p>
+                )}
                 {job.status === 'failed' && (
                   <>
                     <p className="font-semibold">
-                      {job.deleted ? `${job.deleted} deleted, but ` : ''}
-                      {job.failures.length} could not be deleted
+                      {job.undoFailed
+                        ? `${job.failures.length} could not be put back`
+                        : `${job.deleted ? `${job.deleted} deleted, but ` : ''}${job.failures.length} could not be deleted`}
                     </p>
                     <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto text-xs text-slate-300">
                       {job.failures.map((f, i) => (

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, GraduationCap, SearchX, Users2, UserRound, UsersRound } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getStudents } from '../../api/students.js';
+import { getStudents, updateStudent } from '../../api/students.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -18,6 +18,10 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import ListToolbar from '../../components/ui/ListToolbar.jsx';
+import { getRouteOptions } from '../../api/routes.js';
+import { CLASS_GRADE_OPTIONS, STUDENT_STATUSES } from '../../lib/options.js';
+import { RADIUS_MAX, RADIUS_MIN, radiusError } from '../../lib/formats.js';
 import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { formatPhone } from '../../lib/phone.js';
@@ -60,6 +64,32 @@ export default function StudentsList() {
     noun: 'students',
     singular: 'student',
     invalidate,
+    bulkEdit: {
+      updateOne: updateStudent,
+      fields: [
+      {
+        key: 'route',
+        label: 'Route',
+        type: 'select',
+        queryKey: 'route-options',
+        loadOptions: () => getRouteOptions().then((rs) => rs.map((r) => ({ value: r._id, label: `${r.routeId} - ${r.name}` }))),
+        get: (s) => s.route?._id || s.route || '',
+        hint: 'Their bus changes to the bus that serves the new route.',
+      },
+      { key: 'classGrade', label: 'Class / Grade', type: 'select', options: CLASS_GRADE_OPTIONS, get: (s) => s.classGrade || '' },
+      { key: 'pickupPoint', label: 'Pickup point', type: 'text', get: (s) => s.pickupPoint || '', validate: (v) => (v.length > 120 ? 'At most 120 characters' : '') },
+      { key: 'dropoffPoint', label: 'Drop-off point', type: 'text', get: (s) => s.dropoffPoint || '', validate: (v) => (v.length > 120 ? 'At most 120 characters' : '') },
+      {
+        key: 'geofenceRadius',
+        label: 'Geofence radius (metres)',
+        type: 'number',
+        get: (s) => s.geofenceRadius ?? '',
+        validate: (v) => radiusError(v),
+        hint: `Between ${RADIUS_MIN} and ${RADIUS_MAX} metres.`,
+      },
+      { key: 'status', label: 'Status', type: 'select', options: STUDENT_STATUSES, get: (s) => s.status || '' },
+    ],
+    },
   });
   const confirmDelete = (item) => {
     scheduleDelete({
@@ -78,17 +108,6 @@ export default function StudentsList() {
       <PageHeader
         title="Students"
         subtitle="Monitor child safe boarding status and details."
-        action={
-          <>
-            {selection.toolbarButton}
-            <Button variant="outline" onClick={() => setBulkOpen(true)}>
-              <Upload className="h-4 w-4" /> Bulk upload
-            </Button>
-            <Button as={Link} to="/students/new">
-              <Plus className="h-4 w-4" /> Add Student
-            </Button>
-          </>
-        }
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -109,6 +128,16 @@ export default function StudentsList() {
         />
         <StatCard label="Guardians Registered" value={stats.guardianCount ?? 0} hint="Active contacts" icon={UsersRound} />
       </div>
+
+      <ListToolbar left={meta ? <p className="text-sm text-slate-500 dark:text-slate-400">{meta.total} students</p> : null}>
+        {selection.toolbarButton}
+        <Button variant="outline" onClick={() => setBulkOpen(true)}>
+          <Upload className="h-4 w-4" /> Bulk upload
+        </Button>
+        <Button as={Link} to="/students/new">
+          <Plus className="h-4 w-4" /> Add Student
+        </Button>
+      </ListToolbar>
 
       <Card>
         {isLoading ? (
