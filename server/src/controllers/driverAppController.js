@@ -21,6 +21,21 @@ import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE, DRIVER_INACTIVE_ME
 import { notify, describeTrip } from '../services/notify.js';
 import { emitToSchool } from '../sockets/rooms.js';
 import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/setupCode.js';
+import { inGhana } from '../utils/geo.js';
+
+// Trip rules shared by the driver actions below.
+const LIVE = ['In Progress', 'Delayed'];
+const isLive = (trip) => LIVE.includes(trip.status);
+// Scans that were queued offline can still arrive a while after the trip ended.
+const LATE_SCAN_GRACE_MS = 2 * 60 * 60 * 1000;
+// Delay SMS: parents should not be flooded, and one SMS is 160 characters.
+export const DELAY_LIMITS = { perTrip: 3, minMinutesApart: 10, maxMessage: 100 };
+const refuseTrip = (res, status, code, message) => {
+  res.status(status);
+  const err = new Error(message);
+  err.errorCode = code;
+  return err;
+};
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -264,6 +279,11 @@ export const startTrip = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Trip not found');
   }
+  if (trip.status === 'Completed' || trip.status === 'Cancelled') {
+    throw refuseTrip(res, 409, 'TRIP_ENDED', `This trip is already ${trip.status.toLowerCase()} and cannot be started again.`);
+  }
+  // Already running (e.g. the start was sent twice): keep the original start time.
+  if (isLive(trip)) return res.json({ success: true, data: trip });
   trip.status = 'In Progress';
   trip.startedAt = new Date();
   trip.departureTime = timeNow();
@@ -294,6 +314,14 @@ export const endTrip = asyncHandler(async (req, res) => {
   if (!trip) {
     res.status(404);
     throw new Error('Trip not found');
+  }
+  // Ended already (e.g. the end was sent twice): answer with the trip as it is.
+  if (trip.status === 'Completed') {
+    const done = await Trip.findById(trip._id).populate('studentProgress.student', 'firstName lastName studentCode');
+    return res.json({ success: true, data: done });
+  }
+  if (!isLive(trip)) {
+    throw refuseTrip(res, 409, 'TRIP_NOT_LIVE', trip.status === 'Cancelled' ? 'This trip was cancelled.' : 'Start the trip before ending it.');
   }
   trip.status = 'Completed';
   trip.endedAt = new Date();
@@ -330,23 +358,43 @@ export const endTrip = asyncHandler(async (req, res) => {
 // @desc    Push a GPS location update while a trip is in progress
 // @route   POST /api/driver-app/trips/:id/location
 export const pushLocation = asyncHandler(async (req, res) => {
-  const { lat, lng, heading } = req.body;
-  if (lat === undefined || lng === undefined) {
+  const lat = Number(req.body.lat);
+  const lng = Number(req.body.lng);
+  if (req.body.lat === undefined || req.body.lng === undefined || req.body.lat === null || req.body.lng === null) {
     res.status(400);
     throw new Error('lat and lng are required');
   }
+  if (!inGhana(lat, lng)) {
+    res.status(400);
+    throw new Error('That position is not in Ghana. Check that location is switched on.');
+  }
+  const heading = Number(req.body.heading);
 
-  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id });
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).select('status bus liveLocation');
   if (!trip) {
     res.status(404);
     throw new Error('Trip not found');
   }
+  if (!isLive(trip)) throw refuseTrip(res, 409, 'TRIP_NOT_LIVE', 'This trip is not running, so its position is not updated.');
 
-  const location = { lat, lng, heading: heading || 0, updatedAt: new Date() };
-  trip.liveLocation = location;
-  trip.gpsSignal = 'ok';
-  await trip.save();
-  await Bus.findByIdAndUpdate(trip.bus, { lastKnownLocation: location, gpsSignal: 'ok' });
+  // When the phone took the reading (it may have been queued while offline).
+  // Anything missing, unreadable or in the future counts as "now".
+  const now = Date.now();
+  const taken = req.body.recordedAt ? new Date(req.body.recordedAt).getTime() : NaN;
+  const recordedAt = new Date(Number.isFinite(taken) && taken <= now + 60 * 1000 ? Math.min(taken, now) : now);
+  // A reading older than the one already shown (a late offline one) must not move the bus back.
+  const shown = trip.liveLocation?.updatedAt ? new Date(trip.liveLocation.updatedAt).getTime() : 0;
+  if (recordedAt.getTime() < shown) return res.json({ success: true, data: trip.liveLocation, ignored: 'older than the last position' });
+
+  const location = {
+    lat,
+    lng,
+    heading: Number.isFinite(heading) && heading >= 0 && heading <= 360 ? heading : 0,
+    updatedAt: recordedAt,
+  };
+  // Only these fields change, so this never overwrites a scan saved at the same moment.
+  await Trip.updateOne({ _id: trip._id }, { $set: { liveLocation: location, gpsSignal: 'ok' } });
+  await Bus.updateOne({ _id: trip.bus }, { $set: { lastKnownLocation: location, gpsSignal: 'ok' } });
 
   emitToSchool(req.app.get('io'), req.school, 'bus:location', { tripId: trip._id, busId: trip.bus, location });
   res.json({ success: true, data: location });
@@ -363,19 +411,43 @@ export const markAttendance = asyncHandler(async (req, res) => {
     throw new Error('Trip not found');
   }
 
-  const progress = trip.studentProgress.find((p) => String(p.student) === req.params.studentId);
-  if (!progress) {
+  if (trip.status === 'Cancelled') throw refuseTrip(res, 409, 'TRIP_ENDED', 'This trip was cancelled.');
+  if (trip.status === 'Completed' && (!trip.endedAt || Date.now() - new Date(trip.endedAt).getTime() > LATE_SCAN_GRACE_MS)) {
+    throw refuseTrip(res, 409, 'TRIP_ENDED', 'This trip ended more than 2 hours ago. Ask the school office to correct it.');
+  }
+
+  const index = trip.studentProgress.findIndex((p) => String(p.student) === req.params.studentId);
+  if (index === -1) {
     res.status(404);
     throw new Error('Student is not on this trip roster');
   }
-  if (attendance) progress.attendance = attendance;
-  if (dropoffStatus) {
-    progress.dropoffStatus = dropoffStatus;
-    progress.alertStatus = 'Alert sent';
-    progress.alertTime = timeNow();
+  const row = trip.schema.path('studentProgress').schema;
+  if (attendance && !row.path('attendance').enumValues.includes(attendance)) {
+    res.status(400);
+    throw new Error('Unknown attendance value');
   }
-
-  await trip.save();
+  if (dropoffStatus && !row.path('dropoffStatus').enumValues.includes(dropoffStatus)) {
+    res.status(400);
+    throw new Error('Unknown drop-off status');
+  }
+  const changes = {};
+  if (attendance) changes.attendance = attendance;
+  if (dropoffStatus) {
+    changes.dropoffStatus = dropoffStatus;
+    changes.alertStatus = 'Alert sent';
+    changes.alertTime = timeNow();
+  }
+  // Change only this student's row. Saving the whole trip let scans sent at
+  // the same moment overwrite each other. The student id in the filter makes
+  // sure the row at this position is still the same student.
+  const at = `studentProgress.${index}`;
+  const $set = Object.fromEntries(Object.entries(changes).map(([k, v]) => [`${at}.${k}`, v]));
+  const saved = await Trip.updateOne({ _id: trip._id, [`${at}.student`]: trip.studentProgress[index].student }, { $set });
+  if (!saved.matchedCount) {
+    res.status(409);
+    throw new Error('The trip roster changed. Please try again.');
+  }
+  const progress = { ...trip.studentProgress[index].toObject(), ...changes };
   emitToSchool(req.app.get('io'), req.school, 'trip:studentUpdate', { tripId: trip._id, studentId: req.params.studentId, progress });
 
   if (dropoffStatus === 'Not on board' || attendance === 'Absent') {
@@ -417,6 +489,12 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
     throw new Error('A delay reason is required');
   }
 
+  const extra = String(message || '').trim();
+  if (extra.length > DELAY_LIMITS.maxMessage) {
+    res.status(400);
+    throw new Error(`Keep the message to ${DELAY_LIMITS.maxMessage} characters so it fits in one SMS.`);
+  }
+
   const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).populate(
     'route',
     'name'
@@ -424,6 +502,16 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
   if (!trip) {
     res.status(404);
     throw new Error('Trip not found');
+  }
+  if (!isLive(trip)) throw refuseTrip(res, 409, 'TRIP_NOT_LIVE', 'Delay messages can only be sent while the trip is running.');
+  const sent = trip.delayBroadcasts || [];
+  if (sent.length >= DELAY_LIMITS.perTrip) {
+    throw refuseTrip(res, 429, 'DELAY_LIMIT', `Parents have already had ${DELAY_LIMITS.perTrip} delay messages for this trip. Call the school office instead.`);
+  }
+  const last = sent.length ? new Date(sent[sent.length - 1].sentAt).getTime() : 0;
+  const waitMs = last + DELAY_LIMITS.minMinutesApart * 60 * 1000 - Date.now();
+  if (waitMs > 0) {
+    throw refuseTrip(res, 429, 'DELAY_TOO_SOON', `A delay message was sent a few minutes ago. You can send another in ${Math.ceil(waitMs / 60000)} min.`);
   }
 
   const attendingIds = trip.studentProgress
@@ -433,7 +521,7 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
   const students = await Student.find({ _id: { $in: attendingIds } }).populate('primaryGuardian', 'phone');
   const guardianPhones = [...new Set(students.map((s) => s.primaryGuardian?.phone).filter(Boolean))];
 
-  const smsText = `AwaBus: ${trip.route?.name || 'Your route'} is running late. ${message || ''}`.trim();
+  const smsText = `AwaBus: ${trip.route?.name || 'Your route'} is running late. ${extra}`.trim();
 
   let delivered = 0;
   let failed = 0;
@@ -450,7 +538,7 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
 
   const broadcast = {
     reason,
-    message: message || '',
+    message: extra,
     sentAt: new Date(),
     recipientCount: guardianPhones.length,
     deliveredCount: delivered,

@@ -5,6 +5,7 @@ import Student from '../models/Student.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextSequentialCode } from '../utils/idGenerator.js';
 import { searchPattern } from '../utils/search.js';
+import { inGhana } from '../utils/geo.js';
 
 const populateRoute = (query) =>
   query
@@ -69,7 +70,7 @@ function cleanStops(input) {
     const lng = Number(st.lng);
     if (name.length < 2 || name.length > 80) return { error: `Stop ${i + 1} needs a name (2-80 characters)` };
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { error: `Stop ${i + 1} needs a position` };
-    if (lat < 4.3 || lat > 11.5 || lng < -3.6 || lng > 1.5) return { error: `Stop ${i + 1} is outside Ghana` };
+    if (!inGhana(lat, lng)) return { error: `Stop ${i + 1} is outside Ghana` };
     stops.push({ name, lat, lng, order: i + 1 });
   }
   return { stops };
