@@ -96,8 +96,12 @@ export default function DriverProfile() {
             <InfoRow label="Expiry date" value={formatDate(driver.licenseExpiry)} />
             <InfoRow label="License class" value={driver.licenseClass} />
             <InfoRow
-              label="Validation status"
-              value={driver.licenseValidation?.status === 'verified' ? 'DVLA Verified' : driver.licenseValidation?.status}
+              label="Status"
+              value={
+                driver.licenseExpiry && new Date(driver.licenseExpiry) < new Date()
+                  ? 'Expired - update the expiry date'
+                  : 'Details saved'
+              }
             />
           </div>
         </Card>

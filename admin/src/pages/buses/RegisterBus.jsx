@@ -12,6 +12,7 @@ import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
+import { CAPACITY_MAX, capacityError, digitsOnly, formatPlate, plateError } from '../../lib/formats.js';
 import { getRouteOptions } from '../../api/routes.js';
 import { createBus } from '../../api/buses.js';
 
@@ -23,7 +24,11 @@ export default function RegisterBus() {
   const [form, setForm, draft] = useCreateDraft('bus:new', initial);
   const [created, setCreated] = useState(null);
   const [routeError, setRouteError] = useState('');
-  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const [errors, setErrors] = useState({});
+  const set = (key) => (val) => {
+    setErrors((e) => ({ ...e, [key]: '' }));
+    setForm((f) => ({ ...f, [key]: val }));
+  };
 
   const { data: routeOptions, isLoading: routesLoading } = useQuery({ queryKey: ['route-options'], queryFn: getRouteOptions });
 
@@ -97,6 +102,9 @@ export default function RegisterBus() {
       setRouteError('Select the route this bus will service');
       return;
     }
+    const next = { plateNumber: plateError(form.plateNumber), capacity: capacityError(form.capacity), name: form.name.trim() ? '' : 'Bus name is required' };
+    setErrors(next);
+    if (Object.values(next).some(Boolean)) return;
     mutation.mutate({ ...form, capacity: Number(form.capacity) });
   };
 
@@ -118,15 +126,19 @@ export default function RegisterBus() {
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <Label required>Bus Plate Number</Label>
-              <Input value={form.plateNumber} onChange={(e) => set('plateNumber')(e.target.value.toUpperCase())} placeholder="e.g. GC-102-21" required />
+              <Input value={form.plateNumber} onChange={(e) => set('plateNumber')(formatPlate(e.target.value))} error={Boolean(errors.plateNumber)} placeholder="e.g. GC-102-21" required />
+              <FieldError>{errors.plateNumber}</FieldError>
+              {!errors.plateNumber && <p className="mt-1.5 text-xs text-slate-400">Format: region letters, number, year, e.g. GR-1234-20</p>}
             </div>
             <div>
               <Label required>Bus Name/Nickname</Label>
               <Input value={form.name} onChange={(e) => set('name')(e.target.value)} placeholder="e.g. Bus A / Yellow Submarine" required />
+              <FieldError>{errors.name}</FieldError>
             </div>
             <div>
               <Label required>Capacity (Seats)</Label>
-              <Input type="number" min="1" value={form.capacity} onChange={(e) => set('capacity')(e.target.value)} placeholder="e.g. 45" required />
+              <Input inputMode="numeric" value={form.capacity} onChange={(e) => set('capacity')(digitsOnly(e.target.value, 3))} error={Boolean(errors.capacity)} placeholder={`e.g. 45 (max ${CAPACITY_MAX})`} required />
+              <FieldError>{errors.capacity}</FieldError>
             </div>
             <div>
               <Label required>Assigned Route</Label>
@@ -138,7 +150,12 @@ export default function RegisterBus() {
                   setRouteError('');
                 }}
                 error={Boolean(routeError)}
-                options={routeOptions.map((r) => ({ value: r._id, label: `${r.routeId} - ${r.name}` }))}
+                options={routeOptions.map((r) => ({
+                  value: r._id,
+                  label: `${r.routeId} - ${r.name}`,
+                  disabled: Boolean(r.assignedBus),
+                  description: r.assignedBus ? `Already served by ${r.assignedBus.name}` : 'No bus yet',
+                }))}
               />
               <FieldError>{routeError}</FieldError>
             </div>

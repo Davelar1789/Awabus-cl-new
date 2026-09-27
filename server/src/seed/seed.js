@@ -59,7 +59,7 @@ const seedSchoolData = async (school) => {
     // eslint-disable-next-line no-await-in-loop
     const driver = await Driver.create({
       ...d,
-      licenseValidation: { status: 'verified', message: 'DVLA Verified', checkedAt: new Date() },
+      licenseValidation: { status: 'verified', message: 'License details saved', checkedAt: new Date() },
     });
     drivers.push(driver);
   }

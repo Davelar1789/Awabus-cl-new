@@ -8,6 +8,7 @@ import Driver from '../models/Driver.js';
 import RouteModel from '../models/Route.js';
 import Trip from '../models/Trip.js';
 import { tenantContext } from '../utils/tenantContext.js';
+import { assertFormats } from '../utils/formats.js';
 
 // Derives a short, URL/login-screen-friendly code from the school name,
 // e.g. "Awabus Demo School" -> "AWABUS-DEMO-SCHOOL". Matches School.code's
@@ -110,6 +111,7 @@ export const createSchool = asyncHandler(async (req, res) => {
   }
 
   const email = adminEmail.toLowerCase().trim();
+  assertFormats(res, { email });
 
   const existingAdmin = await asSystem(() => Admin.findOne({ email }));
   if (existingAdmin) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreVertical, Plus, Milestone, SearchX } from 'lucide-react';
+import { Plus, Milestone, SearchX } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getRoutes, deleteRoute } from '../../api/routes.js';
@@ -13,15 +13,16 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table.jsx';
 import Pagination from '../../components/ui/Pagination.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
+import RowActions from '../../components/ui/RowActions.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 export default function RoutesList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [openMenuId, setOpenMenuId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const debouncedSearch = useDebounce(search);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   usePageHeader({
     breadcrumb: ['AwaBus', 'Routes'],
@@ -102,7 +103,7 @@ export default function RoutesList() {
               </Thead>
               <Tbody>
                 {routes.map((route) => (
-                  <Tr key={route._id}>
+                  <Tr key={route._id} className="cursor-pointer" onClick={() => navigate(`/routes/${route._id}/edit`)}>
                     <Td className="font-bold text-slate-900 dark:text-white">{route.routeId}</Td>
                     <Td>{route.name}</Td>
                     <Td>
@@ -114,33 +115,13 @@ export default function RoutesList() {
                     <Td>
                       <Badge tone={route.status === 'Active' ? 'success' : 'neutral'}>{route.status}</Badge>
                     </Td>
-                    <Td className="relative text-right">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === route._id ? null : route._id)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-navy"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                      {openMenuId === route._id && (
-                        <div className="absolute right-4 top-10 z-10 w-36 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg dark:border-slate-700 dark:bg-navy-light">
-                          <Link
-                            to={`/routes/${route._id}/edit`}
-                            className="block px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
-                            onClick={() => setOpenMenuId(null)}
-                          >
-                            Edit route
-                          </Link>
-                          <button
-                            onClick={() => {
-                              setDeleteTarget(route);
-                              setOpenMenuId(null);
-                            }}
-                            className="block w-full px-3.5 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                          >
-                            Delete route
-                          </button>
-                        </div>
-                      )}
+                    <Td className="text-right">
+                      <RowActions
+                        items={[
+                          { label: 'Edit route', to: `/routes/${route._id}/edit` },
+                          { label: 'Delete route', danger: true, onClick: () => setDeleteTarget(route) },
+                        ]}
+                      />
                     </Td>
                   </Tr>
                 ))}

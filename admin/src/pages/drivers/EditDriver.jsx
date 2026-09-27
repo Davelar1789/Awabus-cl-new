@@ -15,6 +15,8 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getDriver, updateDriver, deleteDriver } from '../../api/drivers.js';
 import { getBusOptions } from '../../api/buses.js';
+import { busPickerOptions } from '../../lib/assignments.js';
+import { dateError, emailError, formatEmail, formatLicense, formatName, licenseError, nameError } from '../../lib/formats.js';
 
 export default function EditDriver() {
   const { id } = useParams();
@@ -22,7 +24,7 @@ export default function EditDriver() {
   const queryClient = useQueryClient();
 
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [phoneError, setPhoneError] = useState('');
+  const [errors, setErrors] = useState({});
 
   const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id) });
   const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
@@ -54,7 +56,10 @@ export default function EditDriver() {
   // Unsaved edits are kept as a draft until saved or discarded.
   const [form, setForm, draft] = useEditDraft(`driver:${id}`, baseline);
 
-  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const set = (key) => (val) => {
+    setErrors((e) => ({ ...e, [key]: '' }));
+    setForm((f) => ({ ...f, [key]: val }));
+  };
 
   const updateMutation = useMutation({
     mutationFn: (payload) => updateDriver(id, payload),
@@ -86,11 +91,18 @@ export default function EditDriver() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!isValidPhone(form.phone)) {
-            setPhoneError('Enter a 10-digit number starting with 0, e.g. 024 412 3456');
-            return;
-          }
-          setPhoneError('');
+          const next = {
+            firstName: nameError(form.firstName, 'First name'),
+            lastName: nameError(form.lastName, 'Last name'),
+            phone: isValidPhone(form.phone) ? '' : 'Enter a 10-digit number starting with 0, e.g. 024 412 3456',
+            email: emailError(form.email),
+            licenseNumber: licenseError(form.licenseNumber),
+            // An unchanged old expiry can stay; a newly entered one must still be valid.
+            licenseExpiry: form.licenseExpiry === baseline.licenseExpiry ? '' : dateError(form.licenseExpiry, 'licenseExpiry'),
+            assignedBus: form.assignedBus ? '' : 'Select the bus this driver operates',
+          };
+          setErrors(next);
+          if (Object.values(next).some(Boolean)) return;
           updateMutation.mutate({ ...form, phone: toLocalPhone(form.phone) });
         }}
       >
@@ -104,20 +116,23 @@ export default function EditDriver() {
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <Label>First Name</Label>
-              <Input value={form.firstName} onChange={(e) => set('firstName')(e.target.value)} />
+              <Input value={form.firstName} onChange={(e) => set('firstName')(formatName(e.target.value))} error={Boolean(errors.firstName)} />
+              <FieldError>{errors.firstName}</FieldError>
             </div>
             <div>
               <Label>Last Name</Label>
-              <Input value={form.lastName} onChange={(e) => set('lastName')(e.target.value)} />
+              <Input value={form.lastName} onChange={(e) => set('lastName')(formatName(e.target.value))} error={Boolean(errors.lastName)} />
+              <FieldError>{errors.lastName}</FieldError>
             </div>
             <div>
               <Label>Phone Number</Label>
-              <PhoneInput value={form.phone} onChange={set('phone')} error={Boolean(phoneError)} />
-              <FieldError>{phoneError}</FieldError>
+              <PhoneInput value={form.phone} onChange={set('phone')} error={Boolean(errors.phone)} />
+              <FieldError>{errors.phone}</FieldError>
             </div>
             <div>
               <Label>Email Address</Label>
-              <Input type="email" value={form.email} onChange={(e) => set('email')(e.target.value)} />
+              <Input type="email" value={form.email} onChange={(e) => set('email')(formatEmail(e.target.value))} error={Boolean(errors.email)} placeholder="e.g. kwame.mensah@gmail.com" />
+              <FieldError>{errors.email}</FieldError>
             </div>
           </CardBody>
 
@@ -125,11 +140,13 @@ export default function EditDriver() {
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <Label>License Number</Label>
-              <Input value={form.licenseNumber} onChange={(e) => set('licenseNumber')(e.target.value)} />
+              <Input value={form.licenseNumber} onChange={(e) => set('licenseNumber')(formatLicense(e.target.value))} error={Boolean(errors.licenseNumber)} placeholder="e.g. GH-DL-29831" />
+              <FieldError>{errors.licenseNumber}</FieldError>
             </div>
             <div>
               <Label>Expiry Date</Label>
-              <Input type="date" value={form.licenseExpiry} onChange={(e) => set('licenseExpiry')(e.target.value)} />
+              <Input type="date" value={form.licenseExpiry} onChange={(e) => set('licenseExpiry')(e.target.value)} error={Boolean(errors.licenseExpiry)} />
+              <FieldError>{errors.licenseExpiry}</FieldError>
             </div>
           </CardBody>
 
@@ -141,8 +158,11 @@ export default function EditDriver() {
                 placeholder="Select bus"
                 value={form.assignedBus}
                 onChange={set('assignedBus')}
-                options={busOptions.map((b) => ({ value: b._id, label: `${b.name} (${b.plateNumber})` }))}
+                error={Boolean(errors.assignedBus)}
+                options={busPickerOptions(busOptions, id)}
               />
+              <FieldError>{errors.assignedBus}</FieldError>
+              <p className="mt-1.5 text-xs text-slate-400">Each bus has one driver. Buses that already have a driver can&apos;t be picked.</p>
             </div>
             <div>
               <Label>Route (from selected bus)</Label>

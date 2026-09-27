@@ -11,6 +11,7 @@ import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
+import { CAPACITY_MAX, capacityError, digitsOnly, formatPlate, plateError } from '../../lib/formats.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBus, updateBus, deleteBus } from '../../api/buses.js';
 import { getRouteOptions } from '../../api/routes.js';
@@ -43,7 +44,11 @@ export default function EditBus() {
   // Unsaved edits are kept as a draft until saved or discarded.
   const [form, setForm, draft] = useEditDraft(`bus:${id}`, baseline);
 
-  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const [errors, setErrors] = useState({});
+  const set = (key) => (val) => {
+    setErrors((e) => ({ ...e, [key]: '' }));
+    setForm((f) => ({ ...f, [key]: val }));
+  };
 
   const updateMutation = useMutation({
     mutationFn: (payload) => updateBus(id, payload),
@@ -73,6 +78,9 @@ export default function EditBus() {
       setRouteError('A bus must remain assigned to a route');
       return;
     }
+    const next = { plateNumber: plateError(form.plateNumber), capacity: capacityError(form.capacity), name: form.name.trim() ? '' : 'Bus name is required' };
+    setErrors(next);
+    if (Object.values(next).some(Boolean)) return;
     updateMutation.mutate({ ...form, capacity: Number(form.capacity) });
   };
 
@@ -90,15 +98,19 @@ export default function EditBus() {
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <Label required>Bus Plate Number</Label>
-              <Input value={form.plateNumber} onChange={(e) => set('plateNumber')(e.target.value.toUpperCase())} />
+              <Input value={form.plateNumber} onChange={(e) => set('plateNumber')(formatPlate(e.target.value))} error={Boolean(errors.plateNumber)} />
+              <FieldError>{errors.plateNumber}</FieldError>
+              {!errors.plateNumber && <p className="mt-1.5 text-xs text-slate-400">Format: region letters, number, year, e.g. GR-1234-20</p>}
             </div>
             <div>
               <Label required>Bus Name/Nickname</Label>
               <Input value={form.name} onChange={(e) => set('name')(e.target.value)} />
+              <FieldError>{errors.name}</FieldError>
             </div>
             <div>
               <Label required>Capacity (Seats)</Label>
-              <Input type="number" min="1" value={form.capacity} onChange={(e) => set('capacity')(e.target.value)} />
+              <Input inputMode="numeric" value={form.capacity} onChange={(e) => set('capacity')(digitsOnly(e.target.value, 3))} error={Boolean(errors.capacity)} />
+              <FieldError>{errors.capacity}</FieldError>
             </div>
             <div>
               <Label>Fleet Status</Label>
@@ -118,7 +130,15 @@ export default function EditBus() {
                   setRouteError('');
                 }}
                 error={Boolean(routeError)}
-                options={routeOptions.map((r) => ({ value: r._id, label: r.name }))}
+                options={routeOptions.map((r) => {
+                  const taken = Boolean(r.assignedBus) && r.assignedBus._id !== id;
+                  return {
+                    value: r._id,
+                    label: `${r.routeId} - ${r.name}`,
+                    disabled: taken,
+                    description: taken ? `Already served by ${r.assignedBus.name}` : undefined,
+                  };
+                })}
               />
               <FieldError>{routeError}</FieldError>
             </div>

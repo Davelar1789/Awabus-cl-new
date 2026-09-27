@@ -5,6 +5,7 @@ import Route from '../models/Route.js';
 import Student from '../models/Student.js';
 import Trip from '../models/Trip.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
+import { assertFormats, normalizeCode } from '../utils/formats.js';
 
 const populateBus = (query) =>
   query
@@ -15,7 +16,9 @@ const populateBus = (query) =>
 // admin's Add Driver screen can show the real route a bus already services
 // instead of asking the admin to pick one separately.
 const populateBusOptions = (query) =>
-  query.populate('assignedRoute', 'routeId name stops students');
+  query
+    .populate('assignedRoute', 'routeId name stops students')
+    .populate('assignedDriver', 'firstName lastName');
 
 // @desc    List buses (search + status filter + pagination) + fleet stats
 // @route   GET /api/buses
@@ -84,6 +87,7 @@ export const createBus = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Plate number, name and capacity are required');
   }
+  assertFormats(res, { plateNumber, capacity });
   if (!assignedRoute) {
     res.status(400);
     throw new Error('A bus must be assigned to a route — create a route first if none exist yet');
@@ -100,7 +104,7 @@ export const createBus = asyncHandler(async (req, res) => {
   }
 
   const bus = await Bus.create({
-    plateNumber,
+    plateNumber: normalizeCode(plateNumber),
     name,
     type: type || 'Standard',
     capacity,
@@ -126,7 +130,9 @@ export const updateBus = asyncHandler(async (req, res) => {
     throw new Error('Bus not found');
   }
 
+  assertFormats(res, { plateNumber: req.body.plateNumber, capacity: req.body.capacity });
   const fields = ['plateNumber', 'name', 'type', 'capacity', 'status'];
+  if (req.body.plateNumber !== undefined) req.body.plateNumber = normalizeCode(req.body.plateNumber);
   fields.forEach((f) => {
     if (req.body[f] !== undefined) bus[f] = req.body[f];
   });
@@ -199,7 +205,7 @@ export const deleteBus = asyncHandler(async (req, res) => {
 // @route   GET /api/buses/meta/options
 export const getBusOptions = asyncHandler(async (req, res) => {
   const buses = await populateBusOptions(
-    Bus.find().select('plateNumber name capacity status assignedRoute').sort({ createdAt: 1 })
+    Bus.find().select('plateNumber name capacity status assignedRoute assignedDriver').sort({ createdAt: 1 })
   );
   res.json({ success: true, data: buses });
 });

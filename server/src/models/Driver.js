@@ -77,6 +77,11 @@ driverSchema.pre('save', async function preSave(next) {
 driverSchema.index({ school: 1, phone: 1 }, { unique: true });
 driverSchema.index({ school: 1, licenseNumber: 1 }, { unique: true });
 driverSchema.index({ school: 1, status: 1 });
+// Database-level guard: no two drivers can hold the same bus at once.
+driverSchema.index(
+  { assignedBus: 1 },
+  { unique: true, partialFilterExpression: { assignedBus: { $type: 'objectId' } } }
+);
 
 driverSchema.set('toJSON', { virtuals: true });
 driverSchema.set('toObject', { virtuals: true });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Bus as BusIcon, CheckCircle2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Bus as BusIcon, CheckCircle2, IdCard, ShieldAlert } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import { shrinkPhoto } from '../../lib/image.js';
 import PhotoUpload from '../../components/ui/PhotoUpload.jsx';
@@ -20,11 +20,22 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import Spinner, { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBusOptions } from '../../api/buses.js';
 import { createDriver, validateLicense } from '../../api/drivers.js';
+import { busPickerOptions } from '../../lib/assignments.js';
+import {
+  DATE_LIMITS,
+  dateError,
+  emailError,
+  formatEmail,
+  formatLicense,
+  formatName,
+  licenseError,
+  nameError,
+} from '../../lib/formats.js';
 
 const STEPS = [
   'Personal Information',
   'License Information',
-  'License Validation',
+  'Confirm License',
   'Bus Assignment',
   'Review',
 ];
@@ -57,8 +68,16 @@ export default function AddDriver() {
   const [created, setCreated] = useState(null);
   const [busError, setBusError] = useState('');
   const [stepError, setStepError] = useState('');
+  const [errors, setErrors] = useState({});
 
-  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const set = (key) => (val) => {
+    setErrors((e) => ({ ...e, [key]: '' }));
+    setStepError('');
+    // Changing the license after it was saved means it has to be checked again
+    // (on the confirm step itself the admin re-checks with the button).
+    if ((key === 'licenseNumber' || key === 'licenseExpiry') && step !== 3) setValidation(null);
+    setForm((f) => ({ ...f, [key]: val }));
+  };
 
   const { data: busOptions, isLoading: busesLoading } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
 
@@ -80,23 +99,49 @@ export default function AddDriver() {
   // License validation runs on reaching step 3, and also when a restored draft
   // or a stepper jump lands beyond it.
   useEffect(() => {
-    if (step >= 3 && !validation) validateMutation.mutate();
+    if (step >= 3 && !validation && !validateMutation.isPending) validateMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, validation]);
 
   // Checks that must pass before leaving a step (same rules for Continue and for
   // jumping ahead via the stepper).
   const validateStep = (n) => {
-    if (n === 1 && !isValidPhone(form.phone)) {
-      setStepError('Enter the driver\'s phone number: 10 digits starting with 0, e.g. 024 412 3456');
+    let next = {};
+    if (n === 1) {
+      next = {
+        firstName: nameError(form.firstName, 'First name'),
+        lastName: nameError(form.lastName, 'Last name'),
+        phone: isValidPhone(form.phone) ? '' : 'Enter a 10-digit number starting with 0, e.g. 024 412 3456',
+        email: emailError(form.email),
+        dob: dateError(form.dob, 'driverDob'),
+      };
+    }
+    if (n === 2) {
+      next = {
+        licenseNumber: licenseError(form.licenseNumber),
+        licenseExpiry: form.licenseExpiry ? dateError(form.licenseExpiry, 'licenseExpiry') : 'Enter the license expiry date',
+      };
+    }
+    if (n === 3 && !validation?.valid) {
+      setStepError('Fix the license details before continuing');
       return false;
     }
-    if (n === 4 && form.emergencyContactPhone && !isValidPhone(form.emergencyContactPhone)) {
-      setStepError('The emergency contact phone must be 10 digits starting with 0');
-      return false;
+    if (n === 4) {
+      next = {
+        emergencyContactName: nameError(form.emergencyContactName, 'Contact name', { required: false }),
+        emergencyContactPhone:
+          form.emergencyContactPhone && !isValidPhone(form.emergencyContactPhone)
+            ? 'Must be 10 digits starting with 0'
+            : '',
+      };
+      if (!form.assignedBus) {
+        setBusError('Select the bus this driver will operate');
+        return false;
+      }
     }
-    if (n === 4 && !form.assignedBus) {
-      setBusError('Select the bus this driver will operate');
+    setErrors(next);
+    if (Object.values(next).some(Boolean)) {
+      setStepError('Some fields need fixing. Check the messages in red.');
       return false;
     }
     return true;
@@ -135,12 +180,33 @@ export default function AddDriver() {
   if (!created && (busOptions || []).length === 0) {
     return (
       <div>
-        <PageHeader title="Add driver" subtitle="Create a new driver profile and verify license details." />
+        <PageHeader title="Add driver" subtitle="Create a new driver profile and save their license details." />
         <Card>
           <EmptyState
             icon={BusIcon}
             title="No buses yet"
             description="A driver has to be assigned to a bus, so register a bus first before adding a driver."
+            action={
+              <Button as={Link} to="/buses/new">
+                Register a bus
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  // Every bus already has its one driver, so there is nothing to assign to.
+  if (!created && busOptions.every((bus) => bus.assignedDriver)) {
+    return (
+      <div>
+        <PageHeader title="Add driver" subtitle="Create a new driver profile and save their license details." />
+        <Card>
+          <EmptyState
+            icon={BusIcon}
+            title="Every bus already has a driver"
+            description="Each bus and its route can only have one driver. Register another bus, or unassign a driver from their bus, before adding a new driver."
             action={
               <Button as={Link} to="/buses/new">
                 Register a bus
@@ -158,7 +224,7 @@ export default function AddDriver() {
   if (created) {
     return (
       <div>
-        <PageHeader title="Add driver" subtitle="Create a new driver profile and verify license details." />
+        <PageHeader title="Add driver" subtitle="Create a new driver profile and save their license details." />
         <Card className="mx-auto max-w-lg p-8 text-center">
           <CheckCircle2 className="mx-auto mb-4 h-14 w-14 text-brand-500" />
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Driver added successfully</h2>
@@ -196,7 +262,7 @@ export default function AddDriver() {
 
   return (
     <div>
-      <PageHeader title="Add driver" subtitle="Create a new driver profile and verify license details." />
+      <PageHeader title="Add driver" subtitle="Create a new driver profile and save their license details." />
       <Stepper steps={STEPS} activeStep={step} onStepClick={goTo} />
       <DraftNotice
         show={restored}
@@ -215,23 +281,28 @@ export default function AddDriver() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <Label required>First Name</Label>
-                  <Input value={form.firstName} onChange={(e) => set('firstName')(e.target.value)} placeholder="e.g. Kwame" required />
+                  <Input value={form.firstName} onChange={(e) => set('firstName')(formatName(e.target.value))} placeholder="e.g. Kwame" error={Boolean(errors.firstName)} required />
+                  <FieldError>{errors.firstName}</FieldError>
                 </div>
                 <div>
                   <Label required>Last Name</Label>
-                  <Input value={form.lastName} onChange={(e) => set('lastName')(e.target.value)} placeholder="e.g. Mensah" required />
+                  <Input value={form.lastName} onChange={(e) => set('lastName')(formatName(e.target.value))} placeholder="e.g. Mensah" error={Boolean(errors.lastName)} required />
+                  <FieldError>{errors.lastName}</FieldError>
                 </div>
                 <div>
                   <Label required>Phone Number</Label>
-                  <PhoneInput value={form.phone} onChange={set('phone')} />
+                  <PhoneInput value={form.phone} onChange={set('phone')} error={Boolean(errors.phone)} />
+                  <FieldError>{errors.phone}</FieldError>
                 </div>
                 <div>
                   <Label>Email</Label>
-                  <Input type="email" value={form.email} onChange={(e) => set('email')(e.target.value)} placeholder="e.g. kwame.mensah@gmail.com" />
+                  <Input type="email" value={form.email} onChange={(e) => set('email')(formatEmail(e.target.value))} placeholder="e.g. kwame.mensah@gmail.com" error={Boolean(errors.email)} />
+                  <FieldError>{errors.email}</FieldError>
                 </div>
                 <div>
                   <Label>Date of Birth</Label>
-                  <Input type="date" value={form.dob} onChange={(e) => set('dob')(e.target.value)} />
+                  <Input type="date" value={form.dob} min={DATE_LIMITS.driverDob.min} max={DATE_LIMITS.driverDob.max} onChange={(e) => set('dob')(e.target.value)} error={Boolean(errors.dob)} />
+                  <FieldError>{errors.dob}</FieldError>
                 </div>
                 <div>
                   <Label>Gender</Label>
@@ -259,11 +330,14 @@ export default function AddDriver() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <Label required>License Number</Label>
-                  <Input value={form.licenseNumber} onChange={(e) => set('licenseNumber')(e.target.value)} placeholder="GH-DL-29831" required />
+                  <Input value={form.licenseNumber} onChange={(e) => set('licenseNumber')(formatLicense(e.target.value))} placeholder="e.g. GH-DL-29831" error={Boolean(errors.licenseNumber)} required />
+                  <FieldError>{errors.licenseNumber}</FieldError>
+                  {!errors.licenseNumber && <p className="mt-1.5 text-xs text-slate-400">Capital letters and numbers, as printed on the license.</p>}
                 </div>
                 <div>
                   <Label required>License Expiry Date</Label>
-                  <Input type="date" value={form.licenseExpiry} onChange={(e) => set('licenseExpiry')(e.target.value)} required />
+                  <Input type="date" value={form.licenseExpiry} min={DATE_LIMITS.licenseExpiry.min} max={DATE_LIMITS.licenseExpiry.max} onChange={(e) => set('licenseExpiry')(e.target.value)} error={Boolean(errors.licenseExpiry)} required />
+                  <FieldError>{errors.licenseExpiry}</FieldError>
                 </div>
                 <div>
                   <Label>License Class</Label>
@@ -280,40 +354,50 @@ export default function AddDriver() {
 
           {step === 3 && (
             <div>
-              <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">License Validation</h3>
+              <h3 className="mb-5 text-base font-bold text-slate-900 dark:text-white">Confirm License</h3>
               {validateMutation.isPending && (
                 <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
                   <Spinner size="lg" />
-                  <p className="text-sm font-medium">Verifying with DVLA records...</p>
+                  <p className="text-sm font-medium">Saving license details...</p>
                 </div>
               )}
-              {!validateMutation.isPending && validation && (
+              {!validateMutation.isPending && validateMutation.error && !validation && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+                  {validateMutation.error.message}
+                </p>
+              )}
+              {!validateMutation.isPending && validation?.valid && (
+                <div className="rounded-xl border border-brand-200 bg-brand-50 p-5 dark:border-brand-900 dark:bg-brand-500/10">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-6 w-6 shrink-0 text-brand-600" />
+                    <p className="text-base font-bold text-brand-700 dark:text-brand-300">License details saved</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <SummaryStat label="License Number" value={form.licenseNumber} />
+                    <SummaryStat label="Expiry Date" value={form.licenseExpiry} />
+                    <SummaryStat label="License Class" value={form.licenseClass} />
+                  </div>
+                  <p className="mt-4 flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <IdCard className="mt-0.5 h-4 w-4 shrink-0" />
+                    Please make sure these match the driver&apos;s physical license card.
+                  </p>
+                </div>
+              )}
+              {!validateMutation.isPending && validation && !validation.valid && (
                 <div>
-                  {validation.valid ? (
-                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-brand-200 bg-brand-50 p-4 dark:border-brand-900 dark:bg-brand-500/10">
-                      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
-                      <div>
-                        <p className="font-bold text-brand-700 dark:text-brand-300">DVLA Verified</p>
-                        <p className="text-sm text-brand-700/80 dark:text-brand-300/80">
-                          License details match official DVLA records.
-                        </p>
-                      </div>
+                  <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                    <div>
+                      <p className="font-bold text-red-700 dark:text-red-400">Some license details need fixing</p>
+                      <p className="text-sm text-red-700/80 dark:text-red-400/80">Correct them below, then press Check again.</p>
                     </div>
-                  ) : (
-                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
-                      <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-                      <div>
-                        <p className="font-bold text-red-700 dark:text-red-400">License Verification Failed</p>
-                        <p className="text-sm text-red-700/80 dark:text-red-400/80">{validation.message}</p>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
                       <Label>License Number</Label>
                       <Input
                         value={form.licenseNumber}
-                        onChange={(e) => set('licenseNumber')(e.target.value)}
+                        onChange={(e) => set('licenseNumber')(formatLicense(e.target.value))}
                         error={Boolean(validation.errors?.licenseNumber)}
                       />
                       <FieldError>{validation.errors?.licenseNumber}</FieldError>
@@ -322,6 +406,8 @@ export default function AddDriver() {
                       <Label>License Expiry Date</Label>
                       <Input
                         type="date"
+                        min={DATE_LIMITS.licenseExpiry.min}
+                        max={DATE_LIMITS.licenseExpiry.max}
                         value={form.licenseExpiry}
                         onChange={(e) => set('licenseExpiry')(e.target.value)}
                         error={Boolean(validation.errors?.licenseExpiry)}
@@ -348,10 +434,12 @@ export default function AddDriver() {
                       setBusError('');
                     }}
                     error={Boolean(busError)}
-                    options={busOptions.map((b) => ({ value: b._id, label: `${b.name} (${b.plateNumber})`, description: `Capacity: ${b.capacity}` }))}
+                    options={busPickerOptions(busOptions)}
                   />
                   <FieldError>{busError}</FieldError>
-                  <p className="mt-1.5 text-xs text-slate-400">Select the primary vehicle active on this shift.</p>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Each bus has one driver. Buses that already have a driver can&apos;t be picked.
+                  </p>
                 </div>
                 <div>
                   <Label>Route (from selected bus)</Label>
@@ -365,7 +453,8 @@ export default function AddDriver() {
               <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <div>
                   <Label>Emergency Contact Name</Label>
-                  <Input value={form.emergencyContactName} onChange={(e) => set('emergencyContactName')(e.target.value)} placeholder="e.g. Abena Mensah" />
+                  <Input value={form.emergencyContactName} onChange={(e) => set('emergencyContactName')(formatName(e.target.value))} placeholder="e.g. Abena Mensah" error={Boolean(errors.emergencyContactName)} />
+                  <FieldError>{errors.emergencyContactName}</FieldError>
                 </div>
                 <div>
                   <Label>Relation</Label>
@@ -377,7 +466,8 @@ export default function AddDriver() {
                 </div>
                 <div>
                   <Label>Emergency Contact Phone</Label>
-                  <PhoneInput value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
+                  <PhoneInput value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} error={Boolean(errors.emergencyContactPhone)} />
+                  <FieldError>{errors.emergencyContactPhone}</FieldError>
                 </div>
               </div>
 
@@ -421,7 +511,7 @@ export default function AddDriver() {
           )}
           {step === 3 && !validation?.valid && !validateMutation.isPending && (
             <Button onClick={() => validateMutation.mutate()} loading={validateMutation.isPending}>
-              Retry Validation
+              Check again
             </Button>
           )}
           {step < STEPS.length && (step !== 3 || validation?.valid) && (
@@ -479,7 +569,7 @@ function ReviewStep({ form, validation, busOptions }) {
           <SummaryStat label="License Class" value={form.licenseClass} />
         </div>
         <div className="mt-3">
-          <SummaryStat label="Validation Status" value={validation?.valid ? 'DVLA Verified' : 'Pending review'} />
+          <SummaryStat label="License" value={validation?.valid ? 'Details saved' : 'Needs fixing'} />
         </div>
       </section>
 

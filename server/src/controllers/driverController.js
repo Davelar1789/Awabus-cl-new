@@ -4,11 +4,28 @@ import Driver from '../models/Driver.js';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
+import { assertFormats, formatProblem, normalizeCode } from '../utils/formats.js';
 
 const populateDriver = (query) =>
   query
     .populate('assignedBus', 'plateNumber name capacity')
     .populate('assignedRoute', 'routeId name');
+
+const sameDay = (a, b) => Boolean(a && b) && new Date(a).toISOString().slice(0, 10) === new Date(b).toISOString().slice(0, 10);
+
+// A bus (and so its route) has exactly one driver. The drivers collection is
+// the source of truth, so look for any other driver already holding the bus.
+async function assertBusFree(res, busId, driverId = null) {
+  const filter = { assignedBus: busId };
+  if (driverId) filter._id = { $ne: driverId };
+  const holder = await Driver.findOne(filter).select('firstName lastName');
+  if (holder) {
+    res.status(409);
+    throw new Error(
+      `This bus already has a driver (${holder.firstName} ${holder.lastName}). A bus and its route can only have one driver — unassign or move that driver first.`
+    );
+  }
+}
 
 // @desc    List drivers (search + pagination)
 // @route   GET /api/drivers
@@ -53,10 +70,13 @@ export const getDriverById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: driver });
 });
 
-// @desc    Mock DVLA license validation (step 3 of the Add Driver wizard)
+// @desc    Check the license details entered in the Add Driver wizard (step 3).
+//          This is a local check only (format, expiry, not already used by
+//          another driver in this school) - AwaBus does not contact the DVLA.
 // @route   POST /api/drivers/validate-license
 export const validateLicense = asyncHandler(async (req, res) => {
-  const { licenseNumber, licenseExpiry } = req.body;
+  const licenseNumber = normalizeCode(req.body.licenseNumber);
+  const { licenseExpiry } = req.body;
 
   if (!licenseNumber) {
     res.status(400);
@@ -64,28 +84,27 @@ export const validateLicense = asyncHandler(async (req, res) => {
   }
 
   const errors = {};
-  if (/invalid/i.test(licenseNumber)) {
-    errors.licenseNumber = 'License number not found in DVLA database.';
+  const formatIssue = formatProblem('licenseNumber', licenseNumber);
+  if (formatIssue) errors.licenseNumber = formatIssue;
+  if (!licenseExpiry) {
+    errors.licenseExpiry = 'Enter the license expiry date.';
+  } else if (new Date(licenseExpiry) < new Date(new Date().toDateString())) {
+    errors.licenseExpiry = 'This license has expired.';
   }
-  if (licenseExpiry && new Date(licenseExpiry) < new Date()) {
-    errors.licenseExpiry = "The entered driver's license has expired.";
-  }
-
-  const existing = await Driver.findOne({ licenseNumber });
-  if (existing) {
-    errors.licenseNumber = 'This license number is already registered to another driver.';
+  if (!errors.licenseNumber && (await Driver.exists({ licenseNumber }))) {
+    errors.licenseNumber = 'This license number is already saved for another driver.';
   }
 
   if (Object.keys(errors).length > 0) {
-    return res.status(200).json({
+    return res.json({
       success: true,
       valid: false,
-      message: 'DVLA records indicate mismatching or expired details for the provided license number.',
+      message: 'Some license details need fixing before you continue.',
       errors,
     });
   }
 
-  res.json({ success: true, valid: true, message: 'DVLA Verified' });
+  res.json({ success: true, valid: true, message: 'License details saved' });
 });
 
 // @desc    Create driver (final step of Add Driver wizard)
@@ -111,10 +130,11 @@ export const createDriver = asyncHandler(async (req, res) => {
     status,
   } = req.body;
 
-  if (!firstName || !lastName || !phone || !licenseNumber) {
+  if (!firstName || !lastName || !phone || !licenseNumber || !licenseExpiry) {
     res.status(400);
-    throw new Error('First name, last name, phone and license number are required');
+    throw new Error('First name, last name, phone, license number and license expiry are required');
   }
+  assertFormats(res, { licenseNumber, email, driverDob: dob, licenseExpiry });
   if (!assignedBus) {
     res.status(400);
     throw new Error('A driver must be assigned to a bus — register a bus first if none exist yet');
@@ -129,6 +149,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('This bus is not yet assigned to a route — assign it to a route before assigning a driver');
   }
+  await assertBusFree(res, bus._id);
 
   // The driver's route is derived from the bus, not chosen independently —
   // a bus can only ever be on one route (enforced at bus creation), so this
@@ -143,10 +164,10 @@ export const createDriver = asyncHandler(async (req, res) => {
     dob,
     gender,
     profilePhotoUrl,
-    licenseNumber,
+    licenseNumber: normalizeCode(licenseNumber),
     licenseExpiry,
     licenseClass,
-    licenseValidation: licenseValidation || { status: 'verified', message: 'DVLA Verified', checkedAt: new Date() },
+    licenseValidation: licenseValidation || { status: 'verified', message: 'License details saved', checkedAt: new Date() },
     assignedBus,
     assignedRoute,
     assignmentHistory: [{ bus: assignedBus, route: assignedRoute, from: new Date(), status: 'Active' }],
@@ -190,9 +211,18 @@ export const updateDriver = asyncHandler(async (req, res) => {
     'residentialAddress',
     'status',
   ];
+  assertFormats(res, {
+    licenseNumber: req.body.licenseNumber,
+    email: req.body.email,
+    driverDob: req.body.dob,
+    // Only a newly entered expiry date must be in the future, so an old record
+    // can still be edited; the profile flags an expired license.
+    licenseExpiry: sameDay(req.body.licenseExpiry, driver.licenseExpiry) ? undefined : req.body.licenseExpiry,
+  });
   fields.forEach((f) => {
     if (req.body[f] !== undefined) driver[f] = req.body[f];
   });
+  if (req.body.licenseNumber !== undefined) driver.licenseNumber = normalizeCode(req.body.licenseNumber);
   if (req.body.phone !== undefined) driver.phone = normalizeGhanaPhone(req.body.phone);
   if (req.body.emergencyContactPhone !== undefined) {
     driver.emergencyContactPhone = normalizeGhanaPhone(req.body.emergencyContactPhone);
@@ -214,6 +244,7 @@ export const updateDriver = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('This bus is not yet assigned to a route — assign it to a route before assigning a driver');
       }
+      await assertBusFree(res, bus._id, driver._id);
       driver.assignedBus = newBusId;
       // Derived from the bus, same as on creation — never chosen independently.
       driver.assignedRoute = bus.assignedRoute;

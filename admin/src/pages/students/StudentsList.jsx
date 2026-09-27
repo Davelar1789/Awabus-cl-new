@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreVertical, Plus, GraduationCap, SearchX, Users2, UserRound, UsersRound } from 'lucide-react';
+import { Plus, GraduationCap, SearchX, Users2, UserRound, UsersRound } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getStudents, deleteStudent } from '../../api/students.js';
@@ -15,12 +15,12 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table.jsx';
 import Pagination from '../../components/ui/Pagination.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
+import RowActions from '../../components/ui/RowActions.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 export default function StudentsList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [openMenuId, setOpenMenuId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const debouncedSearch = useDebounce(search);
   const queryClient = useQueryClient();
@@ -145,33 +145,13 @@ export default function StudentsList() {
                     <Td>
                       <Badge>{s.todayAttendance}</Badge>
                     </Td>
-                    <Td className="relative text-right" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === s._id ? null : s._id)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-navy"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                      {openMenuId === s._id && (
-                        <div className="absolute right-4 top-10 z-10 w-36 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg dark:border-slate-700 dark:bg-navy-light">
-                          <Link
-                            to={`/students/${s._id}/edit`}
-                            className="block px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
-                            onClick={() => setOpenMenuId(null)}
-                          >
-                            Edit Student
-                          </Link>
-                          <button
-                            onClick={() => {
-                              setDeleteTarget(s);
-                              setOpenMenuId(null);
-                            }}
-                            className="block w-full px-3.5 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
+                    <Td className="text-right">
+                      <RowActions
+                        items={[
+                          { label: 'Edit Student', to: `/students/${s._id}/edit` },
+                          { label: 'Delete', danger: true, onClick: () => setDeleteTarget(s) },
+                        ]}
+                      />
                     </Td>
                   </Tr>
                 ))}

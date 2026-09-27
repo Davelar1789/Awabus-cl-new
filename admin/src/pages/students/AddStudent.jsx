@@ -9,6 +9,7 @@ import { shrinkPhoto } from '../../lib/image.js';
 import PhotoUpload from '../../components/ui/PhotoUpload.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { formatPhone, fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
+import { DATE_LIMITS, coordsError, dateError, emailError, formatCoord, formatEmail, formatName, nameError } from '../../lib/formats.js';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
 import Stepper from '../../components/ui/Stepper.jsx';
@@ -83,7 +84,11 @@ export default function AddStudent() {
   const [routeError, setRouteError] = useState('');
   const [stepError, setStepError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
-  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const [errors, setErrors] = useState({});
+  const set = (key) => (val) => {
+    setErrors((e) => ({ ...e, [key]: '' }));
+    setForm((f) => ({ ...f, [key]: val }));
+  };
 
   // Drafts used to live under this key (not namespaced per admin); drop it.
   useEffect(() => {
@@ -136,6 +141,28 @@ export default function AddStudent() {
   // Checks that must pass before leaving a step (same rules for Continue and for
   // jumping ahead via the stepper).
   const validateStep = (n) => {
+    let next = {};
+    if (n === 1) {
+      next = {
+        firstName: nameError(form.firstName, 'First name'),
+        lastName: nameError(form.lastName, 'Last name'),
+        dob: dateError(form.dob, 'studentDob'),
+      };
+    }
+    if (n === 2 && !form.guardianId) {
+      next = {
+        guardianFirst: nameError(form.guardianFirst, 'First name', { required: false }),
+        guardianLast: nameError(form.guardianLast, 'Last name', { required: false }),
+        guardianEmail: emailError(form.guardianEmail),
+      };
+    }
+    if (n === 2) next.secondContactName = nameError(form.secondContactName, 'Name', { required: false });
+    if (n === 4 && !form.linkLocationWith) next.coords = coordsError(form.lat, form.lng);
+    setErrors(next);
+    if (Object.values(next).some(Boolean)) {
+      setStepError('Some fields need fixing. Check the messages in red.');
+      return false;
+    }
     if (n === 2 && !form.guardianId && !isValidPhone(form.guardianPhone)) {
       setStepError('Enter the guardian\'s phone number: 10 digits starting with 0, e.g. 024 412 3456');
       return false;
@@ -245,15 +272,18 @@ export default function AddStudent() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <Label required>First Name</Label>
-                <Input value={form.firstName} onChange={(e) => set('firstName')(e.target.value)} placeholder="e.g. Abena" required />
+                <Input value={form.firstName} onChange={(e) => set('firstName')(formatName(e.target.value))} placeholder="e.g. Abena" error={Boolean(errors.firstName)} required />
+                <FieldError>{errors.firstName}</FieldError>
               </div>
               <div>
                 <Label required>Last Name</Label>
-                <Input value={form.lastName} onChange={(e) => set('lastName')(e.target.value)} placeholder="e.g. Osei" required />
+                <Input value={form.lastName} onChange={(e) => set('lastName')(formatName(e.target.value))} placeholder="e.g. Osei" error={Boolean(errors.lastName)} required />
+                <FieldError>{errors.lastName}</FieldError>
               </div>
               <div>
                 <Label>Date of Birth</Label>
-                <Input type="date" value={form.dob} onChange={(e) => set('dob')(e.target.value)} />
+                <Input type="date" value={form.dob} min={DATE_LIMITS.studentDob.min} max={DATE_LIMITS.studentDob.max} onChange={(e) => set('dob')(e.target.value)} error={Boolean(errors.dob)} />
+                <FieldError>{errors.dob}</FieldError>
               </div>
               <div>
                 <Label>Gender</Label>
@@ -322,11 +352,13 @@ export default function AddStudent() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <Label required>Guardian First Name</Label>
-                  <Input value={form.guardianFirst} onChange={(e) => set('guardianFirst')(e.target.value)} placeholder="e.g. Kofi" />
+                  <Input value={form.guardianFirst} onChange={(e) => set('guardianFirst')(formatName(e.target.value))} placeholder="e.g. Kofi" error={Boolean(errors.guardianFirst)} />
+                  <FieldError>{errors.guardianFirst}</FieldError>
                 </div>
                 <div>
                   <Label required>Guardian Last Name</Label>
-                  <Input value={form.guardianLast} onChange={(e) => set('guardianLast')(e.target.value)} placeholder="e.g. Osei" />
+                  <Input value={form.guardianLast} onChange={(e) => set('guardianLast')(formatName(e.target.value))} placeholder="e.g. Osei" error={Boolean(errors.guardianLast)} />
+                  <FieldError>{errors.guardianLast}</FieldError>
                 </div>
                 <div>
                   <Label>Relation</Label>
@@ -342,11 +374,13 @@ export default function AddStudent() {
                 </div>
                 <div className="sm:col-span-2">
                   <Label>Guardian Email</Label>
-                  <Input type="email" value={form.guardianEmail} onChange={(e) => set('guardianEmail')(e.target.value)} placeholder="kofi.osei@gmail.com" />
+                  <Input type="email" value={form.guardianEmail} onChange={(e) => set('guardianEmail')(formatEmail(e.target.value))} placeholder="kofi.osei@gmail.com" error={Boolean(errors.guardianEmail)} />
+                  <FieldError>{errors.guardianEmail}</FieldError>
                 </div>
                 <div>
                   <Label>Second Contact Name</Label>
-                  <Input value={form.secondContactName} onChange={(e) => set('secondContactName')(e.target.value)} placeholder="e.g. Mary Osei" />
+                  <Input value={form.secondContactName} onChange={(e) => set('secondContactName')(formatName(e.target.value))} placeholder="e.g. Mary Osei" error={Boolean(errors.secondContactName)} />
+                  <FieldError>{errors.secondContactName}</FieldError>
                 </div>
                 <div>
                   <Label>Second Contact Phone</Label>
@@ -486,12 +520,17 @@ export default function AddStudent() {
                   </div>
                   <div>
                     <Label>Latitude</Label>
-                    <Input disabled={Boolean(form.linkLocationWith)} value={form.lat} onChange={(e) => set('lat')(e.target.value)} placeholder="5.6322" />
+                    <Input disabled={Boolean(form.linkLocationWith)} inputMode="decimal" value={form.lat} onChange={(e) => { setErrors((x) => ({ ...x, coords: '' })); set('lat')(formatCoord(e.target.value)); }} placeholder="5.6322" error={Boolean(errors.coords)} />
                   </div>
                   <div>
                     <Label>Longitude</Label>
-                    <Input disabled={Boolean(form.linkLocationWith)} value={form.lng} onChange={(e) => set('lng')(e.target.value)} placeholder="-0.1581" />
+                    <Input disabled={Boolean(form.linkLocationWith)} inputMode="decimal" value={form.lng} onChange={(e) => { setErrors((x) => ({ ...x, coords: '' })); set('lng')(formatCoord(e.target.value)); }} placeholder="-0.1581" error={Boolean(errors.coords)} />
                   </div>
+                  {errors.coords && (
+                    <div className="sm:col-span-2">
+                      <FieldError>{errors.coords}</FieldError>
+                    </div>
+                  )}
                   <div className="sm:col-span-2">
                     <Button type="button" variant="outline" onClick={() => setMapOpen(true)} disabled={Boolean(form.linkLocationWith)}>
                       <MapPin className="h-4 w-4" />

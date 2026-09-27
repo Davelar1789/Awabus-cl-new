@@ -7,7 +7,7 @@ import { useEditDraft } from '../../hooks/useFormDraft.js';
 import DraftNotice from '../../components/ui/DraftNotice.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Card, { CardBody, CardHeader } from '../../components/ui/Card.jsx';
-import Input, { Label } from '../../components/ui/Input.jsx';
+import Input, { Label, FieldError } from '../../components/ui/Input.jsx';
 import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
@@ -19,6 +19,7 @@ import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.j
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
+import { RADIUS_MAX, RADIUS_MIN, coordsError, digitsOnly, formatCoord, formatName, nameError, radiusError } from '../../lib/formats.js';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export default function EditStudent() {
   const [mapOpen, setMapOpen] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  const [errors, setErrors] = useState({});
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
 
@@ -64,7 +66,10 @@ export default function EditStudent() {
   // (e.g. after linking a household) don't overwrite them.
   const [form, setForm, draft] = useEditDraft(`student:${id}`, baseline);
 
-  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const set = (key) => (val) => {
+    setErrors((e) => ({ ...e, [key]: '', coords: key === 'lat' || key === 'lng' ? '' : e.coords }));
+    setForm((f) => ({ ...f, [key]: val }));
+  };
 
   const updateMutation = useMutation({
     mutationFn: (payload) => updateStudent(id, payload),
@@ -120,6 +125,16 @@ export default function EditStudent() {
             return;
           }
           setPhoneError('');
+          const next = {
+            firstName: nameError(form.firstName, 'First name'),
+            lastName: nameError(form.lastName, 'Last name'),
+            guardianFirst: nameError(form.guardianFirst, 'First name', { required: false }),
+            guardianLast: nameError(form.guardianLast, 'Last name', { required: false }),
+            coords: coordsError(form.lat, form.lng),
+            geofenceRadius: radiusError(form.geofenceRadius),
+          };
+          setErrors(next);
+          if (Object.values(next).some(Boolean)) return;
           updateMutation.mutate({
             firstName: form.firstName,
             lastName: form.lastName,
@@ -144,11 +159,13 @@ export default function EditStudent() {
                 </div>
                 <div>
                   <Label>First Name</Label>
-                  <Input value={form.firstName} onChange={(e) => set('firstName')(e.target.value)} />
+                  <Input value={form.firstName} onChange={(e) => set('firstName')(formatName(e.target.value))} error={Boolean(errors.firstName)} />
+                  <FieldError>{errors.firstName}</FieldError>
                 </div>
                 <div>
                   <Label>Last Name</Label>
-                  <Input value={form.lastName} onChange={(e) => set('lastName')(e.target.value)} />
+                  <Input value={form.lastName} onChange={(e) => set('lastName')(formatName(e.target.value))} error={Boolean(errors.lastName)} />
+                  <FieldError>{errors.lastName}</FieldError>
                 </div>
                 <div>
                   <Label>Class / Grade</Label>
@@ -169,11 +186,13 @@ export default function EditStudent() {
               <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <Label>Guardian First Name</Label>
-                  <Input value={form.guardianFirst} onChange={(e) => set('guardianFirst')(e.target.value)} />
+                  <Input value={form.guardianFirst} onChange={(e) => set('guardianFirst')(formatName(e.target.value))} error={Boolean(errors.guardianFirst)} />
+                  <FieldError>{errors.guardianFirst}</FieldError>
                 </div>
                 <div>
                   <Label>Guardian Last Name</Label>
-                  <Input value={form.guardianLast} onChange={(e) => set('guardianLast')(e.target.value)} />
+                  <Input value={form.guardianLast} onChange={(e) => set('guardianLast')(formatName(e.target.value))} error={Boolean(errors.guardianLast)} />
+                  <FieldError>{errors.guardianLast}</FieldError>
                 </div>
                 <div>
                   <Label>Primary Phone Number</Label>
@@ -192,16 +211,23 @@ export default function EditStudent() {
               <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <div>
                   <Label>Latitude</Label>
-                  <Input value={form.lat} onChange={(e) => set('lat')(e.target.value)} />
+                  <Input inputMode="decimal" value={form.lat} onChange={(e) => set('lat')(formatCoord(e.target.value))} error={Boolean(errors.coords)} />
                 </div>
                 <div>
                   <Label>Longitude</Label>
-                  <Input value={form.lng} onChange={(e) => set('lng')(e.target.value)} />
+                  <Input inputMode="decimal" value={form.lng} onChange={(e) => set('lng')(formatCoord(e.target.value))} error={Boolean(errors.coords)} />
                 </div>
                 <div>
                   <Label>Geofence Radius (meters)</Label>
-                  <Input type="number" value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(e.target.value)} />
+                  <Input inputMode="numeric" value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(digitsOnly(e.target.value, 4))} error={Boolean(errors.geofenceRadius)} />
+                  <FieldError>{errors.geofenceRadius}</FieldError>
+                  {!errors.geofenceRadius && <p className="mt-1.5 text-xs text-slate-400">Between {RADIUS_MIN} and {RADIUS_MAX} metres</p>}
                 </div>
+                {errors.coords && (
+                  <div className="sm:col-span-3">
+                    <FieldError>{errors.coords}</FieldError>
+                  </div>
+                )}
                 <div className="sm:col-span-3">
                   <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
                     Open map picker
