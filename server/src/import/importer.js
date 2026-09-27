@@ -8,6 +8,7 @@ import { ghanaPhoneVariants, isValidGhanaPhone, normalizeGhanaPhone } from '../u
 import { EMAIL_RE, formatProblem, normalizeCode } from '../utils/formats.js';
 import { MAX_ROWS, SPECS } from './specs.js';
 import { normalizeLanguage } from '../utils/languages.js';
+import { parseTime } from '../utils/sessions.js';
 
 const DATA_ROWS = MAX_ROWS; // rows 2..MAX_ROWS+1 carry the Excel rules
 const BRAND = 'FF0D9488';
@@ -136,6 +137,7 @@ const KIND_HELP = {
   int: 'Whole number',
   decimal: 'Number',
   date: 'Date, DD/MM/YYYY',
+  time: 'Time, e.g. 06:00',
 };
 
 export async function buildTemplate(entity, schoolName = '') {
@@ -333,6 +335,10 @@ function checkCell(c, raw, refs) {
       const n = Number(text);
       return Number.isFinite(n) && n >= c.min && n <= c.max ? { value: n } : { error: `must be a number from ${c.min} to ${c.max}` };
     }
+    case 'time': {
+      const t = parseTime(raw instanceof Date ? raw : typeof raw === 'number' ? raw : text);
+      return t ? { value: t } : { error: 'must be a time of day, e.g. 06:00 or 3:30 PM' };
+    }
     case 'date': {
       const iso = parseDate(raw);
       if (!iso) return { error: 'must be a date as DD/MM/YYYY' };
@@ -495,7 +501,7 @@ export function describeRow(entity, r) {
 
 // Turns a checked row into the body the normal create endpoint expects.
 export async function toCreateBody(entity, d) {
-  if (entity === 'routes') return { name: d.name, status: d.status };
+  if (entity === 'routes') return { name: d.name, status: d.status, morningStartTime: d.morningStartTime, eveningStartTime: d.eveningStartTime };
   if (entity === 'buses') {
     return { plateNumber: d.plateNumber, name: d.name, type: d.type, capacity: d.capacity, assignedRoute: d.route, status: d.status };
   }
@@ -537,5 +543,6 @@ export async function toCreateBody(entity, d) {
     lng: d.lng,
     geofenceRadius: d.geofenceRadius ?? 200,
     emergencyInstructions: d.emergencyInstructions,
+    rideSession: d.rideSession,
   };
 }

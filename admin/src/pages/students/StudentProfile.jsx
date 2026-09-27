@@ -13,6 +13,7 @@ import Tabs from '../../components/ui/Tabs.jsx';
 import { formatDate, formatDateTime } from '../../lib/utils.js';
 import { formatPhone } from '../../lib/phone.js';
 import { languageLabel } from '../../lib/languages.js';
+import { rideSessionLabel } from '../../lib/sessions.js';
 
 const InfoRow = ({ label, value }) => (
   <div>
@@ -72,6 +73,7 @@ export default function StudentProfile() {
               <InfoRow label="Gender" value={student.gender} />
               <InfoRow label="Date of Birth" value={formatDate(student.dob)} />
               <InfoRow label="Emergency Phone" value={formatPhone(student.secondContactPhone)} />
+              <InfoRow label="Rides" value={rideSessionLabel(student.rideSession)} />
               <InfoRow label="Home Address" value={student.homeAddress} className="sm:col-span-2" />
             </div>
           </Card>

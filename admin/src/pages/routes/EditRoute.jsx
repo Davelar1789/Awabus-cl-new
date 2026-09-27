@@ -23,6 +23,8 @@ export default function EditRoute() {
       route
         ? {
             name: route.name,
+            morningStartTime: route.morningStartTime || '',
+            eveningStartTime: route.eveningStartTime || '',
             stops: [...(route.stops || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((st) => ({ name: st.name, lat: st.lat, lng: st.lng })),
           }
         : null,
@@ -44,7 +46,7 @@ export default function EditRoute() {
 
   return (
     <div>
-      <PageHeader title="Edit route" subtitle="Change this route's name and stops." />
+      <PageHeader title="Edit route" subtitle="Change this route's name, run times and stops." />
       <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
 
       <Card className="mb-6">

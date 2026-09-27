@@ -22,6 +22,7 @@ import { notify, describeTrip } from '../services/notify.js';
 import { emitToSchool } from '../sockets/rooms.js';
 import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/setupCode.js';
 import { inGhana } from '../utils/geo.js';
+import { sessionFor, ridesIn } from '../utils/sessions.js';
 import { alertForScan, checkGeofences } from '../services/parentAlerts.js';
 
 // What the driver sees about each student: name, class and the parent to call.
@@ -183,9 +184,12 @@ export const getDriverMe = asyncHandler(async (req, res) => {
 const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
   if (!driver.assignedBus || !driver.assignedRoute) return null;
 
-  const route = await RouteModel.findById(driver.assignedRoute).populate('students', '_id');
+  const route = await RouteModel.findById(driver.assignedRoute).populate('students', '_id rideSession');
   if (!route) return null;
 
+  // Morning or evening run, from the route's start times; only the students
+  // riding that run are on it.
+  const session = sessionFor(route);
   const tripCode = await nextSequentialCode(Trip, 'tripCode', 'TRP-', 4);
 
   const trip = await Trip.create({
@@ -195,8 +199,9 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
     driver: driver._id,
     date: dayStart,
     status: 'Scheduled',
+    session,
     stops: route.stops,
-    studentProgress: (route.students || []).map((s) => ({
+    studentProgress: (route.students || []).filter((s) => ridesIn(s.rideSession, session)).map((s) => ({
       student: s._id,
       attendance: 'Present',
       dropoffStatus: 'Pending',
@@ -214,7 +219,7 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
   }
 
   return Trip.findById(keep)
-    .populate('route', 'routeId name stops')
+    .populate('route', 'routeId name stops morningStartTime eveningStartTime')
     .populate('bus', 'plateNumber name capacity')
     .populate(STUDENT_FOR_DRIVER);
 };
@@ -229,10 +234,11 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
 const reconcileStudentProgress = async (trip) => {
   if (trip.status !== 'Scheduled') return trip;
 
-  const route = await RouteModel.findById(trip.route._id).populate('students', '_id');
+  const route = await RouteModel.findById(trip.route._id).populate('students', '_id rideSession');
   if (!route) return trip;
 
-  const currentIds = new Set((route.students || []).map((s) => String(s._id)));
+  // Students riding this run only (a change of a student's run shows up too).
+  const currentIds = new Set((route.students || []).filter((s) => ridesIn(s.rideSession, trip.session)).map((s) => String(s._id)));
   const existingIds = new Set(trip.studentProgress.map((p) => String(p.student?._id || p.student)));
 
   const sameMembership =
@@ -261,7 +267,7 @@ const reconcileStudentProgress = async (trip) => {
 
   await Trip.findByIdAndUpdate(trip._id, { studentProgress: [...kept, ...added] });
   return Trip.findById(trip._id)
-    .populate('route', 'routeId name stops')
+    .populate('route', 'routeId name stops morningStartTime eveningStartTime')
     .populate('bus', 'plateNumber name capacity')
     .populate(STUDENT_FOR_DRIVER);
 };
@@ -285,9 +291,22 @@ export const getTodaysTrip = asyncHandler(async (req, res) => {
     status: { $in: ['Scheduled', 'In Progress', 'Delayed'] },
   })
     .sort({ createdAt: -1 })
-    .populate('route', 'routeId name stops')
+    .populate('route', 'routeId name stops morningStartTime eveningStartTime')
     .populate('bus', 'plateNumber name capacity')
     .populate(STUDENT_FOR_DRIVER);
+
+  // A run that was never started stays behind when its time has passed (the
+  // morning trip at evening time): close it and get the current run ready.
+  if (trip && trip.status === 'Scheduled' && trip.session && trip.session !== sessionFor(trip.route)) {
+    await Trip.updateOne(
+      { _id: trip._id, status: 'Scheduled' },
+      {
+        $set: { status: 'Cancelled' },
+        $push: { timeline: { time: timeNow(), title: 'Not driven', description: `The ${trip.session} run was never started.` } },
+      }
+    );
+    trip = null;
+  }
 
   if (!trip) {
     trip = await provisionTodaysTrip(req.driver, start, end);
@@ -689,7 +708,7 @@ export const getDriverNotifications = asyncHandler(async (req, res) => {
 // @route   GET /api/driver-app/trips/:id
 export const getTripByIdForDriver = asyncHandler(async (req, res) => {
   const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id })
-    .populate('route', 'routeId name stops')
+    .populate('route', 'routeId name stops morningStartTime eveningStartTime')
     .populate('bus', 'plateNumber name')
     .populate(STUDENT_FOR_DRIVER);
   if (!trip) {

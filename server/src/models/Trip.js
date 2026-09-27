@@ -76,6 +76,9 @@ const tripSchema = new mongoose.Schema(
     // true when AwaBus ended the trip because the driver never did (services/staleTrips.js)
     autoEnded: { type: Boolean, default: false },
 
+    // Morning or evening run (null on trips from before runs existed).
+    session: { type: String, enum: ['morning', 'evening', null], default: null },
+
     status: {
       type: String,
       enum: ['Completed', 'In Progress', 'Delayed', 'Cancelled', 'Scheduled'],

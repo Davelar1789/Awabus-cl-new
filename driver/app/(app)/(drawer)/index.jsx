@@ -162,6 +162,12 @@ export default function Home() {
             <Text style={styles.infoLabel}>Route: </Text>
             <Text style={styles.infoValue}>{trip.route?.name}</Text>
           </Text>
+          {trip.session ? (
+            <Text style={styles.infoLine}>
+              <Text style={styles.infoLabel}>Run: </Text>
+              <Text style={styles.infoValue}>{trip.session === 'morning' ? 'Morning' : 'Evening'}</Text>
+            </Text>
+          ) : null}
           <Text style={styles.dateText}>
             {formatDate(trip.date)}
             {trip.completedToday ? ` · ${trip.completedToday} trip${trip.completedToday === 1 ? '' : 's'} done today` : ''}
@@ -220,7 +226,9 @@ export default function Home() {
       <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />
 
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <Text style={styles.modalTitle}>{trip.completedToday ? 'Start another trip?' : "Start today's trip?"}</Text>
+        <Text style={styles.modalTitle}>
+          {trip.session ? `Start the ${trip.session} run?` : trip.completedToday ? 'Start another trip?' : "Start today's trip?"}
+        </Text>
         <Text style={styles.modalSubtitle}>
           {trip.completedToday
             ? `This will be trip ${trip.completedToday + 1} today. The school can follow it live.`
@@ -230,6 +238,7 @@ export default function Home() {
           <SummaryRow label="Attending Students" value={attending} />
           <SummaryRow label="Bus" value={trip.bus?.plateNumber} />
           <SummaryRow label="Route" value={trip.route?.name} />
+          {trip.session ? <SummaryRow label="Run" value={trip.session === 'morning' ? 'Morning' : 'Evening'} /> : null}
         </View>
         <Button loading={startMutation.isPending} onPress={() => startMutation.mutate()} style={{ marginTop: 24 }}>
           Yes, start trip

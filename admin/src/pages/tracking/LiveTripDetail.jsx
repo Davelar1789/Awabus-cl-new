@@ -13,6 +13,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table.jsx';
 import { formatLat, formatLng, gpsFreshness } from '../../lib/gps.js';
 import useNow from '../../hooks/useNow.js';
 import { GpsState } from './LiveTracking.jsx';
+import { sessionLabel } from '../../lib/sessions.js';
 
 export default function LiveTripDetail() {
   const { tripId } = useParams();
@@ -46,6 +47,7 @@ export default function LiveTripDetail() {
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">Trip Detail</h1>
             <Badge tone={trip.status === 'Delayed' ? 'warning' : 'success'}>{trip.status === 'In Progress' ? 'Trip in progress' : trip.status}</Badge>
+            {trip.session && <Badge>{sessionLabel(trip.session)}</Badge>}
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {trip.bus?.name} · {trip.bus?.plateNumber} • {trip.route?.name} · stop {Math.min(progress.length, 7)} of {progress.length}

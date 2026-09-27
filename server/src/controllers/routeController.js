@@ -6,6 +6,7 @@ import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextSequentialCode } from '../utils/idGenerator.js';
 import { searchPattern } from '../utils/search.js';
 import { inGhana } from '../utils/geo.js';
+import { cleanRouteTimes } from '../utils/sessions.js';
 
 const populateRoute = (query) =>
   query
@@ -97,12 +98,20 @@ export const createRoute = asyncHandler(async (req, res) => {
     throw new Error(cleaned.error);
   }
 
+  const times = cleanRouteTimes(req.body);
+  if (times.error) {
+    res.status(400);
+    throw new Error(times.error);
+  }
+
   const routeId = await nextSequentialCode(Route, 'routeId', 'RT-', 3);
 
   const route = await Route.create({
     routeId,
     name,
     stops: cleaned.stops,
+    morningStartTime: times.morningStartTime,
+    eveningStartTime: times.eveningStartTime,
     status: status || 'Active',
   });
 
@@ -130,6 +139,15 @@ export const updateRoute = asyncHandler(async (req, res) => {
     route.stops = cleaned.stops;
   }
   if (status !== undefined) route.status = status;
+  if (req.body.morningStartTime !== undefined || req.body.eveningStartTime !== undefined) {
+    const times = cleanRouteTimes(req.body, route);
+    if (times.error) {
+      res.status(400);
+      throw new Error(times.error);
+    }
+    route.morningStartTime = times.morningStartTime;
+    route.eveningStartTime = times.eveningStartTime;
+  }
 
   await route.save();
 
@@ -165,7 +183,7 @@ export const deleteRoute = asyncHandler(async (req, res) => {
 // @route   GET /api/routes/meta/options
 export const getRouteOptions = asyncHandler(async (req, res) => {
   const routes = await Route.find()
-    .select('routeId name status assignedBus assignedDriver')
+    .select('routeId name status assignedBus assignedDriver morningStartTime eveningStartTime')
     .populate('assignedBus', 'plateNumber name capacity')
     .populate('assignedDriver', 'firstName lastName')
     .sort({ createdAt: 1 });

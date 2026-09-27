@@ -70,7 +70,24 @@ export const GUIDE = [
     to: '/routes',
     summary: 'The lines your buses run. Each route has an ID (RT-001, RT-002, ...) that AwaBus creates for you.',
     tasks: [
-      { title: 'Add a route', steps: ['Click Add Route.', 'Type the route name, e.g. "Madina - Adenta".', 'Click Create Route.'] },
+      {
+        title: 'Add a route',
+        steps: [
+          'Click Add Route.',
+          'Type the route name, e.g. "Madina - Adenta".',
+          'Set the run times: when the morning run usually leaves (before 12:00) and when the evening run leaves school (12:00 or later).',
+          'Add the stops in the order the bus drives them, then click Create Route.',
+        ],
+      },
+      {
+        title: 'Why run times matter',
+        steps: [
+          'A trip started before the halfway point between the two times is the morning run; after it, the evening run. Without times, noon is the halfway point.',
+          'Each trip only lists the students who ride that run.',
+          'The times will also be the latest a parent can cancel a ride by phone.',
+          'To set them on many routes at once, select the routes and use Edit selected.',
+        ],
+      },
       { title: 'Edit a route', steps: ['Click the route in the list (or ⋮ then Edit route).', 'Change the name and save.'] },
       {
         title: 'Delete a route',
@@ -146,7 +163,7 @@ export const GUIDE = [
         steps: [
           'Student information: name, date of birth, class.',
           'Parents & guardian: pick an existing parent (for brothers and sisters) or enter a new one. Delay messages from the driver are sent to this phone.',
-          'Transport: pick the route. The bus and driver follow from the route.',
+          'Transport: pick the route (the bus and driver follow from it), and choose when the student rides: morning & evening, morning only or evening only. They are left off the trips of a run they don\'t ride.',
           'Home location: type the GhanaPost GPS address or pin the home on the map. The green circle is the geofence around the home. Siblings can share one home location.',
           'Review and finish.',
         ],

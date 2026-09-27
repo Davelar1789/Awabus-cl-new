@@ -83,6 +83,8 @@ const seedSchoolData = async (school) => {
       assignedBus: bus._id,
       assignedDriver: driver._id,
       status: cfg.status,
+      morningStartTime: '06:00',
+      eveningStartTime: '15:00',
       stops: [
         { name: cfg.from.replace(/([A-Z])/g, ' $1').trim(), order: 1, lat: from.lat, lng: from.lng },
         {

@@ -29,6 +29,8 @@ import LanguageSelect from '../../components/students/LanguageSelect.jsx';
 import { DEFAULT_LANGUAGE, languageLabel } from '../../lib/languages.js';
 import { createStudent } from '../../api/students.js';
 import { CLASS_GRADE_OPTIONS } from '../../lib/options.js';
+import RideSessionPicker from '../../components/students/RideSessionPicker.jsx';
+import { formatRunTime, rideSessionLabel } from '../../lib/sessions.js';
 
 const STEPS = ['Student Information', 'Parents & Guardian', 'Transport Assignment', 'Home Location', 'Review & Finalize'];
 
@@ -53,6 +55,7 @@ const initial = {
   route: null,
   pickupPoint: '',
   dropoffPoint: '',
+  rideSession: 'both',
   homeAddress: '',
   geofenceRadius: 200,
   lat: '',
@@ -203,6 +206,7 @@ export default function AddStudent() {
       route: form.route,
       pickupPoint: form.pickupPoint,
       dropoffPoint: form.dropoffPoint,
+      rideSession: form.rideSession || 'both',
       homeAddress: form.homeAddress,
       geofenceRadius: Number(form.geofenceRadius),
       lat: form.lat ? Number(form.lat) : undefined,
@@ -421,6 +425,13 @@ export default function AddStudent() {
                   <Label>Drop-off Point</Label>
                   <Input value={form.dropoffPoint} onChange={(e) => set('dropoffPoint')(e.target.value)} placeholder="e.g. East Legon Starbites Station" />
                 </div>
+                <div className="sm:col-span-2">
+                  <Label>Rides</Label>
+                  <RideSessionPicker value={form.rideSession} onChange={set('rideSession')} />
+                  <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    Students who ride one run only are left off the other run's trip.
+                  </p>
+                </div>
               </div>
 
               {selectedRoute && (
@@ -430,6 +441,8 @@ export default function AddStudent() {
                     <SummaryStat label="Stops On Route" value={`${selectedRoute.stops?.length || 0} Scheduled Stops`} />
                     <SummaryStat label="Bus Driver" value={selectedRoute.assignedDriver ? `${selectedRoute.assignedDriver.firstName} ${selectedRoute.assignedDriver.lastName}` : 'Not assigned yet'} />
                     <SummaryStat label="Seats Available" value={selectedBus ? `${selectedBus.capacity} Seats` : '—'} />
+                    <SummaryStat label="Morning run" value={formatRunTime(selectedRoute.morningStartTime)} />
+                    <SummaryStat label="Evening run" value={formatRunTime(selectedRoute.eveningStartTime)} />
                   </CardBody>
                 </Card>
               )}
@@ -584,6 +597,7 @@ export default function AddStudent() {
                 <p className="mb-3 text-sm font-bold text-brand-700 dark:text-brand-400">Transit Assignments</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <SummaryStat label="Route" value={selectedRoute?.name || '—'} />
+                  <SummaryStat label="Rides" value={rideSessionLabel(form.rideSession)} />
                   <SummaryStat label="Bus" value={selectedBus ? `${selectedBus.name} (${selectedBus.plateNumber})` : 'Not assigned yet'} />
                   <SummaryStat label="Pick-up Point" value={form.pickupPoint || '—'} />
                 </div>

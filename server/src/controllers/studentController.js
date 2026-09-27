@@ -10,6 +10,7 @@ import { assertFormats, ifChanged } from '../utils/formats.js';
 import Trip from '../models/Trip.js';
 import { normalizeLanguage } from '../utils/languages.js';
 import { searchPattern } from '../utils/search.js';
+import { normalizeRideSession } from '../utils/sessions.js';
 
 const populateStudent = (query) =>
   query
@@ -191,6 +192,11 @@ export const createStudent = asyncHandler(async (req, res) => {
   }
   if (!linkLocationWith) assertFormats(res, { lat, lng, geofenceRadius });
   assertFormats(res, { studentDob: dob, email: guardian?.email });
+  const rideSession = normalizeRideSession(req.body.rideSession);
+  if (rideSession === null) {
+    res.status(400);
+    throw new Error('Choose when the student rides: morning & evening, morning only or evening only');
+  }
 
   const routeDoc = await Route.findById(route);
   if (!routeDoc) {
@@ -251,6 +257,7 @@ export const createStudent = asyncHandler(async (req, res) => {
     dropoffPoint,
     pickupTime,
     dropoffTime,
+    ...(rideSession ? { rideSession } : {}),
     ...location,
     household,
   });
@@ -290,6 +297,14 @@ export const updateStudent = asyncHandler(async (req, res) => {
     'lng',
     'status',
   ];
+  if (req.body.rideSession !== undefined) {
+    const rideSession = normalizeRideSession(req.body.rideSession);
+    if (!rideSession) {
+      res.status(400);
+      throw new Error('Choose when the student rides: morning & evening, morning only or evening only');
+    }
+    student.rideSession = rideSession;
+  }
   // Only new or changed values are checked (see ifChanged).
   assertFormats(res, {
     studentDob: ifChanged(req.body.dob, student.dob),

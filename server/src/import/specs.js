@@ -1,4 +1,5 @@
 import { VOICE_LANGUAGES } from '../utils/languages.js';
+import { RIDE_SESSION_LABELS } from '../utils/sessions.js';
 
 // Column definitions for the bulk-upload Excel templates. The same list drives
 // the downloadable template (headers, dropdowns, Excel cell rules, the
@@ -10,6 +11,7 @@ import { VOICE_LANGUAGES } from '../utils/languages.js';
 //   name     a person's name (letters, spaces, - ' .)
 //   list     one of `options` (Excel dropdown)
 //   ref      one of the school's existing records (Excel dropdown filled at download time)
+//   time     a time of day, e.g. 06:00, 6:00 AM or 15:30 (stored as HH:MM, 24-hour)
 //   phone    Ghana phone, 10 digits starting with 0
 //   email, plate, license, gps
 //   int / decimal   numbers with min/max
@@ -41,6 +43,9 @@ export const SPECS = {
     columns: [
       { key: 'name', header: 'Route Name', required: true, kind: 'text', min: 3, max: 80, example: 'West Legon - Ashongman', help: 'Where the route runs, e.g. start area - end area' },
       { key: 'status', header: 'Status', kind: 'list', options: ['Active', 'Inactive'], example: 'Active', help: 'Leave blank for Active' },
+      // Added later: templates downloaded before these existed are still accepted.
+      { key: 'morningStartTime', header: 'Morning Start Time', kind: 'time', example: '06:00', help: 'When the morning run usually leaves, before 12:00, e.g. 06:00', addedLater: true },
+      { key: 'eveningStartTime', header: 'Evening Start Time', kind: 'time', example: '15:00', help: 'When the evening run usually leaves school, 12:00 or later, e.g. 15:00', addedLater: true },
     ],
   },
 
@@ -117,6 +122,7 @@ export const SPECS = {
       { key: 'geofenceRadius', header: 'Geofence Radius (m)', kind: 'int', min: 20, max: 1000, example: 200, help: 'Metres, 20 to 1000. Leave blank for 200' },
       { key: 'emergencyInstructions', header: 'Emergency / Medical Notes', kind: 'text', max: 300, example: 'Asthmatic - inhaler in bag' },
       // Added later: templates downloaded before it existed are still accepted (see readUpload).
+      { key: 'rideSession', header: 'Rides', kind: 'list', options: Object.values(RIDE_SESSION_LABELS), example: 'Morning & evening', help: 'Which runs the student rides. Leave blank for Morning & evening', addedLater: true },
       { key: 'guardianLanguage', header: 'Guardian Language', kind: 'list', options: VOICE_LANGUAGES.map((l) => l.label), example: 'Twi', help: 'For automated calls to the parent. Leave blank for English', addedLater: true },
     ],
   },

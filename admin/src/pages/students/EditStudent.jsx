@@ -23,6 +23,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import { RADIUS_MAX, RADIUS_MIN, coordsError, digitsOnly, formatCoord, formatName, ifChanged, nameError, radiusError } from '../../lib/formats.js';
+import RideSessionPicker from '../../components/students/RideSessionPicker.jsx';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -62,6 +63,7 @@ export default function EditStudent() {
             lat: student.lat ?? ACCRA_DEFAULT.lat,
             lng: student.lng ?? ACCRA_DEFAULT.lng,
             geofenceRadius: student.geofenceRadius || 200,
+            rideSession: student.rideSession || 'both',
           }
         : null,
     [student]
@@ -168,6 +170,7 @@ export default function EditStudent() {
             lat: Number(form.lat),
             lng: Number(form.lng),
             geofenceRadius: Number(form.geofenceRadius),
+            rideSession: form.rideSession || 'both',
           });
         }}
       >
@@ -200,6 +203,13 @@ export default function EditStudent() {
                     <option>Female</option>
                     <option>Male</option>
                   </Select>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Rides</Label>
+                  <RideSessionPicker value={form.rideSession} onChange={set('rideSession')} />
+                  <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    Students who ride one run only are left off the other run's trip.
+                  </p>
                 </div>
               </CardBody>
             </Card>

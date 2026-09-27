@@ -17,6 +17,7 @@ import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { gpsFreshness } from '../../lib/gps.js';
 import useNow from '../../hooks/useNow.js';
 import { formatPhone } from '../../lib/phone.js';
+import { sessionLabel } from '../../lib/sessions.js';
 
 const busIcon = (color) =>
   L.divIcon({
@@ -218,7 +219,9 @@ export default function LiveTracking() {
                   <p className="font-bold text-slate-800 dark:text-slate-100">{selected.route?.name}</p>
                   <span className="text-sm font-semibold text-brand-600 dark:text-brand-400">{selected.etaMinutes || 0}m running</span>
                 </div>
-                <p className="text-sm text-slate-400">Departure: {selected.departureTime || '—'}</p>
+                <p className="text-sm text-slate-400">
+                  {selected.session ? `${sessionLabel(selected.session)} · ` : ''}Departure: {selected.departureTime || '—'}
+                </p>
 
                 <div className="my-4 h-px bg-slate-100 dark:bg-slate-800" />
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-400">GPS Signal</p>
