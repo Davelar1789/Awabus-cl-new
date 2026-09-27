@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MapContainer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { MapTiles } from '../../components/map/GeofenceMap.jsx';
-import { AlertTriangle, CheckCircle2, Clock, Layers, Navigation2, MapPin as MapPinIcon, SignalZero } from 'lucide-react';
+import { MapLayers } from '../../components/map/GeofenceMap.jsx';
+import { AlertTriangle, CheckCircle2, Clock, Navigation2, MapPin as MapPinIcon, SignalZero } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import { useSocketEvent } from '../../hooks/useSocket.js';
 import { getTrackingOverview } from '../../api/tracking.js';
@@ -40,11 +40,18 @@ const isOffline = (b) => b.gps.state !== 'live';
 const toLatLng = (loc) =>
   loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng) ? [loc.lat, loc.lng] : null;
 
-function RecenterOnSelect({ position }) {
+// While following, keep the selected bus in the middle of the map as it moves.
+function FollowBus({ position, follow }) {
   const map = useMap();
   useEffect(() => {
-    if (position) map.setView(position, map.getZoom(), { animate: true });
-  }, [position, map]);
+    if (follow && position) map.setView(position, map.getZoom(), { animate: true });
+  }, [position, follow, map]);
+  return null;
+}
+
+// Dragging the map means the admin wants to look around: stop following.
+function StopFollowOnDrag({ onDrag }) {
+  useMapEvents({ dragstart: onDrag });
   return null;
 }
 
@@ -54,6 +61,8 @@ export default function LiveTracking() {
   const [filter, setFilter] = useState('all');
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [liveBuses, setLiveBuses] = useState([]);
+  const [follow, setFollow] = useState(true);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['tracking-overview'],
@@ -72,6 +81,11 @@ export default function LiveTracking() {
   useSocketEvent('bus:location', ({ tripId, location }) => {
     setLiveBuses((prev) => prev.map((b) => (b.tripId === tripId ? { ...b, liveLocation: location, gpsSignal: 'ok' } : b)));
   });
+  // A trip starting or ending changes which buses are on the map: reload now
+  // instead of waiting for the next 15-second refresh.
+  const reload = () => queryClient.invalidateQueries({ queryKey: ['tracking-overview'] });
+  useSocketEvent('trip:started', reload);
+  useSocketEvent('trip:ended', reload);
 
   // Every bus gets its GPS freshness, re-worked out as time passes (useNow).
   const now = useNow(15000);
@@ -135,17 +149,24 @@ export default function LiveTracking() {
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
           <Card className="relative overflow-hidden">
             <div className="absolute left-4 top-4 z-[400] flex gap-2">
-              <button className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold shadow dark:bg-navy-light dark:text-slate-200">
-                <Layers className="h-3.5 w-3.5" /> Layers
-              </button>
-              <button className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white shadow">
-                <Navigation2 className="h-3.5 w-3.5" /> Follow bus
+              <button
+                type="button"
+                onClick={() => setFollow((f) => !f)}
+                aria-pressed={follow}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold shadow ${
+                  follow ? 'bg-slate-700 text-white' : 'bg-white text-slate-700 dark:bg-navy-light dark:text-slate-200'
+                }`}
+                title={follow ? 'The map keeps the selected bus in the middle. Click to stop.' : 'Keep the selected bus in the middle of the map'}
+              >
+                <Navigation2 className="h-3.5 w-3.5" /> {follow ? 'Following bus' : 'Follow bus'}
               </button>
             </div>
             <div className="h-[520px] w-full">
               <MapContainer center={center} zoom={13} className="h-full w-full" zoomControl={false}>
-                <MapTiles />
-                <RecenterOnSelect position={selectedPos} />
+                {/* Street / Satellite / Hybrid / Terrain switcher, top right */}
+                <MapLayers />
+                <FollowBus position={selectedPos} follow={follow} />
+                <StopFollowOnDrag onDrag={() => setFollow(false)} />
                 {filtered.map((b) => {
                   const pos = toLatLng(b.liveLocation);
                   if (!pos) return null;
@@ -157,7 +178,7 @@ export default function LiveTracking() {
                         position={pos}
                         icon={busIcon(markerColor(b))}
                         opacity={b.gps.state === 'live' ? 1 : 0.75}
-                        eventHandlers={{ click: () => setSelectedTripId(b.tripId) }}
+                        eventHandlers={{ click: () => { setSelectedTripId(b.tripId); setFollow(true); } }}
                       />
                     </div>
                   );

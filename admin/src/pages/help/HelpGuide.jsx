@@ -178,6 +178,7 @@ export const GUIDE = [
           'Open Live Tracking. Each moving bus appears on the map.',
           'Click a bus or a trip in the list to see where it is and which students are on board.',
           'Use the map switcher (top right of the map) for Street, Satellite, Hybrid or Terrain views.',
+          '"Following bus" keeps the selected bus in the middle of the map as it moves. Drag the map to look around (following stops); click the button or a bus to follow again.',
         ],
       },
     ],
