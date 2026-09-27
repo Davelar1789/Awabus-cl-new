@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Milestone, SearchX } from 'lucide-react';
+import { Upload, Plus, Milestone, SearchX } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getRoutes, deleteRoute } from '../../api/routes.js';
@@ -14,12 +14,14 @@ import Pagination from '../../components/ui/Pagination.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
+import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 export default function RoutesList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const debouncedSearch = useDebounce(search);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -57,9 +59,14 @@ export default function RoutesList() {
         title="Routes"
         subtitle="Manage operational lines, assign drivers, and monitor service capacity."
         action={
-          <Button as={Link} to="/routes/new">
-            <Plus className="h-4 w-4" /> Add Route
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setBulkOpen(true)}>
+              <Upload className="h-4 w-4" /> Bulk upload
+            </Button>
+            <Button as={Link} to="/routes/new">
+              <Plus className="h-4 w-4" /> Add Route
+            </Button>
+          </>
         }
       />
 
@@ -172,6 +179,7 @@ export default function RoutesList() {
           </div>
         )}
       </Modal>
+      <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} entity="routes" label="Routes" singular="route" />
     </div>
   );
 }

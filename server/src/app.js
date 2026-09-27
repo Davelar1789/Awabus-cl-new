@@ -14,6 +14,7 @@ import trackingRoutes from './routes/trackingRoutes.js';
 import driverAppRoutes from './routes/driverAppRoutes.js';
 import superadminRoutes from './routes/superadminRoutes.js';
 import geocodeRoutes from './routes/geocodeRoutes.js';
+import importRoutes from './routes/importRoutes.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/superadmin', superadminRoutes);
 app.use('/api/geocode', geocodeRoutes);
+app.use('/api/import', importRoutes);
 
 // Driver App API (mobile client not built yet, API is ready)
 app.use('/api/driver-app', driverAppRoutes);

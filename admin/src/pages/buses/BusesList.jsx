@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Bus as BusIcon, SearchX, Settings2, Ban } from 'lucide-react';
+import { Upload, Plus, Bus as BusIcon, SearchX, Settings2, Ban } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getBuses, deleteBus } from '../../api/buses.js';
@@ -16,6 +16,7 @@ import Pagination from '../../components/ui/Pagination.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
+import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 const STATUS_TABS = ['All', 'Active', 'Idle', 'Maintenance'];
@@ -25,6 +26,7 @@ export default function BusesList() {
   const [status, setStatus] = useState('All');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const debouncedSearch = useDebounce(search);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -62,9 +64,14 @@ export default function BusesList() {
         title="Buses"
         subtitle="Register, assign and manage every vehicle in the school fleet."
         action={
-          <Button as={Link} to="/buses/new">
-            <Plus className="h-4 w-4" /> Register Bus
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setBulkOpen(true)}>
+              <Upload className="h-4 w-4" /> Bulk upload
+            </Button>
+            <Button as={Link} to="/buses/new">
+              <Plus className="h-4 w-4" /> Register Bus
+            </Button>
+          </>
         }
       />
 
@@ -181,6 +188,7 @@ export default function BusesList() {
           This action is permanent and cannot be undone. {deleteTarget?.plateNumber} will be unassigned from its route and driver.
         </p>
       </Modal>
+      <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} entity="buses" label="Buses" singular="bus" />
     </div>
   );
 }

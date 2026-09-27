@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, GraduationCap, SearchX, Users2, UserRound, UsersRound } from 'lucide-react';
+import { Upload, Plus, GraduationCap, SearchX, Users2, UserRound, UsersRound } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getStudents, deleteStudent } from '../../api/students.js';
@@ -16,12 +16,14 @@ import Pagination from '../../components/ui/Pagination.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
+import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 export default function StudentsList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const debouncedSearch = useDebounce(search);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -59,9 +61,14 @@ export default function StudentsList() {
         title="Students"
         subtitle="Monitor child safe boarding status and details."
         action={
-          <Button as={Link} to="/students/new">
-            <Plus className="h-4 w-4" /> Add Student
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setBulkOpen(true)}>
+              <Upload className="h-4 w-4" /> Bulk upload
+            </Button>
+            <Button as={Link} to="/students/new">
+              <Plus className="h-4 w-4" /> Add Student
+            </Button>
+          </>
         }
       />
 
@@ -188,6 +195,7 @@ export default function StudentsList() {
       >
         <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
       </Modal>
+      <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} entity="students" label="Students" singular="student" />
     </div>
   );
 }
