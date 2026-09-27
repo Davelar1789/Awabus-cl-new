@@ -15,6 +15,7 @@ import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
+import useListSelection from '../../hooks/useListSelection.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 export default function RoutesList() {
@@ -50,16 +51,25 @@ export default function RoutesList() {
   });
 
   const routes = data?.data || [];
+  const selection = useListSelection({
+    items: routes,
+    getLabel: (r) => `${r.routeId} - ${r.name}`,
+    deleteOne: deleteRoute,
+    noun: 'routes',
+    singular: 'route',
+    invalidate: ['routes', 'route-options'],
+  });
   const meta = data?.meta;
   const hasAnyRoutes = meta && (meta.total > 0 || debouncedSearch);
 
   return (
-    <div>
+    <div className={selection.selecting ? 'pb-24' : undefined}>
       <PageHeader
         title="Routes"
         subtitle="Manage operational lines, assign drivers, and monitor service capacity."
         action={
           <>
+            {selection.toolbarButton}
             <Button variant="outline" onClick={() => setBulkOpen(true)}>
               <Upload className="h-4 w-4" /> Bulk upload
             </Button>
@@ -101,6 +111,7 @@ export default function RoutesList() {
           <>
             <Table>
               <Thead>
+                {selection.headerCell}
                 <Th>Route ID</Th>
                 <Th>Route Name</Th>
                 <Th>Assigned Driver</Th>
@@ -110,7 +121,8 @@ export default function RoutesList() {
               </Thead>
               <Tbody>
                 {routes.map((route) => (
-                  <Tr key={route._id} className="cursor-pointer" onClick={() => navigate(`/routes/${route._id}/edit`)}>
+                  <Tr key={route._id} {...selection.rowProps(route, () => navigate(`/routes/${route._id}/edit`))}>
+                    {selection.cell(route)}
                     <Td className="font-bold text-slate-900 dark:text-white">{route.routeId}</Td>
                     <Td>{route.name}</Td>
                     <Td>
@@ -147,6 +159,8 @@ export default function RoutesList() {
           </>
         )}
       </Card>
+      {selection.bar}
+      {selection.dialog}
 
       <Modal
         open={Boolean(deleteTarget)}

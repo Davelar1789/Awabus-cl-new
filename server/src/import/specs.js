@@ -103,7 +103,7 @@ export const SPECS = {
       { key: 'guardianFirst', header: 'Guardian First Name', required: true, kind: 'name', example: 'Kofi' },
       { key: 'guardianLast', header: 'Guardian Last Name', required: true, kind: 'name', example: 'Osei' },
       { key: 'guardianRelation', header: 'Guardian Relation', kind: 'list', options: ['Father', 'Mother', 'Guardian', 'Sibling', 'Other'], example: 'Father', help: 'Leave blank for Guardian' },
-      { key: 'guardianPhone', header: 'Guardian Phone', required: true, kind: 'phone', example: '0244556677', help: '10 digits starting with 0. Parents get trip SMS on this number' },
+      { key: 'guardianPhone', header: 'Guardian Phone', required: true, kind: 'phone', example: '0244556677', help: '10 digits starting with 0. Delay messages from the driver go to this number' },
       { key: 'guardianEmail', header: 'Guardian Email', kind: 'email', example: 'kofi.osei@gmail.com' },
       { key: 'secondContactName', header: 'Second Contact Name', kind: 'name', example: 'Mary Osei' },
       { key: 'secondContactPhone', header: 'Second Contact Phone', kind: 'phone', example: '0201112233' },

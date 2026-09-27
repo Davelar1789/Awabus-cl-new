@@ -7,6 +7,7 @@ import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextYearCode } from '../utils/idGenerator.js';
 import { assertFormats, ifChanged } from '../utils/formats.js';
+import Trip from '../models/Trip.js';
 
 const populateStudent = (query) =>
   query
@@ -56,6 +57,48 @@ const getHouseholdMembers = (student) =>
         .sort({ createdAt: 1 })
     : [];
 
+// Today's status for each student, read from today's trips (the driver app's
+// roll call and boarding scans are saved on the trip, not on the student).
+// Uses the same day boundaries as the driver app's "today's trip".
+function statusFromProgress(trip, p) {
+  if (trip.status === 'Cancelled' || p.attendance === 'Cancelled') return 'Trip cancelled';
+  if (p.attendance === 'Absent') return 'Absent';
+  if (p.dropoffStatus === 'Dropped off') return 'Dropped off';
+  if (p.dropoffStatus === 'On board' || p.dropoffStatus === 'Boarding now') return 'On board';
+  if (p.dropoffStatus === 'Not on board') return 'Not on board';
+  // The driver app lists everyone as Present until marked otherwise, so before
+  // the trip starts that isn't news yet.
+  if (trip.status === 'Scheduled') return 'Trip not started';
+  if (trip.status === 'Completed') return 'Not scanned';
+  return 'Awaiting pickup';
+}
+
+async function todayStatuses(students) {
+  const statuses = new Map(students.map((st) => [String(st._id), 'No trip today']));
+  if (!students.length) return statuses;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const routeIds = [...new Set(students.map((st) => String(st.route?._id || st.route || '')).filter(Boolean))];
+  const trips = await Trip.find({ date: { $gte: start, $lte: end }, route: { $in: routeIds } })
+    .select('route status studentProgress startedAt createdAt')
+    .lean();
+  // A trip in progress wins; otherwise the latest trip of the day (e.g. the
+  // afternoon drop-off after the morning pickup). Later entries overwrite earlier ones.
+  const live = (t) => (t.status === 'In Progress' ? 1 : 0);
+  trips.sort((a, b) => live(a) - live(b) || new Date(a.startedAt || a.createdAt) - new Date(b.startedAt || b.createdAt));
+  for (const trip of trips) {
+    const onTrip = new Map((trip.studentProgress || []).map((p) => [String(p.student), p]));
+    for (const st of students) {
+      if (String(st.route?._id || st.route) !== String(trip.route)) continue;
+      const p = onTrip.get(String(st._id));
+      statuses.set(String(st._id), p ? statusFromProgress(trip, p) : trip.status === 'Scheduled' ? 'Trip not started' : 'Not on this trip');
+    }
+  }
+  return statuses;
+}
+
 // @desc    List students (search + pagination) + directory stats
 // @route   GET /api/students
 export const getStudents = asyncHandler(async (req, res) => {
@@ -80,9 +123,10 @@ export const getStudents = asyncHandler(async (req, res) => {
     Guardian.countDocuments(),
   ]);
 
+  const today = await todayStatuses(students);
   res.json({
     success: true,
-    data: students,
+    data: students.map((st) => ({ ...st.toJSON(), todayStatus: today.get(String(st._id)) })),
     meta: buildPaginationMeta(total, page, limit),
     stats: { totalStudents, male, female, guardianCount },
   });
@@ -96,8 +140,8 @@ export const getStudentById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Student not found');
   }
-  const householdMembers = await getHouseholdMembers(student);
-  res.json({ success: true, data: { ...student.toJSON(), householdMembers } });
+  const [householdMembers, today] = await Promise.all([getHouseholdMembers(student), todayStatuses([student])]);
+  res.json({ success: true, data: { ...student.toJSON(), householdMembers, todayStatus: today.get(String(student._id)) } });
 });
 
 // @desc    Create student (final step of Add Student wizard)

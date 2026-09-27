@@ -17,6 +17,7 @@ import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
+import useListSelection from '../../hooks/useListSelection.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 const STATUS_TABS = ['All', 'Active', 'Idle', 'Maintenance'];
@@ -55,16 +56,25 @@ export default function BusesList() {
   });
 
   const buses = data?.data || [];
+  const selection = useListSelection({
+    items: buses,
+    getLabel: (b) => `${b.plateNumber} (${b.name})`,
+    deleteOne: deleteBus,
+    noun: 'buses',
+    singular: 'bus',
+    invalidate: ['buses', 'routes', 'drivers', 'bus-options'],
+  });
   const meta = data?.meta;
   const stats = data?.stats || {};
 
   return (
-    <div>
+    <div className={selection.selecting ? 'pb-24' : undefined}>
       <PageHeader
         title="Buses"
         subtitle="Register, assign and manage every vehicle in the school fleet."
         action={
           <>
+            {selection.toolbarButton}
             <Button variant="outline" onClick={() => setBulkOpen(true)}>
               <Upload className="h-4 w-4" /> Bulk upload
             </Button>
@@ -122,6 +132,7 @@ export default function BusesList() {
           <>
             <Table>
               <Thead>
+                {selection.headerCell}
                 <Th>Bus Plate No</Th>
                 <Th>Bus Name</Th>
                 <Th>Route</Th>
@@ -132,7 +143,8 @@ export default function BusesList() {
               </Thead>
               <Tbody>
                 {buses.map((bus) => (
-                  <Tr key={bus._id} className="cursor-pointer" onClick={() => navigate(`/buses/${bus._id}`)}>
+                  <Tr key={bus._id} {...selection.rowProps(bus, () => navigate(`/buses/${bus._id}`))}>
+                    {selection.cell(bus)}
                     <Td className="font-bold text-slate-900 dark:text-white">{bus.plateNumber}</Td>
                     <Td>{bus.name}</Td>
                     <Td>{bus.assignedRoute ? `${bus.assignedRoute.name}` : '—'}</Td>
@@ -168,6 +180,8 @@ export default function BusesList() {
           </>
         )}
       </Card>
+      {selection.bar}
+      {selection.dialog}
 
       <Modal
         open={Boolean(deleteTarget)}

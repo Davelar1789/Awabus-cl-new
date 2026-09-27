@@ -17,6 +17,7 @@ import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
+import useListSelection from '../../hooks/useListSelection.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { formatPhone } from '../../lib/phone.js';
 
@@ -53,16 +54,25 @@ export default function StudentsList() {
   });
 
   const students = data?.data || [];
+  const selection = useListSelection({
+    items: students,
+    getLabel: (s) => `${s.firstName} ${s.lastName}`,
+    deleteOne: deleteStudent,
+    noun: 'students',
+    singular: 'student',
+    invalidate: ['students', 'routes'],
+  });
   const meta = data?.meta;
   const stats = data?.stats || {};
 
   return (
-    <div>
+    <div className={selection.selecting ? 'pb-24' : undefined}>
       <PageHeader
         title="Students"
         subtitle="Monitor child safe boarding status and details."
         action={
           <>
+            {selection.toolbarButton}
             <Button variant="outline" onClick={() => setBulkOpen(true)}>
               <Upload className="h-4 w-4" /> Bulk upload
             </Button>
@@ -123,6 +133,7 @@ export default function StudentsList() {
           <>
             <Table>
               <Thead>
+                {selection.headerCell}
                 <Th>Student Name</Th>
                 <Th>Class</Th>
                 <Th>Parent/Guardian</Th>
@@ -130,12 +141,13 @@ export default function StudentsList() {
                 <Th>Assigned Bus</Th>
                 <Th>Assigned Route</Th>
                 <Th>Pickup Time</Th>
-                <Th>Status</Th>
+                <Th title="Today's status, from the driver's roll call and boarding scans">Today</Th>
                 <Th className="text-right">Actions</Th>
               </Thead>
               <Tbody>
                 {students.map((s) => (
-                  <Tr key={s._id} className="cursor-pointer" onClick={() => navigate(`/students/${s._id}`)}>
+                  <Tr key={s._id} {...selection.rowProps(s, () => navigate(`/students/${s._id}`))}>
+                    {selection.cell(s)}
                     <Td>
                       <div className="flex items-center gap-3">
                         <Avatar name={`${s.firstName} ${s.lastName}`} src={s.profilePhotoUrl} size="sm" />
@@ -151,7 +163,7 @@ export default function StudentsList() {
                     <Td>{s.route?.name || '—'}</Td>
                     <Td>{s.pickupTime || '—'}</Td>
                     <Td>
-                      <Badge>{s.todayAttendance}</Badge>
+                      <Badge>{s.todayStatus || s.todayAttendance}</Badge>
                     </Td>
                     <Td className="text-right">
                       <RowActions
@@ -178,6 +190,8 @@ export default function StudentsList() {
           </>
         )}
       </Card>
+      {selection.bar}
+      {selection.dialog}
 
       <Modal
         open={Boolean(deleteTarget)}

@@ -12,6 +12,7 @@ import {
   LogOut,
   X,
   Building2,
+  LifeBuoy,
 } from 'lucide-react';
 import { useUiStore } from '../../store/uiStore.js';
 import { useAuthStore } from '../../store/authStore.js';
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { to: '/students', label: 'Students', icon: GraduationCap },
   { to: '/live-tracking', label: 'Live Tracking', icon: Navigation },
   { to: '/trip-history', label: 'Trip History', icon: History },
+  { to: '/help', label: 'Help & Guide', icon: LifeBuoy },
 ];
 
 const SUPERADMIN_NAV_ITEM = { to: '/platform', label: 'Platform', icon: Building2, end: true };

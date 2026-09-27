@@ -16,6 +16,7 @@ import EmptyState from '../../components/ui/EmptyState.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
+import useListSelection from '../../hooks/useListSelection.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { formatPhone } from '../../lib/phone.js';
 
@@ -54,15 +55,24 @@ export default function DriversList() {
   });
 
   const drivers = data?.data || [];
+  const selection = useListSelection({
+    items: drivers,
+    getLabel: (d) => `${d.firstName} ${d.lastName}`,
+    deleteOne: deleteDriver,
+    noun: 'drivers',
+    singular: 'driver',
+    invalidate: ['drivers', 'buses', 'routes', 'bus-options', 'driver-options'],
+  });
   const meta = data?.meta;
 
   return (
-    <div>
+    <div className={selection.selecting ? 'pb-24' : undefined}>
       <PageHeader
         title="Drivers"
         subtitle="Manage and assign authorized drivers for the school fleet."
         action={
           <>
+            {selection.toolbarButton}
             <Button variant="outline" onClick={() => setBulkOpen(true)}>
               <Upload className="h-4 w-4" /> Bulk upload
             </Button>
@@ -104,6 +114,7 @@ export default function DriversList() {
           <>
             <Table>
               <Thead>
+                {selection.headerCell}
                 <Th>Driver Name</Th>
                 <Th>Phone</Th>
                 <Th>License No</Th>
@@ -115,7 +126,8 @@ export default function DriversList() {
               </Thead>
               <Tbody>
                 {drivers.map((driver) => (
-                  <Tr key={driver._id} className="cursor-pointer" onClick={() => navigate(`/drivers/${driver._id}`)}>
+                  <Tr key={driver._id} {...selection.rowProps(driver, () => navigate(`/drivers/${driver._id}`))}>
+                    {selection.cell(driver)}
                     <Td>
                       <div className="flex items-center gap-3">
                         <Avatar name={`${driver.firstName} ${driver.lastName}`} src={driver.profilePhotoUrl} size="sm" />
@@ -161,6 +173,8 @@ export default function DriversList() {
           </>
         )}
       </Card>
+      {selection.bar}
+      {selection.dialog}
 
       <Modal
         open={Boolean(deleteTarget)}

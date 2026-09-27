@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, Search, Settings, UserCircle } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Bell, ChevronDown, CircleHelp, LogOut, Menu, Search, Settings, UserCircle } from 'lucide-react';
 import { useTopbarStore } from '../../store/topbarStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import Avatar from '../ui/Avatar.jsx';
 import useConfirmSignOut from './useConfirmSignOut.jsx';
 import { formatPhone } from '../../lib/phone.js';
+import { guideSectionFor } from '../../pages/help/HelpGuide.jsx';
 
 // Section names used in page breadcrumbs, mapped to their list pages. A crumb can
 // also be given explicitly as { label, to } (e.g. a record's profile page).
@@ -18,6 +19,7 @@ const SECTION_LINKS = {
   buses: '/buses',
   drivers: '/drivers',
   students: '/students',
+  'help & guide': '/help',
   'trip history': '/trip-history',
   'live tracking': '/live-tracking',
   'my profile': '/account/profile',
@@ -32,6 +34,7 @@ export default function Topbar() {
   const admin = useAuthStore((s) => s.admin);
   const [requestSignOut, signOutDialog] = useConfirmSignOut();
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -95,6 +98,16 @@ export default function Topbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
+        {!pathname.startsWith('/help') && (
+          <Link
+            to={`/help#${guideSectionFor(pathname)}`}
+            title="How this page works"
+            aria-label="How this page works"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-navy dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <CircleHelp className="h-[18px] w-[18px]" />
+          </Link>
+        )}
         <button className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-navy dark:text-slate-300 dark:hover:bg-slate-800">
           <Bell className="h-[18px] w-[18px]" />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-red-500" />

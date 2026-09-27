@@ -41,6 +41,7 @@ export default function StudentProfile() {
                 {student.firstName} {student.lastName}
               </h1>
               <Badge tone={student.status === 'Active' ? 'success' : 'neutral'}>{student.status}</Badge>
+              {student.todayStatus && <Badge title="Today, from the driver's roll call and boarding scans">Today: {student.todayStatus}</Badge>}
             </div>
           </div>
         </div>
