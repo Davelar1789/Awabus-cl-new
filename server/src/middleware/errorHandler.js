@@ -38,6 +38,7 @@ export const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message,
-    stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+    // Code details only when explicitly developing; never on a deployed server.
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 };
