@@ -38,6 +38,8 @@ apiClient.interceptors.response.use(
       'Something went wrong. Please try again.';
     const wrapped = new Error(message);
     wrapped.isNetworkError = noResponse;
+    wrapped.status = error?.response?.status || 0; // lets the offline queue tell "try later" from "never"
+
     return Promise.reject(wrapped);
   }
 );

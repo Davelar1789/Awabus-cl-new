@@ -15,6 +15,7 @@ import { useAuthStore } from '../../../../src/store/authStore.js';
 import { useUiStore } from '../../../../src/store/uiStore.js';
 import { colors } from '../../../../src/lib/theme.js';
 import { formatPhone } from '../../../../src/lib/phone.js';
+import { useOfflineQueueStore } from '../../../../src/store/offlineQueueStore.js';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'Follow system' },
@@ -30,6 +31,7 @@ const CACHE_OPTIONS = [
 
 export default function Settings() {
   const { driver, logout } = useAuthStore();
+  const unsent = useOfflineQueueStore((st) => st.queue.length);
   const prefs = useUiStore();
   const { data: profile } = useQuery({ queryKey: ['driver-me'], queryFn: getMe });
   const [themeOpen, setThemeOpen] = useState(false);
@@ -120,7 +122,20 @@ export default function Settings() {
       <Modal open={confirmLogout} onClose={() => setConfirmLogout(false)}>
         <Text style={styles.sheetTitle}>Log out?</Text>
         <Text style={styles.sheetSubtitle}>You'll need your phone number and password to sign back in.</Text>
-        <Button variant="danger" onPress={logout} style={{ marginTop: 16 }}>
+        {unsent > 0 && (
+          <Text style={styles.unsentWarning}>
+            {unsent} update{unsent === 1 ? ' has' : 's have'} not reached the school yet and will be lost. Connect to the internet
+            and wait a moment before logging out.
+          </Text>
+        )}
+        <Button
+          variant="danger"
+          onPress={() => {
+            useOfflineQueueStore.getState().clear();
+            logout();
+          }}
+          style={{ marginTop: 16 }}
+        >
           Log out
         </Button>
         <Button variant="ghost" onPress={() => setConfirmLogout(false)} style={{ marginTop: 8 }}>
@@ -148,6 +163,7 @@ const ToggleRow = ({ label, value, onValueChange, last }) => (
 );
 
 const styles = StyleSheet.create({
+  unsentWarning: { marginTop: 12, fontSize: 13, fontWeight: '700', color: '#b91c1c' },
   scroll: { padding: 16, gap: 16, paddingBottom: 40 },
   profileCard: { alignItems: 'center' },
   name: { marginTop: 10, fontSize: 17, fontWeight: '800', color: colors.slate900 },

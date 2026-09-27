@@ -13,6 +13,7 @@ import { PageLoader } from '../../../src/components/ui/Spinner.jsx';
 import { useConnectionStore } from '../../../src/store/connectionStore.js';
 import { useOfflineQueueStore } from '../../../src/store/offlineQueueStore.js';
 import { useUiStore } from '../../../src/store/uiStore.js';
+import { useAuthStore } from '../../../src/store/authStore.js';
 import { useGeolocation } from '../../../src/hooks/useGeolocation.js';
 import { getTodaysTrip, markAttendance, pushLocation, endTrip } from '../../../src/api/driverApp.js';
 import { formatClock, formatDate, timeAgo } from '../../../src/lib/utils.js';
@@ -27,6 +28,8 @@ export default function ActiveTrip() {
   const markSynced = useConnectionStore((s) => s.markSynced);
   const enqueue = useOfflineQueueStore((s) => s.enqueue);
   const vibrationEnabled = useUiStore((s) => s.vibration);
+  const driverId = useAuthStore((s) => s.driver?.id);
+  const queue = useOfflineQueueStore((s) => s.queue);
 
   const [elapsed, setElapsed] = useState(0);
   const [search, setSearch] = useState('');
@@ -65,8 +68,8 @@ export default function ActiveTrip() {
 
     pushLocation(trip._id, position)
       .then(() => markSynced())
-      .catch(() => enqueue({ kind: 'location', tripId: trip._id, payload: position }));
-  }, [position, trip?._id, markSynced, enqueue]);
+      .catch(() => enqueue({ kind: 'location', tripId: trip._id, driverId, payload: position }));
+  }, [position, trip?._id, driverId, markSynced, enqueue]);
 
   // Every status change for a student (board, drop off, not here) goes through
   // here. Offline, it is queued and shown straight away with an "(offline)" tag.
@@ -77,7 +80,7 @@ export default function ActiveTrip() {
       queryClient.invalidateQueries({ queryKey: ['todays-trip'] });
     },
     onError: (_err, { studentId, dropoffStatus }) => {
-      enqueue({ kind: 'scan', tripId: trip._id, studentId, payload: { dropoffStatus } });
+      enqueue({ kind: 'scan', tripId: trip._id, studentId, driverId, payload: { dropoffStatus } });
       queryClient.setQueryData(['todays-trip'], (old) =>
         old
           ? {
@@ -93,6 +96,7 @@ export default function ActiveTrip() {
 
   const setStatus = (studentId, dropoffStatus) => {
     if (vibrationEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    useOfflineQueueStore.getState().dropScansFor(trip._id, studentId); // this newer step wins
     statusMutation.mutate({ studentId, dropoffStatus });
   };
 
@@ -104,6 +108,7 @@ export default function ActiveTrip() {
     },
   });
 
+  const waiting = queue.filter((q) => q.tripId === trip?._id).length;
   const progress = trip?.studentProgress || [];
   // Students marked absent at roll call are not expected on the bus.
   const riding = progress.filter((p) => p.attendance !== 'Absent' && p.attendance !== 'Cancelled');
@@ -151,7 +156,9 @@ export default function ActiveTrip() {
                 {isOnline ? 'Online' : 'Offline'}
               </Text>
             </View>
-            <Text style={styles.syncText}>Last sync: {lastSyncAt ? timeAgo(lastSyncAt) : 'never'}</Text>
+            <Text style={styles.syncText}>
+              {waiting ? `${waiting} waiting to send · ` : ''}Last sync: {lastSyncAt ? timeAgo(lastSyncAt) : 'never'}
+            </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.coordsRow}>
