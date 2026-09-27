@@ -138,6 +138,7 @@ export default function RoutesList() {
                 <Th>Route Name</Th>
                 <Th>Assigned Driver</Th>
                 <Th>Students</Th>
+                <Th>Stops</Th>
                 <Th>Status</Th>
                 <Th className="text-right">Actions</Th>
               </Thead>
@@ -153,6 +154,7 @@ export default function RoutesList() {
                         : '—'}
                     </Td>
                     <Td>{route.studentCount ?? route.students?.length ?? 0}</Td>
+                    <Td>{route.stops?.length ? route.stops.length : <span className="text-amber-600 dark:text-amber-400">None yet</span>}</Td>
                     <Td>
                       <Badge tone={route.status === 'Active' ? 'success' : 'neutral'}>{route.status}</Badge>
                     </Td>

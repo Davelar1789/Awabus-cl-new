@@ -18,7 +18,16 @@ export default function EditRoute() {
   const { data: route, isLoading } = useQuery({ queryKey: ['route', id], queryFn: () => getRoute(id) });
   usePageHeader({ breadcrumb: ['AwaBus', 'Routes', route?.name || 'Edit route', 'Edit'] });
 
-  const baseline = useMemo(() => (route ? { name: route.name } : null), [route]);
+  const baseline = useMemo(
+    () =>
+      route
+        ? {
+            name: route.name,
+            stops: [...(route.stops || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((st) => ({ name: st.name, lat: st.lat, lng: st.lng })),
+          }
+        : null,
+    [route]
+  );
   // Unsaved edits are kept as a draft until saved or discarded.
   const [values, setValues, draft] = useEditDraft(`route:${id}`, baseline);
 
@@ -35,7 +44,7 @@ export default function EditRoute() {
 
   return (
     <div>
-      <PageHeader title="Edit route" subtitle="Modify this route's name and status." />
+      <PageHeader title="Edit route" subtitle="Change this route's name and stops." />
       <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
 
       <Card className="mb-6">
@@ -54,9 +63,9 @@ export default function EditRoute() {
         mode="edit"
         values={values}
         onChange={setValues}
-        onSubmit={(e) => {
+        onSubmit={(e, payload) => {
           e.preventDefault();
-          mutation.mutate(values);
+          mutation.mutate(payload || values);
         }}
         submitting={mutation.isPending}
         routeIdDisplay={route.routeId}

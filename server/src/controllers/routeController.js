@@ -54,6 +54,26 @@ export const getRouteById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: route });
 });
 
+// Checks and tidies a list of stops: names, positions inside Ghana (with a
+// margin), at most 50, numbered in the order given. Returns { stops } or { error }.
+const MAX_STOPS = 50;
+function cleanStops(input) {
+  if (!Array.isArray(input)) return { error: 'Stops must be a list' };
+  if (input.length > MAX_STOPS) return { error: `A route can have at most ${MAX_STOPS} stops` };
+  const stops = [];
+  for (let i = 0; i < input.length; i += 1) {
+    const st = input[i] || {};
+    const name = String(st.name || '').trim();
+    const lat = Number(st.lat);
+    const lng = Number(st.lng);
+    if (name.length < 2 || name.length > 80) return { error: `Stop ${i + 1} needs a name (2-80 characters)` };
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { error: `Stop ${i + 1} needs a position` };
+    if (lat < 4.3 || lat > 11.5 || lng < -3.6 || lng > 1.5) return { error: `Stop ${i + 1} is outside Ghana` };
+    stops.push({ name, lat, lng, order: i + 1 });
+  }
+  return { stops };
+}
+
 // @desc    Create route
 // @route   POST /api/routes
 export const createRoute = asyncHandler(async (req, res) => {
@@ -69,12 +89,18 @@ export const createRoute = asyncHandler(async (req, res) => {
     throw new Error('Route name is required');
   }
 
+  const cleaned = cleanStops(stops || []);
+  if (cleaned.error) {
+    res.status(400);
+    throw new Error(cleaned.error);
+  }
+
   const routeId = await nextSequentialCode(Route, 'routeId', 'RT-', 3);
 
   const route = await Route.create({
     routeId,
     name,
-    stops: stops || [],
+    stops: cleaned.stops,
     status: status || 'Active',
   });
 
@@ -93,7 +119,14 @@ export const updateRoute = asyncHandler(async (req, res) => {
 
   const { name, stops, status } = req.body;
   if (name !== undefined) route.name = name;
-  if (stops !== undefined) route.stops = stops;
+  if (stops !== undefined) {
+    const cleaned = cleanStops(stops);
+    if (cleaned.error) {
+      res.status(400);
+      throw new Error(cleaned.error);
+    }
+    route.stops = cleaned.stops;
+  }
   if (status !== undefined) route.status = status;
 
   await route.save();

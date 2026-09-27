@@ -3,16 +3,28 @@ import { Label } from '../../components/ui/Input.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import RouteStopsEditor, { stopsErrors } from '../../components/routes/RouteStopsEditor.jsx';
 
 // Routes are the root of the assignment chain — buses assign themselves to a
 // route, drivers assign themselves to a bus, and students assign themselves
 // to a route. None of that is editable from here, so this form only ever
-// collects the route's own details.
+// collects the route's own details: its name and its stops.
 export default function RouteForm({ mode, values, onChange, onSubmit, submitting, routeIdDisplay, error }) {
   const set = (key) => (val) => onChange({ ...values, [key]: val });
+  const [checked, setChecked] = useState(false);
+  const stops = values.stops || [];
+
+  const submit = (e) => {
+    e.preventDefault();
+    setChecked(true);
+    if (stopsErrors(stops).any) return;
+    // Stops are saved in the order shown, numbered from 1.
+    onSubmit(e, { ...values, stops: stops.map((st, i) => ({ name: st.name.trim(), lat: Number(st.lat), lng: Number(st.lng), order: i + 1 })) });
+  };
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={submit} noValidate>
       <Card>
         <CardHeader title="Route details" />
         {error && (
@@ -35,6 +47,17 @@ export default function RouteForm({ mode, values, onChange, onSubmit, submitting
             />
           </div>
         </CardBody>
+
+        <div className="border-t border-slate-100 p-5 dark:border-slate-800">
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white">Stops</h4>
+          <p className="mb-4 mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            Where the bus stops, in the order it drives them. Used by the driver app, Live Tracking and the route map.
+          </p>
+          <RouteStopsEditor stops={stops} onChange={set('stops')} showErrors={checked} />
+          {checked && stopsErrors(stops).any && (
+            <p className="mt-3 text-sm font-medium text-red-600">Fix the highlighted stops before saving.</p>
+          )}
+        </div>
 
         <div className="flex justify-end gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
           <Button as={Link} to="/routes" variant="outline" type="button">
