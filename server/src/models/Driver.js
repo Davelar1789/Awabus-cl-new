@@ -58,6 +58,8 @@ const driverSchema = new mongoose.Schema(
     residentialAddress: { type: String, trim: true },
 
     status: { type: String, enum: ['Active', 'Idle', 'Maintenance', 'Inactive'], default: 'Active' },
+    // When the password last changed; sign-ins from before then stop working.
+    passwordChangedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -68,6 +70,8 @@ driverSchema.virtual('fullName').get(function fullName() {
 
 driverSchema.pre('save', async function preSave(next) {
   if (!this.isModified('password') || !this.password) return next();
+  // A second back so a token issued right after this save is still newer.
+  if (!this.isNew) this.passwordChangedAt = new Date(Date.now() - 1000);
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();

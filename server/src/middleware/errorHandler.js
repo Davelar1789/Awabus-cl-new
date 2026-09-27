@@ -38,6 +38,7 @@ export const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message,
+    ...(err.errorCode ? { code: err.errorCode } : {}),
     // Code details only when explicitly developing; never on a deployed server.
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });

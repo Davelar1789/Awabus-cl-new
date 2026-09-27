@@ -78,12 +78,13 @@ export default function AccountSettings() {
 
   const changeMutation = useMutation({
     mutationFn: () => changePassword({ currentPassword: pw.current, newPassword: pw.next, code }),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (res?.token) useAuthStore.getState().setToken(res.token); // stay signed in here
       setPw(emptyPassword);
       setSentTo('');
       setCode('');
       setError('');
-      setNotice('Your password has been changed');
+      setNotice(res?.message || 'Your password has been changed');
     },
     onError: (err) => setError(err.message),
   });

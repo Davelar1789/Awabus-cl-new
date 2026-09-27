@@ -10,6 +10,7 @@ import Trip from '../models/Trip.js';
 import { tenantContext } from '../utils/tenantContext.js';
 import { assertFormats } from '../utils/formats.js';
 import { buildInsights, INSIGHT_RANGES } from '../services/platformInsights.js';
+import { forgetSchoolStatus } from '../utils/access.js';
 
 // Derives a short, URL/login-screen-friendly code from the school name,
 // e.g. "Awabus Demo School" -> "AWABUS-DEMO-SCHOOL". Matches School.code's
@@ -192,6 +193,7 @@ export const updateSchoolStatus = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('School not found');
   }
+  forgetSchoolStatus(school._id); // takes effect on the school's next request
 
   res.json({ success: true, school });
 });

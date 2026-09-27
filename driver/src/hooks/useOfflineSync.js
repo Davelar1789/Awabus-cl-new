@@ -9,7 +9,7 @@ import { markAttendance, pushLocation } from '../api/driverApp.js';
 const RETRY_EVERY_MS = 30 * 1000;
 
 // "Try again later" failures: no connection, server trouble, signed out, rate limited.
-const isTemporary = (err) => err?.isNetworkError || !err?.status || err.status >= 500 || err.status === 401 || err.status === 408 || err.status === 429;
+const isTemporary = (err) => err?.isNetworkError || !err?.status || err.status >= 500 || err.status === 401 || err.status === 403 || err.status === 408 || err.status === 429;
 
 let flushing = false;
 

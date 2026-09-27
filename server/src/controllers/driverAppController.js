@@ -16,6 +16,8 @@ import { nextSequentialCode } from '../utils/idGenerator.js';
 import { generateOtpCode, sendOtpSms, sendSms, getOtpExpiry } from '../utils/otp.js';
 import { tenantContext } from '../utils/tenantContext.js';
 import { MAX_OTP_ATTEMPTS } from './authController.js';
+import { signResetToken, readResetToken } from '../utils/resetToken.js';
+import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE, DRIVER_INACTIVE_MESSAGE } from '../utils/access.js';
 import { notify, describeTrip } from '../services/notify.js';
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -119,6 +121,8 @@ export const driverLogin = asyncHandler(async (req, res) => {
     res.status(401);
     throw new Error('Invalid phone number or password');
   }
+  if (driver.status === 'Inactive') throw accessError(res, 'DRIVER_INACTIVE', DRIVER_INACTIVE_MESSAGE);
+  if ((await schoolStatus(driver.school)) !== 'Active') throw accessError(res, 'SCHOOL_SUSPENDED', SCHOOL_SUSPENDED_MESSAGE);
 
   res.json({
     success: true,
@@ -591,9 +595,7 @@ export const driverVerifyOtp = asyncHandler(async (req, res) => {
   otp.consumed = true;
   await otp.save();
 
-  const resetToken = jwt.sign({ phone, purpose: 'driver_password_reset' }, process.env.JWT_SECRET, {
-    expiresIn: '15m',
-  });
+  const resetToken = signResetToken({ phone, purpose: 'driver_password_reset' }, await findDriverByPhone(phone));
 
   res.json({ success: true, resetToken });
 });
@@ -632,23 +634,17 @@ export const driverResetPassword = asyncHandler(async (req, res) => {
     throw new Error('Reset token and new password are required');
   }
 
-  let payload;
-  try {
-    payload = jwt.verify(resetToken, process.env.JWT_SECRET);
-  } catch {
+  const read = readResetToken(resetToken, (p) => findDriverByPhone(p.phone));
+  if (read.error || read.payload.purpose !== 'driver_password_reset') {
     res.status(400);
-    throw new Error('Reset session expired. Please restart the password reset process.');
+    throw new Error(read.error || 'Invalid reset session');
   }
-  if (payload.purpose !== 'driver_password_reset') {
-    res.status(400);
-    throw new Error('Invalid reset session');
+  const checked = await read.check();
+  if (checked.error) {
+    res.status(checked.status || 400);
+    throw new Error(checked.error);
   }
-
-  const driver = await findDriverByPhone(payload.phone);
-  if (!driver) {
-    res.status(404);
-    throw new Error('Account not found');
-  }
+  const { account: driver } = checked;
 
   driver.password = newPassword;
   await saveDriverAsSystem(driver);

@@ -19,6 +19,11 @@ apiClient.interceptors.response.use(
     if (error?.response?.status === 401) {
       useAuthStore.getState().logout();
     }
+    // School suspended or driver made inactive: this account can't be used, so sign out.
+    const code = error?.response?.data?.code;
+    if (error?.response?.status === 403 && (code === 'SCHOOL_SUSPENDED' || code === 'DRIVER_INACTIVE') && useAuthStore.getState().token) {
+      useAuthStore.getState().logout();
+    }
 
     const noResponse = error?.code === 'ERR_NETWORK' || !error?.response;
     // NetInfo (device-level radio/Wi-Fi state) vs. axios getting no response

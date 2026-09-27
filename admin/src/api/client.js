@@ -21,6 +21,15 @@ apiClient.interceptors.response.use(
     if (error?.response?.status === 401) {
       useAuthStore.getState().logout();
     }
+    // The school was suspended (or similar): sign out and say why on the sign-in page.
+    if (error?.response?.status === 403 && error?.response?.data?.code === 'SCHOOL_SUSPENDED') {
+      try {
+        sessionStorage.setItem('awabus_signout_reason', error.response.data.message);
+      } catch {
+        /* storage unavailable */
+      }
+      if (useAuthStore.getState().token) useAuthStore.getState().logout();
+    }
     const message =
       error?.response?.data?.message || error?.message || 'Something went wrong. Please try again.';
     return Promise.reject(new Error(message));

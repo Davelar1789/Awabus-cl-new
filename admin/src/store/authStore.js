@@ -30,6 +30,15 @@ export const useAuthStore = create((set) => ({
     set({ token, admin, isAuthenticated: true });
   },
 
+  // A new sign-in token for the same account (e.g. after changing the password,
+  // which signs out every other session).
+  setToken: (token) => {
+    set((state) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, admin: state.admin }));
+      return { token };
+    });
+  },
+
   updateAdmin: (admin) => {
     set((state) => {
       const next = { token: state.token, admin };

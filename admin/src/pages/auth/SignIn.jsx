@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, ArrowLeft } from 'lucide-react';
@@ -28,7 +28,22 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [remember, setRemember] = useState(false);
-  const [formError, setFormError] = useState('');
+  // Why the last session ended, if the server said (e.g. school suspended).
+  const [formError, setFormError] = useState(() => {
+    try {
+      return sessionStorage.getItem('awabus_signout_reason') || '';
+    } catch {
+      return '';
+    }
+  });
+  // Show the reason once: forget it after this page has shown it.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('awabus_signout_reason');
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
   const [success, setSuccess] = useState(false);
 
   const emailValid = EMAIL_REGEX.test(email.trim());

@@ -5,6 +5,8 @@ import Driver from '../models/Driver.js';
 import School from '../models/School.js';
 import mongoose from 'mongoose';
 import { tenantContext } from '../utils/tenantContext.js';
+import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE, DRIVER_INACTIVE_MESSAGE } from '../utils/access.js';
+import { issuedBeforePasswordChange } from '../utils/resetToken.js';
 
 const extractBearerToken = (req) => {
   const authHeader = req.headers.authorization;
@@ -50,6 +52,10 @@ export const protectAdmin = asyncHandler(async (req, res, next) => {
         res.status(401);
         throw new Error('Superadmin account no longer exists');
       }
+      if (issuedBeforePasswordChange(decoded, admin)) {
+        res.status(401);
+        throw new Error('Your password was changed. Please sign in again.');
+      }
       req.admin = admin;
       req.school = null;
       next();
@@ -75,6 +81,11 @@ export const protectAdmin = asyncHandler(async (req, res, next) => {
       res.status(401);
       throw new Error('Admin account no longer exists');
     }
+    if (issuedBeforePasswordChange(decoded, admin)) {
+      res.status(401);
+      throw new Error('Your password was changed. Please sign in again.');
+    }
+    if ((await schoolStatus(decoded.school)) !== 'Active') throw accessError(res, 'SCHOOL_SUSPENDED', SCHOOL_SUSPENDED_MESSAGE);
     req.admin = admin;
     req.school = decoded.school;
     next();
@@ -147,6 +158,12 @@ export const protectDriver = asyncHandler(async (req, res, next) => {
       res.status(401);
       throw new Error('Driver account no longer exists');
     }
+    if (issuedBeforePasswordChange(decoded, driver)) {
+      res.status(401);
+      throw new Error('Your password was changed. Please sign in again.');
+    }
+    if (driver.status === 'Inactive') throw accessError(res, 'DRIVER_INACTIVE', DRIVER_INACTIVE_MESSAGE);
+    if ((await schoolStatus(decoded.school)) !== 'Active') throw accessError(res, 'SCHOOL_SUSPENDED', SCHOOL_SUSPENDED_MESSAGE);
     req.driver = driver;
     req.school = decoded.school;
     next();

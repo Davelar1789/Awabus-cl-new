@@ -6,6 +6,7 @@ import { ghanaPhoneVariants, isValidGhanaPhone, normalizeGhanaPhone } from '../u
 import { checkPasswordStrength } from '../utils/password.js';
 import { tenantContext } from '../utils/tenantContext.js';
 import { MAX_OTP_ATTEMPTS } from './authController.js';
+import generateToken from '../utils/generateToken.js';
 
 // Account settings for the signed-in admin (req.admin, set by protectAdmin).
 // Changing the email or phone needs a code sent to the NEW address, proving the
@@ -224,5 +225,10 @@ export const changePassword = asyncHandler(async (req, res) => {
   await consumeCode(res, admin, 'change_password', code);
   admin.password = newPassword;
   await admin.save();
-  res.json({ success: true, message: 'Your password has been changed' });
+  // Other sessions are now signed out; this one continues with a fresh token.
+  res.json({
+    success: true,
+    message: 'Your password has been changed. Other devices have been signed out.',
+    token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
+  });
 });

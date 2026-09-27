@@ -24,6 +24,8 @@ const adminSchema = new mongoose.Schema(
     role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
     avatarUrl: { type: String, default: '' },
     rememberedDevices: [{ type: String }],
+    // When the password last changed; sign-ins from before then stop working.
+    passwordChangedAt: { type: Date, default: null },
     // Notification types this admin switched off (see services/notificationTypes.js).
     mutedNotifications: [{ type: String }],
   },
@@ -32,6 +34,8 @@ const adminSchema = new mongoose.Schema(
 
 adminSchema.pre('save', async function preSave(next) {
   if (!this.isModified('password') || !this.password) return next();
+  // A second back so a token issued right after this save is still newer.
+  if (!this.isNew) this.passwordChangedAt = new Date(Date.now() - 1000);
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
