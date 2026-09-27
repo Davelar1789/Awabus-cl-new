@@ -137,8 +137,28 @@ export const requestVerification = asyncHandler(async (req, res) => {
     return res.json({ success: true, sentTo: channel === 'email' ? maskEmail(target) : maskPhone(target) });
   }
 
+  if (purpose === 'reveal_password') {
+    // Showing a typed password on screen is confirmed by email only.
+    if (!admin.email) {
+      res.status(400);
+      throw new Error('There is no email on this account to send a code to');
+    }
+    await issueCode(res, admin, { purpose, target: admin.email, channel: 'email' });
+    return res.json({ success: true, sentTo: maskEmail(admin.email) });
+  }
+
   res.status(400);
   throw new Error('Unknown verification purpose');
+});
+
+// How long a verified "show password" lasts before a new code is needed.
+const REVEAL_WINDOW_MS = 5 * 60 * 1000;
+
+// @desc    Confirm the emailed code before showing a typed password on screen
+// @route   POST /api/auth/me/reveal-password
+export const confirmPasswordReveal = asyncHandler(async (req, res) => {
+  await consumeCode(res, req.admin, 'reveal_password', req.body.code);
+  res.json({ success: true, allowedUntil: new Date(Date.now() + REVEAL_WINDOW_MS).toISOString() });
 });
 
 // @desc    Confirm a new email address with the code sent to it

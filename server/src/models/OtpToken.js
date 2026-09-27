@@ -13,7 +13,7 @@ const otpTokenSchema = new mongoose.Schema(
     code: { type: String, required: true },
     purpose: {
       type: String,
-      enum: ['password_reset', 'driver_password_reset', 'change_email', 'change_phone', 'change_password'],
+      enum: ['password_reset', 'driver_password_reset', 'change_email', 'change_phone', 'change_password', 'reveal_password'],
       default: 'password_reset',
     },
     expiresAt: { type: Date, required: true },

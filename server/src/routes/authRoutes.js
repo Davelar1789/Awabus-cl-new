@@ -15,6 +15,7 @@ import {
   confirmEmailChange,
   confirmPhoneChange,
   changePassword,
+  confirmPasswordReveal,
 } from '../controllers/accountController.js';
 import { protectAdmin } from '../middleware/auth.js';
 
@@ -27,6 +28,7 @@ router.post('/me/verification', protectAdmin, requestVerification);
 router.post('/me/email', protectAdmin, confirmEmailChange);
 router.post('/me/phone', protectAdmin, confirmPhoneChange);
 router.post('/me/password', protectAdmin, changePassword);
+router.post('/me/reveal-password', protectAdmin, confirmPasswordReveal);
 router.post('/forgot-password', forgotPassword);
 router.post('/check-email', checkEmail);
 router.post('/set-password', setPassword);

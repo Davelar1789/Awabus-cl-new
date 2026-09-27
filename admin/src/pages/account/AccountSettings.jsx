@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Mail, Moon, Phone, ShieldCheck } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
@@ -10,6 +10,7 @@ import OtpInput from '../../components/ui/OtpInput.jsx';
 import AccountTabs, { SuccessNote } from '../../components/account/AccountTabs.jsx';
 import PasswordChecklist from '../../components/account/PasswordChecklist.jsx';
 import useCountdown from '../../components/account/useCountdown.js';
+import RevealPasswordModal from '../../components/account/RevealPasswordModal.jsx';
 import { changePassword, requestVerification } from '../../api/account.js';
 import { isStrongPassword } from '../../lib/password.js';
 import { formatPhone } from '../../lib/phone.js';
@@ -32,6 +33,27 @@ export default function AccountSettings() {
   const [notice, setNotice] = useState('');
   const cooldown = useCountdown();
   const who = { email: admin?.email, name: admin?.name };
+
+  // Showing the typed current password needs an emailed code first; once
+  // verified it can be toggled freely until revealUntil, then hides again.
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [revealUntil, setRevealUntil] = useState(0);
+  const [revealOpen, setRevealOpen] = useState(false);
+
+  useEffect(() => {
+    if (!revealUntil) return undefined;
+    const t = setTimeout(() => {
+      setShowCurrent(false);
+      setRevealUntil(0);
+    }, Math.max(revealUntil - Date.now(), 0));
+    return () => clearTimeout(t);
+  }, [revealUntil]);
+
+  const toggleCurrent = (show) => {
+    if (!show) return setShowCurrent(false);
+    if (Date.now() < revealUntil) return setShowCurrent(true);
+    return setRevealOpen(true);
+  };
 
   const sendMutation = useMutation({
     mutationFn: () => requestVerification({ purpose: 'change_password', channel }),
@@ -88,6 +110,17 @@ export default function AccountSettings() {
                 }}
                 autoComplete="current-password"
                 disabled={Boolean(sentTo)}
+                visible={showCurrent}
+                onToggleVisible={toggleCurrent}
+              />
+              <RevealPasswordModal
+                open={revealOpen}
+                email={admin?.email}
+                onClose={() => setRevealOpen(false)}
+                onVerified={(until) => {
+                  setRevealUntil(until);
+                  setShowCurrent(true);
+                }}
               />
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

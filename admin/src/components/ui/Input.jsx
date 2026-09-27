@@ -39,8 +39,13 @@ export const Input = forwardRef(({ className, error, icon: Icon, wrapperClassNam
 ));
 Input.displayName = 'Input';
 
-export const PasswordInput = forwardRef(({ className, error, ...props }, ref) => {
-  const [visible, setVisible] = useState(false);
+// Pass `visible` + `onToggleVisible` to control the eye button yourself (e.g. to
+// require verification before showing); otherwise it toggles freely.
+export const PasswordInput = forwardRef(({ className, error, visible: visibleProp, onToggleVisible, ...props }, ref) => {
+  const [visibleState, setVisibleState] = useState(false);
+  const controlled = visibleProp !== undefined;
+  const visible = controlled ? visibleProp : visibleState;
+  const toggle = () => (controlled ? onToggleVisible?.(!visible) : setVisibleState((v) => !v));
   return (
     <div className="relative">
       <input
@@ -57,7 +62,7 @@ export const PasswordInput = forwardRef(({ className, error, ...props }, ref) =>
       <button
         type="button"
         tabIndex={-1}
-        onClick={() => setVisible((v) => !v)}
+        onClick={toggle}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
         aria-label={visible ? 'Hide password' : 'Show password'}
       >
