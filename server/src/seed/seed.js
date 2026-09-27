@@ -11,6 +11,7 @@ import Student from '../models/Student.js';
 import Guardian from '../models/Guardian.js';
 import Trip from '../models/Trip.js';
 import OtpToken from '../models/OtpToken.js';
+import Counter from '../models/Counter.js';
 
 import { tenantContext } from '../utils/tenantContext.js';
 import { SCHOOL, ADMIN, PLACES, DRIVERS, BUSES, ROUTES, buildStudents, TRIP_STATUSES } from './data.js';
@@ -32,6 +33,7 @@ const destroy = async () => {
       Guardian.deleteMany(),
       Trip.deleteMany(),
       OtpToken.deleteMany(),
+      Counter.deleteMany(),
     ]);
   });
   console.log('[seed] All collections cleared');
