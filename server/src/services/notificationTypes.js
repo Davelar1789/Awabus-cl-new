@@ -1,17 +1,15 @@
-// Every kind of notification the admin site can show. `locked` ones are
-// safety alerts that an admin cannot switch off in their settings.
+// Every kind of notification the admin site can show. Each admin chooses which
+// ones they receive in Account settings; every type can be switched off.
 export const NOTIFICATION_TYPES = {
   student_not_on_board: {
     category: 'critical',
     severity: 'critical',
-    locked: true,
     label: 'Student not on board',
     description: 'A driver marked a student as not on board.',
   },
   trip_delayed: {
     category: 'critical',
     severity: 'critical',
-    locked: true,
     label: 'Trip running late',
     description: 'A driver reported that their trip is running late.',
   },
@@ -54,8 +52,6 @@ export const NOTIFICATION_CATEGORIES = [
   { key: 'account', label: 'Account & uploads' },
 ];
 
-// Only real, non-locked types can be muted.
+// Only real notification types can be muted.
 export const cleanMutedTypes = (list) =>
-  [...new Set((Array.isArray(list) ? list : []).map(String))].filter(
-    (t) => NOTIFICATION_TYPES[t] && !NOTIFICATION_TYPES[t].locked
-  );
+  [...new Set((Array.isArray(list) ? list : []).map(String))].filter((t) => NOTIFICATION_TYPES[t]);

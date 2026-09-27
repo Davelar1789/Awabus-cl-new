@@ -100,7 +100,6 @@ const preferencesFor = (admin) => {
       category: t.category,
       label: t.label,
       description: t.description,
-      locked: Boolean(t.locked),
       enabled: !muted.includes(key),
     })),
   };

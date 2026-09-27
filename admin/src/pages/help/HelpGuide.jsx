@@ -198,7 +198,7 @@ export const GUIDE = [
         title: 'Choose what you are notified about',
         steps: [
           'Click the gear in the bell panel, or open Account settings and scroll to Notifications.',
-          'Switch off the kinds you don\'t need. Critical alerts (student not on board, trip running late) can\'t be switched off.',
+          'Switch off the kinds you don\'t need. Every kind can be switched off, including critical alerts such as a student not on board, so think before turning those off.',
         ],
       },
     ],
