@@ -16,7 +16,7 @@ export const MAX_OTP_ATTEMPTS = 5;
 // reason to reach for tenantContext.runAsSystem() instead of a normal query:
 // it's a deliberate, explicit cross-tenant lookup, not an accidental leak.
 // Once an admin is found, `admin.school` goes into the JWT and every
-// subsequent request is scoped normally by the withTenant 
+// subsequent request is scoped by protectAdmin (middleware/auth.js).
 const findAdminByEmail = (email) =>
   tenantContext.runAsSystem(async () =>
     Admin.findOne({
