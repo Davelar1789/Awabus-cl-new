@@ -33,8 +33,10 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Profile photos are sent inline as (client-resized) data URLs, so allow more
+// than Express's 100kb default.
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'AwaBus API is running' }));
