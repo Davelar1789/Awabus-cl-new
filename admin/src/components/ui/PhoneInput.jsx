@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cn } from '../../lib/utils.js';
+import GhanaFlag from './GhanaFlag.jsx';
 import { isValidPhone, sanitizePhone, toLocalPhone } from '../../lib/phone.js';
 
 /**
@@ -21,7 +22,7 @@ export default function PhoneInput({ value, onChange, onBlur, error, placeholder
         )}
       >
         <span className="flex h-full items-center gap-1.5 border-r border-slate-200 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200">
-          <span className="inline-block h-3 w-4 rounded-[2px] bg-gradient-to-b from-red-600 via-amber-400 to-emerald-600" />
+          <GhanaFlag className="h-3.5 w-[21px] rounded-[2px] ring-1 ring-black/10" />
           GH
         </span>
         <input
