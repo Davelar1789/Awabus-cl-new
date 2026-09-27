@@ -67,11 +67,9 @@ export default function SignIn() {
       loginApi({
         email: email.trim(),
         password,
-        rememberDevice: remember,
-        deviceId: 'web-admin-portal',
       }),
     onSuccess: (data) => {
-      setAuth(data);
+      setAuth(data, { remember });
       setSuccess(true);
       const destination = data.admin?.role === 'superadmin' ? '/platform' : '/';
       setTimeout(() => navigate(destination), 900);
@@ -85,10 +83,9 @@ export default function SignIn() {
         email: email.trim(),
         password,
         setupCode: setupCode.trim(),
-        deviceId: 'web-admin-portal',
       }),
     onSuccess: (data) => {
-      setAuth(data);
+      setAuth(data, { remember: true });
       setSuccess(true);
       const destination = data.admin?.role === 'superadmin' ? '/platform' : '/';
       setTimeout(() => navigate(destination), 900);

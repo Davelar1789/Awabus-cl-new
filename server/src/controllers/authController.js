@@ -58,7 +58,7 @@ export const checkEmail = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/set-password
 // @access  Public
 export const setPassword = asyncHandler(async (req, res) => {
-  const { email, password, deviceId, setupCode } = req.body;
+  const { email, password, setupCode } = req.body;
 
   if (!email || !password) {
     res.status(400);
@@ -95,11 +95,6 @@ export const setPassword = asyncHandler(async (req, res) => {
 
   admin.password = password;
   clearSetupCode(admin);
-
-  if (deviceId && !admin.rememberedDevices.includes(deviceId)) {
-    admin.rememberedDevices.push(deviceId);
-  }
-
   await saveAdminAsSystem(admin);
 
   res.json({
@@ -113,7 +108,7 @@ export const setPassword = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 export const login = asyncHandler(async (req, res) => {
-  const { email, password, rememberDevice, deviceId } = req.body;
+  const { email, password } = req.body;
 
   if (!email || !password) {
     res.status(400);
@@ -130,17 +125,11 @@ export const login = asyncHandler(async (req, res) => {
     throw accessError(res, 'SCHOOL_SUSPENDED', SCHOOL_SUSPENDED_MESSAGE);
   }
 
-  if (rememberDevice && deviceId && !admin.rememberedDevices.includes(deviceId)) {
-    admin.rememberedDevices.push(deviceId);
-    await saveAdminAsSystem(admin);
-  }
-
-// login
-res.json({
-  success: true,
-  token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
-  admin: admin.toSafeObject(),
-});
+  res.json({
+    success: true,
+    token: generateToken(admin._id, 'admin', { school: admin.school, role: admin.role }),
+    admin: admin.toSafeObject(),
+  });
 });
 
 // @desc    Get logged-in admin profile

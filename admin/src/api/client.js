@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useAuthStore } from '../store/authStore.js';
+import { useAuthStore, signInLapsed } from '../store/authStore.js';
 import { useViewSchoolStore } from '../store/viewSchoolStore.js';
 
 export const apiClient = axios.create({
@@ -7,6 +7,8 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  // Not remembered and past its time (tab left open): sign out instead of sending.
+  if (useAuthStore.getState().token && signInLapsed()) useAuthStore.getState().logout();
   const { token, admin } = useAuthStore.getState();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   // A superadmin sees one chosen school at a time on the school pages.

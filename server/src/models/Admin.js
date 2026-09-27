@@ -24,7 +24,9 @@ const adminSchema = new mongoose.Schema(
     password: { type: String, minlength: 6 },
     role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
     avatarUrl: { type: String, default: '' },
-    rememberedDevices: [{ type: String }],
+    // No longer filled in ("Remember this device" is handled in the browser);
+    // kept so older records still load.
+    rememberedDevices: [{ type: String, select: false }],
     // One-time code for choosing the first password (utils/setupCode.js).
     ...setupCodeFields,
     // When the password last changed; sign-ins from before then stop working.
