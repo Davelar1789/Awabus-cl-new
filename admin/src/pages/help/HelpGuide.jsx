@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ArrowRight,
+  Bell,
   Bus as BusIcon,
   CheckSquare,
   ChevronDown,
@@ -177,6 +178,31 @@ export const GUIDE = [
     to: '/trip-history',
     summary: 'Every past trip: when it ran, who drove, and what happened to each student.',
     tasks: [{ title: 'Look up a trip', steps: ['Open Trip History.', 'Click a trip to see its timeline, stops and each student\'s status.'] }],
+  },
+  {
+    id: 'notifications',
+    title: 'Notifications',
+    icon: Bell,
+    to: '/notifications',
+    summary: 'The bell at the top of every page tells you what happened on trips, with buses and with uploads.',
+    tasks: [
+      {
+        title: 'Check your notifications',
+        steps: [
+          'The number on the bell is how many you haven\'t read yet. It turns red when one of them is critical, such as a student not on board.',
+          'Click the bell to see the latest ones. Click a notification to open the trip, bus or list it is about; it is then marked as read.',
+          'Click "View all notifications" to see everything from the last 30 days, filtered by Unread, Critical, Trips, Fleet or Uploads.',
+        ],
+      },
+      {
+        title: 'Choose what you are notified about',
+        steps: [
+          'Click the gear in the bell panel, or open Account settings and scroll to Notifications.',
+          'Switch off the kinds you don\'t need. Critical alerts (student not on board, trip running late) can\'t be switched off.',
+        ],
+      },
+    ],
+    tips: ['Your choices only affect what you see. Other admins at your school keep their own settings.'],
   },
   {
     id: 'bulk-upload',

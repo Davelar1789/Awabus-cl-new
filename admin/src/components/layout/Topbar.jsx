@@ -8,6 +8,7 @@ import Avatar from '../ui/Avatar.jsx';
 import useConfirmSignOut from './useConfirmSignOut.jsx';
 import { formatPhone } from '../../lib/phone.js';
 import { guideSectionFor } from '../../pages/help/HelpGuide.jsx';
+import NotificationBell from '../notifications/NotificationBell.jsx';
 
 // Section names used in page breadcrumbs, mapped to their list pages. A crumb can
 // also be given explicitly as { label, to } (e.g. a record's profile page).
@@ -24,6 +25,7 @@ const SECTION_LINKS = {
   'live tracking': '/live-tracking',
   'my profile': '/account/profile',
   'account settings': '/account/settings',
+  notifications: '/notifications',
 };
 
 const resolveCrumb = (crumb) =>
@@ -108,10 +110,7 @@ export default function Topbar() {
             <CircleHelp className="h-[18px] w-[18px]" />
           </Link>
         )}
-        <button className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-navy dark:text-slate-300 dark:hover:bg-slate-800">
-          <Bell className="h-[18px] w-[18px]" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-red-500" />
-        </button>
+        <NotificationBell />
 
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
 
@@ -146,6 +145,13 @@ export default function Topbar() {
                 className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
               >
                 <Settings className="h-4 w-4" /> Account settings
+              </Link>
+              <Link
+                to="/account/settings#notifications"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-navy"
+              >
+                <Bell className="h-4 w-4" /> Notification settings
               </Link>
               <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
               <button

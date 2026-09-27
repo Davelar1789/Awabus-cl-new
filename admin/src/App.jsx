@@ -40,6 +40,7 @@ import LiveTripDetail from './pages/tracking/LiveTripDetail.jsx';
 import MyProfile from './pages/account/MyProfile.jsx';
 import AccountSettings from './pages/account/AccountSettings.jsx';
 import HelpGuide from './pages/help/HelpGuide.jsx';
+import Notifications from './pages/notifications/Notifications.jsx';
 
 export default function App() {
   return (
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/live-tracking" element={<LiveTracking />} />
           <Route path="/live-tracking/:tripId" element={<LiveTripDetail />} />
 
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/help" element={<HelpGuide />} />
         </Route>
       </Route>

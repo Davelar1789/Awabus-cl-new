@@ -15,6 +15,7 @@ import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextSequentialCode } from '../utils/idGenerator.js';
 import { generateOtpCode, sendOtpSms, sendSms, getOtpExpiry } from '../utils/otp.js';
 import { tenantContext } from '../utils/tenantContext.js';
+import { notify, describeTrip } from '../services/notify.js';
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -257,6 +258,14 @@ export const startTrip = asyncHandler(async (req, res) => {
   await Bus.findByIdAndUpdate(trip.bus, { status: 'Active', gpsSignal: 'ok' });
 
   req.app.get('io')?.emit('trip:started', { tripId: trip._id, busId: trip.bus });
+  const { routeName, plate } = await describeTrip(trip);
+  await notify({
+    type: 'trip_started',
+    title: `${routeName} trip started`,
+    message: `${trip.tripCode}${plate ? ` on bus ${plate}` : ''} left at ${trip.departureTime}, driven by ${req.driver.firstName} ${req.driver.lastName}.`,
+    link: `/live-tracking/${trip._id}`,
+    dedupeKey: `trip_started:${trip._id}`,
+  });
   res.json({ success: true, data: trip });
 });
 
@@ -278,6 +287,23 @@ export const endTrip = asyncHandler(async (req, res) => {
   await Bus.findByIdAndUpdate(trip.bus, { status: 'Idle' });
 
   req.app.get('io')?.emit('trip:ended', { tripId: trip._id, busId: trip.bus });
+  {
+    const { routeName } = await describeTrip(trip);
+    const roster = trip.studentProgress.length;
+    const carried = trip.studentProgress.filter((p) => ['On board', 'Dropped off'].includes(p.dropoffStatus)).length;
+    const missed = trip.studentProgress.filter((p) => p.dropoffStatus === 'Not on board').length;
+    const absent = trip.studentProgress.filter((p) => p.attendance === 'Absent').length;
+    const parts = [`${carried} of ${roster} students carried`];
+    if (absent) parts.push(`${absent} absent`);
+    if (missed) parts.push(`${missed} not on board`);
+    await notify({
+      type: 'trip_completed',
+      title: `${routeName} trip completed`,
+      message: `${trip.tripCode}${trip.durationMinutes ? ` took ${trip.durationMinutes} min` : ''}: ${parts.join(', ')}.`,
+      link: `/trip-history/${trip._id}`,
+      dedupeKey: `trip_completed:${trip._id}`,
+    });
+  }
 
   const populated = await Trip.findById(trip._id).populate('studentProgress.student', 'firstName lastName studentCode');
   res.json({ success: true, data: populated });
@@ -333,6 +359,34 @@ export const markAttendance = asyncHandler(async (req, res) => {
 
   await trip.save();
   req.app.get('io')?.emit('trip:studentUpdate', { tripId: trip._id, studentId: req.params.studentId, progress });
+
+  if (dropoffStatus === 'Not on board' || attendance === 'Absent') {
+    const [student, { routeName }] = await Promise.all([
+      Student.findById(req.params.studentId).select('firstName lastName').lean(),
+      describeTrip(trip),
+    ]);
+    const name = student ? `${student.firstName} ${student.lastName}` : 'A student';
+    if (dropoffStatus === 'Not on board') {
+      await notify({
+        type: 'student_not_on_board',
+        title: `${name} is not on board`,
+        message: `${req.driver.firstName} ${req.driver.lastName} marked ${name} as not on board on ${routeName} (${trip.tripCode}).`,
+        link: `/live-tracking/${trip._id}`,
+        dedupeKey: `student_not_on_board:${trip._id}:${req.params.studentId}`,
+        dedupeMinutes: 12 * 60,
+      });
+    }
+    if (attendance === 'Absent') {
+      await notify({
+        type: 'student_absent',
+        title: `${name} is absent`,
+        message: `Marked absent at roll call on ${routeName} (${trip.tripCode}).`,
+        link: `/live-tracking/${trip._id}`,
+        dedupeKey: `student_absent:${trip._id}:${req.params.studentId}`,
+        dedupeMinutes: 12 * 60,
+      });
+    }
+  }
   res.json({ success: true, data: progress });
 });
 
@@ -387,6 +441,14 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
   trip.delayBroadcasts.push(broadcast);
   trip.status = trip.status === 'In Progress' ? 'Delayed' : trip.status;
   await trip.save();
+
+  await notify({
+    type: 'trip_delayed',
+    title: `${trip.route?.name || 'A route'} is running late`,
+    message: `${req.driver.firstName} ${req.driver.lastName} reported a delay on ${trip.tripCode}: ${reason}${message ? ` - ${message}` : ''}.`,
+    link: `/live-tracking/${trip._id}`,
+    dedupeKey: `trip_delayed:${trip._id}`,
+  });
 
   res.status(201).json({ success: true, data: broadcast, preview: smsText });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Mail, Moon, Phone, ShieldCheck } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
@@ -11,6 +12,7 @@ import AccountTabs, { SuccessNote } from '../../components/account/AccountTabs.j
 import PasswordChecklist from '../../components/account/PasswordChecklist.jsx';
 import useCountdown from '../../components/account/useCountdown.js';
 import RevealPasswordModal from '../../components/account/RevealPasswordModal.jsx';
+import NotificationSettings from '../../components/notifications/NotificationSettings.jsx';
 import { changePassword, requestVerification } from '../../api/account.js';
 import { isStrongPassword } from '../../lib/password.js';
 import { formatPhone } from '../../lib/phone.js';
@@ -33,6 +35,14 @@ export default function AccountSettings() {
   const [notice, setNotice] = useState('');
   const cooldown = useCountdown();
   const who = { email: admin?.email, name: admin?.name };
+  const { hash } = useLocation();
+
+  // Links such as /account/settings#notifications jump to that section.
+  useEffect(() => {
+    if (!hash) return undefined;
+    const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    return () => clearTimeout(t);
+  }, [hash]);
 
   // Showing the typed current password needs an emailed code first; once
   // verified it can be toggled freely until revealUntil, then hides again.
@@ -231,37 +241,40 @@ export default function AccountSettings() {
           </CardBody>
         </Card>
 
-        <Card className="self-start">
-          <CardHeader title="Appearance" />
-          <CardBody>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Moon className="h-5 w-5 text-slate-400" />
-                <div>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Dark mode</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Saved on this browser.</p>
+        <div className="space-y-6 self-start">
+          <Card>
+            <CardHeader title="Appearance" />
+            <CardBody>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Moon className="h-5 w-5 text-slate-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Dark mode</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Saved on this browser.</p>
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={darkMode}
-                onClick={toggleDarkMode}
-                className={cn(
-                  'relative h-6 w-11 rounded-full transition-colors',
-                  darkMode ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-600'
-                )}
-              >
-                <span
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={darkMode}
+                  onClick={toggleDarkMode}
                   className={cn(
-                    'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all',
-                    darkMode ? 'left-[22px]' : 'left-0.5'
+                    'relative h-6 w-11 rounded-full transition-colors',
+                    darkMode ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-600'
                   )}
-                />
-              </button>
-            </div>
-          </CardBody>
-        </Card>
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all',
+                      darkMode ? 'left-[22px]' : 'left-0.5'
+                    )}
+                  />
+                </button>
+              </div>
+            </CardBody>
+          </Card>
+          <NotificationSettings id="notifications" />
+        </div>
       </div>
     </div>
   );

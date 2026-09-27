@@ -6,6 +6,7 @@ import { createDriver } from './driverController.js';
 import { createStudent } from './studentController.js';
 import { SPECS } from '../import/specs.js';
 import { buildTemplate, describeRow, readUpload, toCreateBody } from '../import/importer.js';
+import { notify } from '../services/notify.js';
 
 const CREATE = { routes: createRoute, buses: createBus, drivers: createDriver, students: createStudent };
 
@@ -88,5 +89,13 @@ export const uploadFile = asyncHandler(async (req, res) => {
       failed.push({ row: r.rowNo, column: '', message: err.message });
     }
   }
+  const SINGULAR = { routes: 'route', buses: 'bus', drivers: 'driver', students: 'student' };
+  const what = created.length === 1 ? SINGULAR[entity] : spec.label.toLowerCase();
+  await notify({
+    type: 'bulk_upload',
+    title: failed.length ? `Bulk upload finished with problems` : `Bulk upload finished`,
+    message: `${created.length} ${what} added${failed.length ? `, ${failed.length} row${failed.length === 1 ? '' : 's'} could not be added` : ''}. Uploaded by ${req.admin.name}.`,
+    link: `/${entity}`,
+  });
   res.json({ success: true, ok: failed.length === 0, committed: true, ...summary, created: created.length, errors: failed });
 });

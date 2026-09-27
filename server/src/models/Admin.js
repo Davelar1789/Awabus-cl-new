@@ -24,6 +24,8 @@ const adminSchema = new mongoose.Schema(
     role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
     avatarUrl: { type: String, default: '' },
     rememberedDevices: [{ type: String }],
+    // Notification types this admin switched off (see services/notificationTypes.js).
+    mutedNotifications: [{ type: String }],
   },
   { timestamps: true }
 );

@@ -6,6 +6,7 @@ import Student from '../models/Student.js';
 import Trip from '../models/Trip.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { assertFormats, ifChanged, normalizeCode } from '../utils/formats.js';
+import { notify } from '../services/notify.js';
 
 const populateBus = (query) =>
   query
@@ -135,6 +136,7 @@ export const updateBus = asyncHandler(async (req, res) => {
     plateNumber: ifChanged(req.body.plateNumber, bus.plateNumber),
     capacity: ifChanged(req.body.capacity, bus.capacity),
   });
+  const previousStatus = bus.status;
   const fields = ['plateNumber', 'name', 'type', 'capacity', 'status'];
   if (req.body.plateNumber !== undefined) req.body.plateNumber = normalizeCode(req.body.plateNumber);
   fields.forEach((f) => {
@@ -179,6 +181,20 @@ export const updateBus = asyncHandler(async (req, res) => {
       await Driver.findByIdAndUpdate(bus.assignedDriver, { assignedRoute: bus.assignedRoute });
       await Route.findByIdAndUpdate(bus.assignedRoute, { assignedDriver: bus.assignedDriver });
     }
+  }
+
+  if (previousStatus !== bus.status && [previousStatus, bus.status].includes('Maintenance')) {
+    const into = bus.status === 'Maintenance';
+    await notify({
+      type: 'bus_status',
+      title: into ? `${bus.plateNumber} is in maintenance` : `${bus.plateNumber} is back in service`,
+      message: into
+        ? `${bus.name} was taken off the road by ${req.admin.name}. Its route has no working bus until it returns.`
+        : `${bus.name} was set to ${bus.status} by ${req.admin.name}.`,
+      link: `/buses/${bus._id}`,
+      dedupeKey: `bus_status:${bus._id}:${bus.status}`,
+      dedupeMinutes: 1,
+    });
   }
 
   const populated = await populateBus(Bus.findById(bus._id));
