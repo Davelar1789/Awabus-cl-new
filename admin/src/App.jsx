@@ -41,6 +41,7 @@ import MyProfile from './pages/account/MyProfile.jsx';
 import AccountSettings from './pages/account/AccountSettings.jsx';
 import HelpGuide from './pages/help/HelpGuide.jsx';
 import Notifications from './pages/notifications/Notifications.jsx';
+import SystemPage from './pages/system/SystemPage.jsx';
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
 
           <Route element={<SuperadminRoute />}>
             <Route path="/platform" element={<SuperadminDashboard />} />
+            <Route path="/system" element={<SystemPage />} />
           </Route>
 
           <Route path="/routes" element={<RoutesList />} />

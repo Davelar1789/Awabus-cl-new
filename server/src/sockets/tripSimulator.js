@@ -11,10 +11,16 @@ import Bus from '../models/Bus.js';
 
 const progressByTrip = new Map();
 
+// Shown on the System page. The simulator moves buses on any in-progress trip,
+// so it should be off once real driver-app GPS is used.
+export const simulatorStatus = { running: false, intervalMs: 0, lastRunAt: null, lastError: null, lastErrorAt: null };
+
 const lerp = (a, b, t) => a + (b - a) * t;
 
 export const startTripSimulator = (io, intervalMs = 4000) => {
+  Object.assign(simulatorStatus, { running: true, intervalMs });
   setInterval(async () => {
+    simulatorStatus.lastRunAt = new Date();
     try {
       const trips = await Trip.find({ status: { $in: ['In Progress', 'Delayed'] } }).populate(
         'route',
@@ -49,6 +55,7 @@ export const startTripSimulator = (io, intervalMs = 4000) => {
         io.emit('bus:location', { tripId: trip._id, busId: trip.bus, location });
       }
     } catch (err) {
+      Object.assign(simulatorStatus, { lastError: err.message, lastErrorAt: new Date() });
       console.error('[tripSimulator] error:', err.message);
     }
   }, intervalMs);

@@ -13,6 +13,7 @@ import {
   X,
   Building2,
   BookOpen,
+  Wrench,
 } from 'lucide-react';
 import { useUiStore } from '../../store/uiStore.js';
 import { useAuthStore } from '../../store/authStore.js';
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
 ];
 
 const SUPERADMIN_NAV_ITEM = { to: '/platform', label: 'Platform', icon: Building2, end: true };
+const SYSTEM_NAV_ITEM = { to: '/system', label: 'System', icon: Wrench };
 
 export default function Sidebar() {
   const { darkMode, toggleDarkMode } = useUiStore();
@@ -39,7 +41,11 @@ export default function Sidebar() {
   const admin = useAuthStore((s) => s.admin);
   const [requestSignOut, signOutDialog] = useConfirmSignOut();
 
-  const navItems = admin?.role === 'superadmin' ? [SUPERADMIN_NAV_ITEM, ...NAV_ITEMS] : NAV_ITEMS;
+  // Superadmins are the developers: they get the System page instead of Help & Guide.
+  const navItems =
+    admin?.role === 'superadmin'
+      ? [SUPERADMIN_NAV_ITEM, ...NAV_ITEMS.filter((i) => i.to !== '/help'), SYSTEM_NAV_ITEM]
+      : NAV_ITEMS;
 
   return (
     <>

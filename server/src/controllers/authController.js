@@ -150,7 +150,7 @@ async function issueResetCode(email) {
   const code = generateOtpCode();
   // OtpToken isn't tenant-scoped (no `school` field), so it needs no wrapping.
   await OtpToken.create({ target: email, code, purpose: 'password_reset', expiresAt: getOtpExpiry() });
-  await sendOtpEmail(email, code);
+  await sendOtpEmail(email, code, { purpose: 'admin_password_reset' });
 }
 
 // @desc    Request an OTP (by email) to begin the password reset flow

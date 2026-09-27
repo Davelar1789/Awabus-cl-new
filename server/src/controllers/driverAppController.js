@@ -422,7 +422,7 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
   await Promise.all(
     guardianPhones.map(async (phone) => {
       try {
-        await sendSms(phone, smsText);
+        await sendSms(phone, smsText, { purpose: 'delay_broadcast', school: req.school });
         delivered += 1;
       } catch {
         failed += 1;
@@ -535,7 +535,10 @@ export const driverForgotPassword = asyncHandler(async (req, res) => {
     purpose: 'driver_password_reset',
     expiresAt: getOtpExpiry(),
   });
-  await sendOtpSms(phone, code);
+  if (!(await sendOtpSms(phone, code, { purpose: 'driver_password_reset', school: driver.school }))) {
+    res.status(502);
+    throw new Error("We couldn't send the code right now. Please try again in a few minutes.");
+  }
 
   res.json({ success: true, message: 'A 6-digit verification code has been sent.' });
 });
@@ -589,9 +592,19 @@ export const driverResendOtp = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Phone number is required');
   }
+  // Only text numbers that belong to a driver: otherwise anyone could make the
+  // platform send (and pay for) SMS to any number. Same reply either way.
+  const driver = await findDriverByPhone(phone);
+  if (!driver) {
+    res.json({ success: true, message: 'A new verification code has been sent.' });
+    return;
+  }
   const code = generateOtpCode();
   await OtpToken.create({ phone, code, purpose: 'driver_password_reset', expiresAt: getOtpExpiry() });
-  await sendOtpSms(phone, code);
+  if (!(await sendOtpSms(phone, code, { purpose: 'driver_password_reset', school: driver.school }))) {
+    res.status(502);
+    throw new Error("We couldn't send the code right now. Please try again in a few minutes.");
+  }
   res.json({ success: true, message: 'A new verification code has been sent.' });
 });
 

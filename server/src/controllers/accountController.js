@@ -40,8 +40,16 @@ async function issueCode(res, admin, { purpose, target, newValue, channel }) {
 
   const code = generateOtpCode();
   await OtpToken.create({ admin: admin._id, purpose, target, newValue, code, expiresAt: getOtpExpiry() });
-  if (channel === 'email') await sendOtpEmail(target, code);
-  else await sendOtpSms(target, code);
+  const delivered =
+    channel === 'email'
+      ? await sendOtpEmail(target, code, { purpose: 'account_verification', school: admin.school })
+      : await sendOtpSms(target, code, { purpose: 'account_verification', school: admin.school });
+  if (!delivered) {
+    // Cancel the unsent code so the admin can ask again straight away.
+    await OtpToken.updateMany({ admin: admin._id, purpose, consumed: false }, { consumed: true });
+    res.status(502);
+    throw new Error("We couldn't send the code right now. Please try again in a few minutes.");
+  }
 }
 
 async function consumeCode(res, admin, purpose, code) {
