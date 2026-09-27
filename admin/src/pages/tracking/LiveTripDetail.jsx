@@ -92,7 +92,7 @@ export default function LiveTripDetail() {
           <Card>
             <CardHeader title="Last Location" />
             <div className="p-5 text-sm text-slate-500 dark:text-slate-400">
-              {trip.liveLocation ? (
+              {Number.isFinite(trip.liveLocation?.lat) && Number.isFinite(trip.liveLocation?.lng) ? (
                 <>
                   <p>
                     Lat/Lng: {trip.liveLocation.lat?.toFixed(4)}° N, {trip.liveLocation.lng?.toFixed(4)}° W

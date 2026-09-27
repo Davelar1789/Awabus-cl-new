@@ -30,6 +30,11 @@ const colorForStatus = (item) => {
   return '#0d9488';
 };
 
+// Trips without a GPS fix yet have an empty liveLocation ({}), so only treat a
+// location as usable when both coordinates are real numbers.
+const toLatLng = (loc) =>
+  loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng) ? [loc.lat, loc.lng] : null;
+
 function RecenterOnSelect({ position }) {
   const map = useMap();
   useEffect(() => {
@@ -72,7 +77,11 @@ export default function LiveTracking() {
 
   const counts = data?.counts || { all: 0, active: 0, delayed: 0, offline: 0 };
   const selected = liveBuses.find((b) => b.tripId === selectedTripId);
-  const center = selected?.liveLocation ? [selected.liveLocation.lat, selected.liveLocation.lng] : [5.6037, -0.187];
+  const selectedLat = selected?.liveLocation?.lat;
+  const selectedLng = selected?.liveLocation?.lng;
+  // Memoised so the map only recentres when the selected bus actually moves.
+  const selectedPos = useMemo(() => toLatLng({ lat: selectedLat, lng: selectedLng }), [selectedLat, selectedLng]);
+  const center = selectedPos || [5.6037, -0.187];
 
   if (isLoading) return <PageLoader label="Loading live tracking..." />;
 
@@ -120,10 +129,10 @@ export default function LiveTracking() {
             <div className="h-[520px] w-full">
               <MapContainer center={center} zoom={13} className="h-full w-full" zoomControl={false}>
                 <MapTiles />
-                <RecenterOnSelect position={selected?.liveLocation ? [selected.liveLocation.lat, selected.liveLocation.lng] : null} />
+                <RecenterOnSelect position={selectedPos} />
                 {filtered.map((b) => {
-                  if (!b.liveLocation) return null;
-                  const pos = [b.liveLocation.lat, b.liveLocation.lng];
+                  const pos = toLatLng(b.liveLocation);
+                  if (!pos) return null;
                   const routePath = (b.route?.stops || []).filter((s) => s.lat && s.lng).map((s) => [s.lat, s.lng]);
                   return (
                     <div key={b.tripId}>
