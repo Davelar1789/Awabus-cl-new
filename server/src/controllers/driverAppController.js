@@ -19,6 +19,7 @@ import { MAX_OTP_ATTEMPTS } from './authController.js';
 import { signResetToken, readResetToken } from '../utils/resetToken.js';
 import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE, DRIVER_INACTIVE_MESSAGE } from '../utils/access.js';
 import { notify, describeTrip } from '../services/notify.js';
+import { emitToSchool } from '../sockets/rooms.js';
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -262,7 +263,7 @@ export const startTrip = asyncHandler(async (req, res) => {
   await trip.save();
   await Bus.findByIdAndUpdate(trip.bus, { status: 'Active', gpsSignal: 'ok' });
 
-  req.app.get('io')?.emit('trip:started', { tripId: trip._id, busId: trip.bus });
+  emitToSchool(req.app.get('io'), req.school, 'trip:started', { tripId: trip._id, busId: trip.bus });
   const { routeName, plate } = await describeTrip(trip);
   await notify({
     type: 'trip_started',
@@ -291,7 +292,7 @@ export const endTrip = asyncHandler(async (req, res) => {
   await trip.save();
   await Bus.findByIdAndUpdate(trip.bus, { status: 'Idle' });
 
-  req.app.get('io')?.emit('trip:ended', { tripId: trip._id, busId: trip.bus });
+  emitToSchool(req.app.get('io'), req.school, 'trip:ended', { tripId: trip._id, busId: trip.bus });
   {
     const { routeName } = await describeTrip(trip);
     const roster = trip.studentProgress.length;
@@ -335,7 +336,7 @@ export const pushLocation = asyncHandler(async (req, res) => {
   await trip.save();
   await Bus.findByIdAndUpdate(trip.bus, { lastKnownLocation: location, gpsSignal: 'ok' });
 
-  req.app.get('io')?.emit('bus:location', { tripId: trip._id, busId: trip.bus, location });
+  emitToSchool(req.app.get('io'), req.school, 'bus:location', { tripId: trip._id, busId: trip.bus, location });
   res.json({ success: true, data: location });
 });
 
@@ -363,7 +364,7 @@ export const markAttendance = asyncHandler(async (req, res) => {
   }
 
   await trip.save();
-  req.app.get('io')?.emit('trip:studentUpdate', { tripId: trip._id, studentId: req.params.studentId, progress });
+  emitToSchool(req.app.get('io'), req.school, 'trip:studentUpdate', { tripId: trip._id, studentId: req.params.studentId, progress });
 
   if (dropoffStatus === 'Not on board' || attendance === 'Absent') {
     const [student, { routeName }] = await Promise.all([

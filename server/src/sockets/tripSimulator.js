@@ -10,6 +10,7 @@ import Trip from '../models/Trip.js';
 import Bus from '../models/Bus.js';
 import { tenantContext } from '../utils/tenantContext.js';
 import { LIVE_TRIP_FILTER } from '../services/staleTrips.js';
+import { emitToSchool } from './rooms.js';
 
 const progressByTrip = new Map();
 
@@ -59,7 +60,7 @@ export const startTripSimulator = (io, intervalMs = 4000) => {
           await Bus.updateOne({ _id: trip.bus }, { $set: { lastKnownLocation: location, gpsSignal: 'ok' } });
         });
 
-        io.emit('bus:location', { tripId: trip._id, busId: trip.bus, location });
+        emitToSchool(io, trip.school, 'bus:location', { tripId: trip._id, busId: trip.bus, location });
       }
     } catch (err) {
       Object.assign(simulatorStatus, { lastError: err.message, lastErrorAt: new Date() });
