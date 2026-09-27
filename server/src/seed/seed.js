@@ -209,12 +209,12 @@ const seedSchoolData = async (school) => {
       timeline: [
         { time: '06:43', title: 'Trip started', description: 'Departure from main bus lot, vehicle check passed.' },
         { time: '06:45', title: 'GPS streaming began', description: 'Active connection established with AwaBus servers.' },
-        { time: '06:52', title: `Proximity alert — ${routeStudents[0]?.firstName || 'Student'}`, description: 'Alert notification dispatched to parents.' },
+        { time: '06:52', title: `Proximity alert — ${routeStudents[0]?.firstName || 'Student'}`, description: 'Bus entered the student\'s notification zone.' },
       ],
       studentProgress: routeStudents.map((s, idx) => ({
         student: s._id,
         attendance: idx === routeStudents.length - 1 ? 'Absent' : 'Present',
-        alertStatus: idx < 2 ? 'Alert sent' : 'Pending',
+        alertStatus: idx < 2 ? 'Not sent (alerts are off)' : 'Not yet alerted',
         alertTime: idx < 2 ? '06:5' + idx : '',
         dropoffStatus: idx < 2 ? 'Dropped off' : idx < 4 ? 'On board' : 'Pending',
       })),

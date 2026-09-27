@@ -6,6 +6,7 @@ import MessageLog from '../models/MessageLog.js';
 import School from '../models/School.js';
 import {
   MESSAGE_PURPOSES,
+  messagePurposes,
   sendSms,
   smsBalance,
   smsProviderStatus,
@@ -112,7 +113,7 @@ export const getMessages = asyncHandler(async (req, res) => {
     success: true,
     data: items.map((m) => ({ ...m, schoolName: m.school ? names.get(String(m.school)) || '' : '' })),
     meta: { total, page, limit, totalPages: Math.max(Math.ceil(total / limit), 1) },
-    purposes: MESSAGE_PURPOSES,
+    purposes: messagePurposes(),
   });
 });
 

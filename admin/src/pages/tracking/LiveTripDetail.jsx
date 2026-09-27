@@ -36,7 +36,7 @@ export default function LiveTripDetail() {
   });
   const gps = gpsFreshness(trip.liveLocation, now);
   const running = trip.status === 'In Progress' || trip.status === 'Delayed';
-  const alerted = progress.filter((p) => p.alertStatus === 'Alert sent').length;
+  const alerted = progress.filter((p) => p.alertStatus === 'Sent').length;
   const scanned = progress.filter((p) => p.dropoffStatus === 'On board' || p.dropoffStatus === 'Dropped off').length;
 
   return (
@@ -115,7 +115,7 @@ export default function LiveTripDetail() {
         <Card>
           <CardHeader
             title="Student Progress"
-            subtitle={`${alerted} alerted · ${progress.length - alerted} remaining`}
+            subtitle={`${scanned} scanned · parents texted for ${alerted}`}
             action={
               <PillTabs
                 tabs={[
@@ -132,7 +132,7 @@ export default function LiveTripDetail() {
             <Thead>
               <Th>Student</Th>
               <Th>Attendance</Th>
-              <Th>Alert Status</Th>
+              <Th>Parent alert</Th>
               <Th>Drop-off</Th>
             </Thead>
             <Tbody>
@@ -144,7 +144,16 @@ export default function LiveTripDetail() {
                   <Td>
                     <Badge>{p.attendance}</Badge>
                   </Td>
-                  <Td>{p.alertStatus}</Td>
+                  <Td>
+                    <span className={p.alertStatus === 'Failed' ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{p.alertStatus}</span>
+                    {p.alertTime && p.alertStatus !== 'Not yet alerted' && <span className="block text-xs text-slate-400">{p.alertTime}</span>}
+                    {p.nearHomeAt && (
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">
+                        Bus near home {new Date(p.nearHomeAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        {p.nearHomeAlert && p.nearHomeAlert !== 'Sent' ? ` · ${p.nearHomeAlert}` : p.nearHomeAlert === 'Sent' ? ' · parent texted' : ''}
+                      </span>
+                    )}
+                  </Td>
                   <Td>{p.dropoffStatus}</Td>
                 </Tr>
               ))}

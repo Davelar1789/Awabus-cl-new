@@ -22,6 +22,7 @@ import { notify, describeTrip } from '../services/notify.js';
 import { emitToSchool } from '../sockets/rooms.js';
 import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/setupCode.js';
 import { inGhana } from '../utils/geo.js';
+import { alertForScan, checkGeofences } from '../services/parentAlerts.js';
 
 // Trip rules shared by the driver actions below.
 const LIVE = ['In Progress', 'Delayed'];
@@ -232,6 +233,9 @@ const reconcileStudentProgress = async (trip) => {
       attendance: p.attendance,
       alertStatus: p.alertStatus,
       alertTime: p.alertTime,
+      alertFor: p.alertFor,
+      nearHomeAt: p.nearHomeAt,
+      nearHomeAlert: p.nearHomeAlert,
       dropoffStatus: p.dropoffStatus,
     }));
   const added = [...currentIds]
@@ -398,6 +402,8 @@ export const pushLocation = asyncHandler(async (req, res) => {
 
   emitToSchool(req.app.get('io'), req.school, 'bus:location', { tripId: trip._id, busId: trip.bus, location });
   res.json({ success: true, data: location });
+  // Near-home check after answering, so the driver's phone never waits on SMS.
+  checkGeofences({ tripId: trip._id, position: location, school: req.school });
 });
 
 // @desc    Mark a student's attendance (pre-trip roll call) and/or boarding
@@ -434,8 +440,8 @@ export const markAttendance = asyncHandler(async (req, res) => {
   if (attendance) changes.attendance = attendance;
   if (dropoffStatus) {
     changes.dropoffStatus = dropoffStatus;
-    changes.alertStatus = 'Alert sent';
-    changes.alertTime = timeNow();
+    // Text the parent about boarding / drop-off (or record why not).
+    Object.assign(changes, (await alertForScan({ trip, row: trip.studentProgress[index], dropoffStatus, school: req.school })) || {});
   }
   // Change only this student's row. Saving the whole trip let scans sent at
   // the same moment overwrite each other. The student id in the filter makes

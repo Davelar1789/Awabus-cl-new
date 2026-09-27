@@ -296,7 +296,15 @@ function MessagingTab({ h }) {
                     <td className="px-5 py-2.5 font-medium text-slate-800 dark:text-slate-100">{p.label}</td>
                     <td className="px-5 py-2.5 text-slate-500">{p.channel}</td>
                     <td className="px-5 py-2.5 text-slate-500">{p.where}</td>
-                    <td className="px-5 py-2.5">{p.wired ? <State ok>Connected</State> : <State warn>Not built</State>}</td>
+                    <td className="px-5 py-2.5">
+                      {!p.wired ? (
+                        <State warn>Not built</State>
+                      ) : p.on === false ? (
+                        <State warn>Off (set {p.switch}=true)</State>
+                      ) : (
+                        <State ok>Connected</State>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

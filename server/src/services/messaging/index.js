@@ -11,9 +11,15 @@ export const MESSAGE_PURPOSES = {
   admin_password_reset: { channel: 'email', label: 'Admin password reset code', where: 'Admin sign-in > Forgot password', wired: true },
   delay_broadcast: { channel: 'sms', label: 'Delay notice to parents', where: 'Driver app > Report delay', wired: true },
   test: { channel: 'sms', label: 'Test message', where: 'System page > Send test SMS', wired: true },
-  boarding_alert: { channel: 'sms', label: 'Child boarded / dropped off alert to parents', where: 'Driver app scan (shows "Alert sent" but nothing is sent yet)', wired: false },
-  approaching_alert: { channel: 'sms', label: 'Bus approaching home alert (geofence)', where: 'Live GPS vs the student\'s notification zone', wired: false },
+  boarding_alert: { channel: 'sms', label: 'Child boarded / dropped off alert to parents', where: 'Driver app scan (on with PARENT_ALERTS=true)', wired: true, switch: 'PARENT_ALERTS' },
+  approaching_alert: { channel: 'sms', label: 'Bus near home alert (geofence)', where: 'Live GPS vs the student\'s notification zone (on with PARENT_ALERTS=true)', wired: true, switch: 'PARENT_ALERTS' },
 };
+
+// The purposes with `on` filled in: false for built messages switched off in the environment.
+export const messagePurposes = () =>
+  Object.fromEntries(
+    Object.entries(MESSAGE_PURPOSES).map(([k, p]) => [k, { ...p, on: p.wired && (!p.switch || process.env[p.switch] === 'true') }])
+  );
 
 export function smsProviderStatus() {
   const wanted = (process.env.SMS_PROVIDER || '').toLowerCase();

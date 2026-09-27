@@ -28,8 +28,13 @@ const studentProgressSchema = new mongoose.Schema(
       enum: ['Present', 'Absent', 'Expected', 'Cancelled'],
       default: 'Expected',
     },
+    // Boarding / drop-off text to the parent (services/parentAlerts.js).
     alertStatus: { type: String, default: 'Not yet alerted' },
     alertTime: { type: String, default: '' },
+    alertFor: { type: String, default: '' }, // which scan the alert was about
+    // When the bus first came within the student's notification zone on this trip.
+    nearHomeAt: { type: Date, default: null },
+    nearHomeAlert: { type: String, default: '' },
     dropoffStatus: {
       type: String,
       enum: ['Pending', 'On board', 'Dropped off', 'Not on board', 'Boarding now'],
