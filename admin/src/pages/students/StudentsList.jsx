@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, GraduationCap, SearchX, Users2, UserRound, UsersRound } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getStudents, deleteStudent } from '../../api/students.js';
+import { getStudents } from '../../api/students.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -18,6 +18,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { formatPhone } from '../../lib/phone.js';
 
@@ -45,23 +46,30 @@ export default function StudentsList() {
     queryFn: () => getStudents({ page, q: debouncedSearch }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => deleteStudent(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['students'] });
-      setDeleteTarget(null);
-    },
-  });
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  const pendingIds = usePendingDeleteIds();
 
-  const students = data?.data || [];
+  // Items waiting out their undo time are hidden already.
+  const students = (data?.data || []).filter((item) => !pendingIds.has(item._id));
+  const getLabel = (s) => `${s.firstName} ${s.lastName}`;
+  const invalidate = ['students', 'routes'];
   const selection = useListSelection({
     items: students,
-    getLabel: (s) => `${s.firstName} ${s.lastName}`,
-    deleteOne: deleteStudent,
+    getLabel,
+    deletePath: (id) => `/students/${id}`,
     noun: 'students',
     singular: 'student',
-    invalidate: ['students', 'routes'],
+    invalidate,
   });
+  const confirmDelete = (item) => {
+    scheduleDelete({
+      title: getLabel(item),
+      items: [{ id: item._id, label: getLabel(item), path: `/students/${item._id}` }],
+      onFinished: () =>
+        Promise.all([...invalidate, 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    setDeleteTarget(null);
+  };
   const meta = data?.meta;
   const stats = data?.stats || {};
 
@@ -202,13 +210,13 @@ export default function StudentsList() {
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               Cancel
             </Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleteTarget._id)}>
+            <Button variant="danger" onClick={() => confirmDelete(deleteTarget)}>
               Delete Student
             </Button>
           </>
         }
       >
-        <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">You'll have {UNDO_SECONDS} seconds to undo. After that it's permanent.</p>
       </Modal>
       <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} entity="students" label="Students" singular="student" />
     </div>

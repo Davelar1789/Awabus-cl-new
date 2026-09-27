@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, Users, SearchX } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getDrivers, deleteDriver } from '../../api/drivers.js';
+import { getDrivers } from '../../api/drivers.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -17,6 +17,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { formatPhone } from '../../lib/phone.js';
 
@@ -44,25 +45,30 @@ export default function DriversList() {
     queryFn: () => getDrivers({ page, q: debouncedSearch }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => deleteDriver(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bus-options'] });
-      queryClient.invalidateQueries({ queryKey: ['driver-options'] });
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      setDeleteTarget(null);
-    },
-  });
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  const pendingIds = usePendingDeleteIds();
 
-  const drivers = data?.data || [];
+  // Items waiting out their undo time are hidden already.
+  const drivers = (data?.data || []).filter((item) => !pendingIds.has(item._id));
+  const getLabel = (d) => `${d.firstName} ${d.lastName}`;
+  const invalidate = ['drivers', 'buses', 'routes', 'bus-options', 'driver-options'];
   const selection = useListSelection({
     items: drivers,
-    getLabel: (d) => `${d.firstName} ${d.lastName}`,
-    deleteOne: deleteDriver,
+    getLabel,
+    deletePath: (id) => `/drivers/${id}`,
     noun: 'drivers',
     singular: 'driver',
-    invalidate: ['drivers', 'buses', 'routes', 'bus-options', 'driver-options'],
+    invalidate,
   });
+  const confirmDelete = (item) => {
+    scheduleDelete({
+      title: getLabel(item),
+      items: [{ id: item._id, label: getLabel(item), path: `/drivers/${item._id}` }],
+      onFinished: () =>
+        Promise.all([...invalidate, 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    setDeleteTarget(null);
+  };
   const meta = data?.meta;
 
   return (
@@ -185,14 +191,14 @@ export default function DriversList() {
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               Cancel
             </Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleteTarget._id)}>
+            <Button variant="danger" onClick={() => confirmDelete(deleteTarget)}>
               Delete Driver
             </Button>
           </>
         }
       >
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          This action is permanent and cannot be undone. {deleteTarget?.firstName} {deleteTarget?.lastName} will be
+          You'll have {UNDO_SECONDS} seconds to undo. After that it's permanent. {deleteTarget?.firstName} {deleteTarget?.lastName} will be
           unassigned from their bus and route.
         </p>
       </Modal>

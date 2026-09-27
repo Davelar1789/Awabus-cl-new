@@ -208,7 +208,7 @@ export const GUIDE = [
         steps: [
           'Click Select at the top of a list, or press and hold any row for about half a second.',
           'Tap rows to tick them, or use "Select all on this page". The count shows at the bottom.',
-          'Click Delete, check the list and confirm. Anything that can\'t be deleted is listed with the reason.',
+          'Click Delete, check the list and confirm. A notice with an Undo button appears for 10 seconds; after that the delete is final. Anything that can\'t be deleted comes back with the reason.',
           'Click Done (or press Esc) to stop selecting.',
         ],
       },
@@ -229,6 +229,7 @@ export const GUIDE = [
           'Plate numbers like GR-1234-20; license numbers in capital letters and numbers; GPS addresses like GA-543-0125.',
           'Locations must be inside Ghana; geofence radius 20 to 1000 metres; bus seats 4 to 100.',
           'Anything that deletes, suspends, signs out or sends a message asks you to confirm first.',
+          'After a delete you have 10 seconds to press Undo. Nothing is removed until that time is up.',
         ],
       },
     ],

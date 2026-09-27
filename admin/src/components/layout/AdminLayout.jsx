@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
 import Topbar from './Topbar.jsx';
+import UndoToasts from './UndoToasts.jsx';
 
 export default function AdminLayout() {
   return (
@@ -12,6 +13,7 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <UndoToasts />
     </div>
   );
 }

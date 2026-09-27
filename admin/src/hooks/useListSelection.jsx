@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { UNDO_SECONDS, useUndoDeleteStore } from '../store/undoDeleteStore.js';
 import { AlertTriangle, CheckSquare, Trash2, X } from 'lucide-react';
 import Button from '../components/ui/Button.jsx';
 import Modal from '../components/ui/Modal.jsx';
@@ -40,17 +41,15 @@ function SelectBox({ checked, indeterminate = false, onChange, label }) {
  * by pressing and holding a row. While selecting, clicking a row ticks it
  * instead of opening it, and a bar at the bottom offers Delete.
  *
- * Deletes run one by one through the page's normal delete call, so every
- * existing safety rule still applies; anything that can't be deleted is
- * reported with the reason.
+ * Deletes go through the undo wait (see undoDeleteStore) and then the page's
+ * normal delete endpoint one by one, so every existing safety rule still
+ * applies; anything that can't be deleted is reported with the reason.
  */
-export default function useListSelection({ items, getLabel, deleteOne, noun, singular, invalidate = [] }) {
+export default function useListSelection({ items, getLabel, deletePath, noun, singular, invalidate = [] }) {
   const queryClient = useQueryClient();
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Map()); // id -> item (kept across pages)
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [running, setRunning] = useState(null); // { done, total }
-  const [report, setReport] = useState(null); // { deleted, failed: [{ label, message }] }
   const holdTimer = useRef(null);
   const heldRef = useRef(false);
 
@@ -147,29 +146,16 @@ export default function useListSelection({ items, getLabel, deleteOne, noun, sin
     </Button>
   );
 
-  const runDelete = async () => {
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  const runDelete = () => {
     const targets = [...selected.values()];
-    const failed = [];
-    const keep = new Map();
-    let deleted = 0;
-    setRunning({ done: 0, total: targets.length });
-    for (const item of targets) {
-      try {
-        // One at a time: deleting one record can change what the next is allowed to do.
-        // eslint-disable-next-line no-await-in-loop
-        await deleteOne(item._id);
-        deleted += 1;
-      } catch (err) {
-        failed.push({ label: getLabel(item), message: err.message });
-        keep.set(item._id, item);
-      }
-      setRunning({ done: deleted + failed.length, total: targets.length });
-    }
-    [...invalidate, 'dashboard'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
-    setRunning(null);
-    setReport({ deleted, failed });
-    setSelected(keep); // failed ones stay selected so they can be retried
-    if (!failed.length) setSelecting(false);
+    scheduleDelete({
+      title: targets.length === 1 ? getLabel(targets[0]) : `${targets.length} ${noun}`,
+      items: targets.map((item) => ({ id: item._id, label: getLabel(item), path: deletePath(item._id) })),
+      onFinished: () =>
+        Promise.all([...invalidate, 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    stop();
   };
 
   const count = selected.size;
@@ -208,23 +194,22 @@ export default function useListSelection({ items, getLabel, deleteOne, noun, sin
     <>
       <Modal
         open={confirmOpen}
-        onClose={running ? undefined : () => setConfirmOpen(false)}
+        onClose={() => setConfirmOpen(false)}
         title={`Delete ${count} ${count === 1 ? singular : noun}?`}
         size="sm"
         footer={
           <>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={Boolean(running)}>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="danger"
-              loading={Boolean(running)}
-              onClick={async () => {
-                await runDelete();
+              onClick={() => {
+                runDelete();
                 setConfirmOpen(false);
               }}
             >
-              {running ? `Deleting ${running.done}/${running.total}...` : `Yes, delete ${count}`}
+              Yes, delete {count}
             </Button>
           </>
         }
@@ -232,7 +217,7 @@ export default function useListSelection({ items, getLabel, deleteOne, noun, sin
         <div className="flex gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
           <div className="text-sm text-slate-600 dark:text-slate-300">
-            <p>This is permanent and can&apos;t be undone.</p>
+            <p>You&apos;ll have {UNDO_SECONDS} seconds to undo. After that it&apos;s permanent.</p>
             <ul className="mt-2 max-h-40 list-disc overflow-y-auto pl-5 text-slate-800 dark:text-slate-100">
               {names.slice(0, 8).map((n, i) => (
                 <li key={i}>{n}</li>
@@ -241,34 +226,6 @@ export default function useListSelection({ items, getLabel, deleteOne, noun, sin
             {names.length > 8 && <p className="mt-1 text-slate-500">…and {names.length - 8} more</p>}
           </div>
         </div>
-      </Modal>
-      <Modal
-        open={Boolean(report)}
-        onClose={() => setReport(null)}
-        title={report?.failed.length ? 'Some items were not deleted' : 'Deleted'}
-        size="sm"
-        footer={<Button onClick={() => setReport(null)}>OK</Button>}
-      >
-        {report && (
-          <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
-            <p>
-              {report.deleted} {report.deleted === 1 ? singular : noun} deleted.
-            </p>
-            {report.failed.length > 0 && (
-              <div>
-                <p className="mb-1 font-semibold text-slate-800 dark:text-slate-100">Not deleted ({report.failed.length}):</p>
-                <ul className="max-h-48 space-y-1 overflow-y-auto">
-                  {report.failed.map((f, i) => (
-                    <li key={i} className="rounded-lg bg-red-50 px-3 py-2 text-red-700 dark:bg-red-950/30 dark:text-red-400">
-                      <span className="font-semibold">{f.label}:</span> {f.message}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-slate-500">They are still selected, so you can try again after fixing them.</p>
-              </div>
-            )}
-          </div>
-        )}
       </Modal>
     </>
   );

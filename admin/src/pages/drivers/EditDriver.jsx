@@ -13,7 +13,8 @@ import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
-import { getDriver, getDriverOptions, updateDriver, deleteDriver } from '../../api/drivers.js';
+import { UNDO_SECONDS, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
+import { getDriver, getDriverOptions, updateDriver } from '../../api/drivers.js';
 import { getBusOptions } from '../../api/buses.js';
 import { busHolders, busPickerOptions, busTakenBy } from '../../lib/assignments.js';
 import { dateError, emailError, formatEmail, formatLicense, formatName, ifChanged, licenseError, nameError } from '../../lib/formats.js';
@@ -75,15 +76,18 @@ export default function EditDriver() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteDriver(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bus-options'] });
-      queryClient.invalidateQueries({ queryKey: ['driver-options'] });
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      navigate('/drivers');
-    },
-  });
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  // The delete waits out the undo time (see undoDeleteStore); the list hides it meanwhile.
+  const deleteWithUndo = () => {
+    const label = `${driver.firstName} ${driver.lastName}`;
+    scheduleDelete({
+      title: label,
+      items: [{ id, label, path: `/drivers/${id}` }],
+      onFinished: () =>
+        Promise.all([...['drivers', 'buses', 'routes', 'bus-options', 'driver-options'], 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    navigate('/drivers');
+  };
 
   if (isLoading || !form) return <PageLoader />;
 
@@ -214,16 +218,13 @@ export default function EditDriver() {
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+            <Button variant="danger" onClick={deleteWithUndo}>
               Delete Driver
             </Button>
           </>
         }
       >
-        <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
-        {deleteMutation.error && (
-          <p className="mt-3 text-sm font-medium text-red-600">{deleteMutation.error.message}</p>
-        )}
+        <p className="text-sm text-slate-500 dark:text-slate-400">You&apos;ll have {UNDO_SECONDS} seconds to undo. After that it&apos;s permanent.</p>
       </Modal>
     </div>
   );

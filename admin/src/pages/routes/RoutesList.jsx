@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Upload, Plus, Milestone, SearchX } from 'lucide-react';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
-import { getRoutes, deleteRoute } from '../../api/routes.js';
+import { getRoutes } from '../../api/routes.js';
 import Card from '../../components/ui/Card.jsx';
 import PageHeader from '../../components/ui/PageHeader.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -16,6 +16,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import useListSelection from '../../hooks/useListSelection.jsx';
+import { UNDO_SECONDS, usePendingDeleteIds, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 
 export default function RoutesList() {
@@ -42,23 +43,30 @@ export default function RoutesList() {
     queryFn: () => getRoutes({ page, q: debouncedSearch }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => deleteRoute(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      setDeleteTarget(null);
-    },
-  });
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  const pendingIds = usePendingDeleteIds();
 
-  const routes = data?.data || [];
+  // Items waiting out their undo time are hidden already.
+  const routes = (data?.data || []).filter((item) => !pendingIds.has(item._id));
+  const getLabel = (r) => `${r.routeId} - ${r.name}`;
+  const invalidate = ['routes', 'route-options'];
   const selection = useListSelection({
     items: routes,
-    getLabel: (r) => `${r.routeId} - ${r.name}`,
-    deleteOne: deleteRoute,
+    getLabel,
+    deletePath: (id) => `/routes/${id}`,
     noun: 'routes',
     singular: 'route',
-    invalidate: ['routes', 'route-options'],
+    invalidate,
   });
+  const confirmDelete = (item) => {
+    scheduleDelete({
+      title: getLabel(item),
+      items: [{ id: item._id, label: getLabel(item), path: `/routes/${item._id}` }],
+      onFinished: () =>
+        Promise.all([...invalidate, 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    setDeleteTarget(null);
+  };
   const meta = data?.meta;
   const hasAnyRoutes = meta && (meta.total > 0 || debouncedSearch);
 
@@ -171,14 +179,14 @@ export default function RoutesList() {
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               Cancel
             </Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleteTarget._id)}>
+            <Button variant="danger" onClick={() => confirmDelete(deleteTarget)}>
               Delete Route
             </Button>
           </>
         }
       >
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          This action is permanent and cannot be undone.
+          You'll have {UNDO_SECONDS} seconds to undo. After that it's permanent.
         </p>
         {deleteTarget && (
           <div className="space-y-2 rounded-lg bg-slate-50 p-4 text-sm dark:bg-navy">

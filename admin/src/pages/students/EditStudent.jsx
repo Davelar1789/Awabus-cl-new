@@ -12,9 +12,10 @@ import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
+import { UNDO_SECONDS, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
-import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
+import { getStudent, updateStudent } from '../../api/students.js';
 import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
@@ -97,13 +98,18 @@ export default function EditStudent() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteStudent(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['students'] });
-      navigate('/students');
-    },
-  });
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  // The delete waits out the undo time (see undoDeleteStore); the list hides it meanwhile.
+  const deleteWithUndo = () => {
+    const label = `${student.firstName} ${student.lastName}`;
+    scheduleDelete({
+      title: label,
+      items: [{ id, label, path: `/students/${id}` }],
+      onFinished: () =>
+        Promise.all([...['students', 'routes'], 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    navigate('/students');
+  };
 
   if (isLoading || !form) return <PageLoader />;
 
@@ -359,13 +365,13 @@ export default function EditStudent() {
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+            <Button variant="danger" onClick={deleteWithUndo}>
               Delete Student
             </Button>
           </>
         }
       >
-        <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">You&apos;ll have {UNDO_SECONDS} seconds to undo. After that it&apos;s permanent.</p>
       </Modal>
     </div>
   );

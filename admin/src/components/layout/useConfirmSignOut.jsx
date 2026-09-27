@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ConfirmDialog from '../ui/ConfirmDialog.jsx';
 import { useAuthStore } from '../../store/authStore.js';
+import { useUndoDeleteStore } from '../../store/undoDeleteStore.js';
 
 /**
  * Sign-out behind an "are you sure" dialog: signing out also deletes any
@@ -18,6 +19,8 @@ export default function useConfirmSignOut() {
       onClose={() => setOpen(false)}
       onConfirm={() => {
         setOpen(false);
+        // Deletes still in their undo window were confirmed, so send them first.
+        useUndoDeleteStore.getState().flushAll();
         logout();
       }}
     />

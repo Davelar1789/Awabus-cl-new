@@ -13,7 +13,8 @@ import Modal from '../../components/ui/Modal.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { CAPACITY_MAX, capacityError, digitsOnly, formatPlate, ifChanged, plateError } from '../../lib/formats.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
-import { getBus, updateBus, deleteBus } from '../../api/buses.js';
+import { UNDO_SECONDS, useUndoDeleteStore } from '../../store/undoDeleteStore.js';
+import { getBus, updateBus } from '../../api/buses.js';
 import { getRouteOptions } from '../../api/routes.js';
 
 export default function EditBus() {
@@ -60,13 +61,18 @@ export default function EditBus() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteBus(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['buses'] });
-      navigate('/buses');
-    },
-  });
+  const scheduleDelete = useUndoDeleteStore((st) => st.scheduleDelete);
+  // The delete waits out the undo time (see undoDeleteStore); the list hides it meanwhile.
+  const deleteWithUndo = () => {
+    const label = `${data.data.plateNumber} (${data.data.name})`;
+    scheduleDelete({
+      title: label,
+      items: [{ id, label, path: `/buses/${id}` }],
+      onFinished: () =>
+        Promise.all([...['buses', 'routes', 'drivers', 'bus-options'], 'dashboard'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+    });
+    navigate('/buses');
+  };
 
   if (isLoading || !form) return <PageLoader />;
   const bus = data.data;
@@ -177,16 +183,13 @@ export default function EditBus() {
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+            <Button variant="danger" onClick={deleteWithUndo}>
               Delete Bus
             </Button>
           </>
         }
       >
-        <p className="text-sm text-slate-500 dark:text-slate-400">This action is permanent and cannot be undone.</p>
-        {deleteMutation.error && (
-          <p className="mt-3 text-sm font-medium text-red-600">{deleteMutation.error.message}</p>
-        )}
+        <p className="text-sm text-slate-500 dark:text-slate-400">You&apos;ll have {UNDO_SECONDS} seconds to undo. After that it&apos;s permanent.</p>
       </Modal>
     </div>
   );
