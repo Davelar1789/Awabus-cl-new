@@ -16,6 +16,7 @@ import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
 import { getStudent, updateStudent, deleteStudent } from '../../api/students.js';
 import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 
@@ -26,6 +27,7 @@ export default function EditStudent() {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [phoneError, setPhoneError] = useState('');
 
   const { data: student, isLoading } = useQuery({ queryKey: ['student', id], queryFn: () => getStudent(id) });
@@ -241,7 +243,7 @@ export default function EditStudent() {
                       variant="outline"
                       size="sm"
                       loading={householdMutation.isPending}
-                      onClick={() => householdMutation.mutate({ unlinkLocation: true })}
+                      onClick={() => setConfirmUnlink(true)}
                     >
                       <Unlink className="h-4 w-4" />
                       Unlink from household
@@ -259,6 +261,19 @@ export default function EditStudent() {
                     />
                   </div>
                 )}
+                <ConfirmDialog
+                  open={confirmUnlink}
+                  title="Unlink from household?"
+                  message={`${student.firstName} will stop sharing a home location with ${householdMembers
+                    .map((m) => m.firstName)
+                    .join(', ')}. Later location changes will no longer update the others.`}
+                  confirmLabel="Unlink"
+                  loading={householdMutation.isPending}
+                  onClose={() => setConfirmUnlink(false)}
+                  onConfirm={() =>
+                    householdMutation.mutate({ unlinkLocation: true }, { onSettled: () => setConfirmUnlink(false) })
+                  }
+                />
                 {householdMutation.isError && (
                   <p className="mt-2 text-sm text-red-600">{householdMutation.error.message}</p>
                 )}

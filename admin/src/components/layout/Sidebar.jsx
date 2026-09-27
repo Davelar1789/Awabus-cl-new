@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useUiStore } from '../../store/uiStore.js';
 import { useAuthStore } from '../../store/authStore.js';
+import useConfirmSignOut from './useConfirmSignOut.jsx';
 import { cn } from '../../lib/utils.js';
 
 const NAV_ITEMS = [
@@ -34,7 +35,7 @@ export default function Sidebar() {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const closeSidebar = useUiStore((s) => s.closeSidebar);
   const admin = useAuthStore((s) => s.admin);
-  const logout = useAuthStore((s) => s.logout);
+  const [requestSignOut, signOutDialog] = useConfirmSignOut();
 
   const navItems = admin?.role === 'superadmin' ? [SUPERADMIN_NAV_ITEM, ...NAV_ITEMS] : NAV_ITEMS;
 
@@ -120,13 +121,14 @@ export default function Sidebar() {
             </button>
           </div>
           <button
-            onClick={logout}
+            onClick={requestSignOut}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
         </div>
       </aside>
+      {signOutDialog}
     </>
   );
 }

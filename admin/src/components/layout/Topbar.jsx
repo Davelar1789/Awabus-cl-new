@@ -5,6 +5,7 @@ import { useTopbarStore } from '../../store/topbarStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import Avatar from '../ui/Avatar.jsx';
+import useConfirmSignOut from './useConfirmSignOut.jsx';
 
 // Section names used in page breadcrumbs, mapped to their list pages. A crumb can
 // also be given explicitly as { label, to } (e.g. a record's profile page).
@@ -27,7 +28,8 @@ const resolveCrumb = (crumb) =>
 
 export default function Topbar() {
   const { breadcrumb, searchValue, searchPlaceholder, onSearchChange } = useTopbarStore();
-  const { admin, logout } = useAuthStore();
+  const admin = useAuthStore((s) => s.admin);
+  const [requestSignOut, signOutDialog] = useConfirmSignOut();
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -133,7 +135,10 @@ export default function Topbar() {
               </Link>
               <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
               <button
-                onClick={logout}
+                onClick={() => {
+                  setMenuOpen(false);
+                  requestSignOut();
+                }}
                 className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
               >
                 <LogOut className="h-4 w-4" /> Sign out
@@ -142,6 +147,7 @@ export default function Topbar() {
           )}
         </div>
       </div>
+      {signOutDialog}
     </header>
   );
 }

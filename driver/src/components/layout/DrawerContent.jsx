@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { router, usePathname } from 'expo-router';
@@ -15,6 +16,8 @@ import { useConnectionStore } from '../../store/connectionStore.js';
 import { colors, radii } from '../../lib/theme.js';
 import Avatar from '../ui/Avatar.jsx';
 import Badge from '../ui/Badge.jsx';
+import Button from '../ui/Button.jsx';
+import Modal from '../ui/Modal.jsx';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Home (pre-trip)', icon: Home },
@@ -28,6 +31,7 @@ const NAV_ITEMS = [
 export default function DrawerContent(props) {
   const pathname = usePathname();
   const { driver, logout } = useAuthStore();
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const isOnline = useConnectionStore((s) => s.isOnline);
 
   const go = (path) => {
@@ -71,12 +75,23 @@ export default function DrawerContent(props) {
 
       <View style={styles.footer}>
         <View style={styles.divider} />
-        <Pressable onPress={logout} style={styles.logout}>
+        <Pressable onPress={() => setConfirmLogout(true)} style={styles.logout}>
           <LogOut size={18} color={colors.red500} />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
         <Text style={styles.version}>AwaBus Driver v1.0.0</Text>
       </View>
+
+      <Modal open={confirmLogout} onClose={() => setConfirmLogout(false)}>
+        <Text style={styles.sheetTitle}>Log out?</Text>
+        <Text style={styles.sheetSubtitle}>You'll need your phone number and password to sign back in.</Text>
+        <Button variant="danger" onPress={logout} style={{ marginTop: 16 }}>
+          Log out
+        </Button>
+        <Button variant="ghost" onPress={() => setConfirmLogout(false)} style={{ marginTop: 8 }}>
+          Cancel
+        </Button>
+      </Modal>
     </View>
   );
 }
@@ -155,4 +170,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.slate500,
   },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.slate900 },
+  sheetSubtitle: { fontSize: 14, color: colors.slate500, marginTop: 6, lineHeight: 20 },
 });

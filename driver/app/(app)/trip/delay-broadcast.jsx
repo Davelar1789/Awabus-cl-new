@@ -8,6 +8,7 @@ import Header from '../../../src/components/layout/Header.jsx';
 import { Label, Textarea } from '../../../src/components/ui/Input.jsx';
 import { OptionField } from '../../../src/components/ui/OptionPicker.jsx';
 import Button from '../../../src/components/ui/Button.jsx';
+import Modal from '../../../src/components/ui/Modal.jsx';
 import { PageLoader } from '../../../src/components/ui/Spinner.jsx';
 import { getTodaysTrip, sendDelayBroadcast } from '../../../src/api/driverApp.js';
 import { colors, radii } from '../../../src/lib/theme.js';
@@ -22,6 +23,7 @@ export default function DelayBroadcast() {
   const [reason, setReason] = useState(REASONS[0].value);
   const [reasonOpen, setReasonOpen] = useState(false);
   const [message, setMessage] = useState('We expect to be about 25 minutes late.');
+  const [confirmSend, setConfirmSend] = useState(false);
 
   const mutation = useMutation({
     mutationFn: () => sendDelayBroadcast(trip._id, { reason, message }),
@@ -79,10 +81,22 @@ export default function DelayBroadcast() {
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={styles.footer}>
-        <Button loading={mutation.isPending} onPress={() => mutation.mutate()}>
-          Send SMS broadcast
-        </Button>
+        <Button onPress={() => setConfirmSend(true)}>Send SMS broadcast</Button>
       </SafeAreaView>
+
+      <Modal open={confirmSend} onClose={() => setConfirmSend(false)}>
+        <Text style={styles.sheetTitle}>Send this SMS?</Text>
+        <Text style={styles.sheetSubtitle}>
+          It goes to the parents of {attending} student{attending === 1 ? '' : 's'} right away and can't be unsent.
+        </Text>
+        {mutation.isError && <Text style={styles.errorText}>{mutation.error.message}</Text>}
+        <Button loading={mutation.isPending} onPress={() => mutation.mutate()} style={{ marginTop: 16 }}>
+          Send SMS
+        </Button>
+        <Button variant="ghost" onPress={() => setConfirmSend(false)} style={{ marginTop: 8 }}>
+          Cancel
+        </Button>
+      </Modal>
     </View>
   );
 }
@@ -111,4 +125,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
   },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.slate900 },
+  sheetSubtitle: { fontSize: 14, color: colors.slate500, marginTop: 6, lineHeight: 20 },
+  errorText: { fontSize: 13, color: colors.red600, marginTop: 10 },
 });
