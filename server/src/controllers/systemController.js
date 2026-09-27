@@ -36,6 +36,8 @@ const CONFIG = [
   { key: 'ARKESEL_SENDER_ID', group: 'SMS (Arkesel)', note: 'Approved sender name, max 11 characters' },
   { key: 'ARKESEL_SANDBOX', group: 'SMS (Arkesel)', note: '"true" = test mode, messages are not delivered or charged' },
   { key: 'OTP_EXPIRES_MINUTES', group: 'Other', note: 'How long codes last (default 10)' },
+  { key: 'LOG_OTP_CODES', group: 'Other', note: '"false" stops printing unsent codes in the server log' },
+  { key: 'TRIP_SIMULATOR', group: 'Other', note: '"true" turns on the demo GPS simulator (never on a live system)' },
   { key: 'GHANAPOSTGPS_API_URL', group: 'Other', note: 'GhanaPostGPS lookup service' },
 ];
 

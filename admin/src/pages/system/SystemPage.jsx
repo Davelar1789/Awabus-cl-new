@@ -158,10 +158,12 @@ function HealthTab({ h }) {
             <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Demo GPS simulator</p>
-                <State ok={!jobs.simulator.running} warn={jobs.simulator.running}>{jobs.simulator.running ? 'On' : 'Off'}</State>
+                <State ok={!jobs.simulator.running} warn={jobs.simulator.running}>{jobs.simulator.running ? 'On (demo)' : 'Off'}</State>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Moves buses along their route stops every {Math.round(jobs.simulator.intervalMs / 1000)}s on any in-progress trip. It must be switched off before real driver-app GPS is used, or it will overwrite real positions.
+                {jobs.simulator.running
+                  ? `Moves buses along their route stops every ${Math.round(jobs.simulator.intervalMs / 1000)}s on any in-progress trip. Switch it off (remove TRIP_SIMULATOR) before real driver-app GPS is used, or it will overwrite real positions.`
+                  : 'Moves buses along their route stops for demos. Off unless TRIP_SIMULATOR=true is set; keep it off on a live system.'}
               </p>
               <Row label="Last tick">{jobs.simulator.lastRunAt ? timeAgo(jobs.simulator.lastRunAt) : 'Not yet'}</Row>
               {jobs.simulator.lastError && (
