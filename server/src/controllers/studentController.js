@@ -8,6 +8,7 @@ import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextYearCode } from '../utils/idGenerator.js';
 import { assertFormats, ifChanged } from '../utils/formats.js';
 import Trip from '../models/Trip.js';
+import { normalizeLanguage } from '../utils/languages.js';
 
 const populateStudent = (query) =>
   query
@@ -199,7 +200,14 @@ export const createStudent = asyncHandler(async (req, res) => {
     household = source.household;
   }
 
+  const language = normalizeLanguage(guardian?.preferredLanguage);
+  if (language === null) {
+    res.status(400);
+    throw new Error('Choose the parent\'s language from the list');
+  }
   let guardianId = guardian?.id || null;
+  // Linking an existing parent: a language chosen on this form updates their profile.
+  if (guardianId && language) await Guardian.findByIdAndUpdate(guardianId, { preferredLanguage: language });
   if (!guardianId && guardian?.phone) {
     const created = await Guardian.create({
       firstName: guardian.firstName,
@@ -207,6 +215,7 @@ export const createStudent = asyncHandler(async (req, res) => {
       relation: guardian.relation || 'Guardian',
       phone: guardian.phone,
       email: guardian.email,
+      ...(language ? { preferredLanguage: language } : {}),
     });
     guardianId = created._id;
   }
@@ -316,12 +325,18 @@ export const updateStudent = asyncHandler(async (req, res) => {
 
   if (req.body.guardian) {
     const g = req.body.guardian;
+    const language = normalizeLanguage(g.preferredLanguage);
+    if (language === null) {
+      res.status(400);
+      throw new Error('Choose the parent\'s language from the list');
+    }
     if (g.id) {
       await Guardian.findByIdAndUpdate(g.id, {
         firstName: g.firstName,
         lastName: g.lastName,
         phone: normalizeGhanaPhone(g.phone),
         email: g.email,
+        ...(language ? { preferredLanguage: language } : {}),
       });
       student.primaryGuardian = g.id;
     } else if (g.phone) {
@@ -331,6 +346,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
         relation: g.relation || 'Guardian',
         phone: g.phone,
         email: g.email,
+        ...(language ? { preferredLanguage: language } : {}),
       });
       student.primaryGuardian = created._id;
     }

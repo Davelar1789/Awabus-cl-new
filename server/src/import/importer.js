@@ -7,6 +7,7 @@ import Guardian from '../models/Guardian.js';
 import { ghanaPhoneVariants, isValidGhanaPhone, normalizeGhanaPhone } from '../utils/phone.js';
 import { EMAIL_RE, formatProblem, normalizeCode } from '../utils/formats.js';
 import { MAX_ROWS, SPECS } from './specs.js';
+import { normalizeLanguage } from '../utils/languages.js';
 
 const DATA_ROWS = MAX_ROWS; // rows 2..MAX_ROWS+1 carry the Excel rules
 const BRAND = 'FF0D9488';
@@ -433,7 +434,12 @@ export async function readUpload(entity, buffer) {
 
   const clean = (h) => String(cellValue(h) ?? '').replace(/\*/g, '').trim().toLowerCase();
   const header = ws.getRow(1);
-  const mismatch = spec.columns.find((c, i) => clean(header.getCell(i + 1).value) !== c.header.toLowerCase());
+  // Columns added to a template later may be missing from files made with an
+  // older copy of it; those are simply treated as blank.
+  const mismatch = spec.columns.find((c, i) => {
+    const h = clean(header.getCell(i + 1).value);
+    return !(c.addedLater && h === '') && h !== c.header.toLowerCase();
+  });
   if (mismatch) {
     return { fileError: `The columns have been changed (expected "${mismatch.header}" in column ${colLetter(spec.columns.indexOf(mismatch) + 1)}). Download a fresh template and copy your rows into it.` };
   }
@@ -503,14 +509,16 @@ export async function toCreateBody(entity, d) {
   }
   // students: reuse the parent if one with this phone already exists (siblings)
   const existing = await Guardian.findOne({ phone: { $in: ghanaPhoneVariants(d.guardianPhone) } }).select('_id');
+  const language = d.guardianLanguage ? normalizeLanguage(d.guardianLanguage) : undefined;
   const guardian = existing
-    ? { id: existing._id }
+    ? { id: existing._id, preferredLanguage: language }
     : {
         firstName: d.guardianFirst,
         lastName: d.guardianLast,
         relation: d.guardianRelation || 'Guardian',
         phone: d.guardianPhone,
         email: d.guardianEmail,
+        preferredLanguage: language,
       };
   return {
     firstName: d.firstName,

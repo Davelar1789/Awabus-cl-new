@@ -12,6 +12,7 @@ import Button from '../../components/ui/Button.jsx';
 import Tabs from '../../components/ui/Tabs.jsx';
 import { formatDate, formatDateTime } from '../../lib/utils.js';
 import { formatPhone } from '../../lib/phone.js';
+import { languageLabel } from '../../lib/languages.js';
 
 const InfoRow = ({ label, value }) => (
   <div>
@@ -108,6 +109,7 @@ export default function StudentProfile() {
             <InfoRow label="Relation" value={guardian?.relation} />
             <InfoRow label="Phone" value={formatPhone(guardian?.phone)} />
             <InfoRow label="Email" value={guardian?.email} />
+            <InfoRow label="Language for calls" value={guardian ? languageLabel(guardian.preferredLanguage) : '—'} />
             <InfoRow label="Second Contact" value={student.secondContactName} />
             <InfoRow label="Second Contact Phone" value={formatPhone(student.secondContactPhone)} />
             <InfoRow label="Emergency Instructions" value={student.emergencyInstructions} className="sm:col-span-2" />

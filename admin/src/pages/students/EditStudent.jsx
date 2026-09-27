@@ -17,6 +17,8 @@ import LocationPickerModal from '../../components/ui/LocationPickerModal.jsx';
 import GeofenceMap, { ACCRA_DEFAULT } from '../../components/map/GeofenceMap.jsx';
 import { getStudent, updateStudent } from '../../api/students.js';
 import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
+import LanguageSelect from '../../components/students/LanguageSelect.jsx';
+import { DEFAULT_LANGUAGE } from '../../lib/languages.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
@@ -55,6 +57,7 @@ export default function EditStudent() {
             guardianFirst: student.primaryGuardian?.firstName || '',
             guardianLast: student.primaryGuardian?.lastName || '',
             guardianPhone: fromStoredPhone(student.primaryGuardian?.phone),
+            guardianLanguage: student.primaryGuardian?.preferredLanguage || DEFAULT_LANGUAGE,
             secondContactPhone: fromStoredPhone(student.secondContactPhone),
             lat: student.lat ?? ACCRA_DEFAULT.lat,
             lng: student.lng ?? ACCRA_DEFAULT.lng,
@@ -154,7 +157,13 @@ export default function EditStudent() {
             lastName: form.lastName,
             classGrade: form.classGrade,
             gender: form.gender,
-            guardian: { id: student.primaryGuardian?._id, firstName: form.guardianFirst, lastName: form.guardianLast, phone: toLocalPhone(form.guardianPhone) },
+            guardian: {
+              id: student.primaryGuardian?._id,
+              firstName: form.guardianFirst,
+              lastName: form.guardianLast,
+              phone: toLocalPhone(form.guardianPhone),
+              preferredLanguage: form.guardianLanguage || DEFAULT_LANGUAGE,
+            },
             secondContactPhone: toLocalPhone(form.secondContactPhone),
             lat: Number(form.lat),
             lng: Number(form.lng),
@@ -216,6 +225,7 @@ export default function EditStudent() {
                   <Label>Backup Emergency Phone</Label>
                   <PhoneInput value={form.secondContactPhone} onChange={set('secondContactPhone')} placeholder="020 111 2233" />
                 </div>
+                <LanguageSelect value={form.guardianLanguage} onChange={set('guardianLanguage')} />
                 {phoneError && <p className="text-sm font-medium text-red-600 sm:col-span-2">{phoneError}</p>}
               </CardBody>
             </Card>

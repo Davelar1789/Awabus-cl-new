@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { normalizePhones } from '../plugins/normalizePhones.js';
+import { LANGUAGE_CODES, DEFAULT_LANGUAGE } from '../utils/languages.js';
 
 const guardianSchema = new mongoose.Schema(
   {
@@ -12,6 +13,8 @@ const guardianSchema = new mongoose.Schema(
     },
     phone: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true },
+    // Language for automated voice calls and the phone line (see utils/languages.js).
+    preferredLanguage: { type: String, enum: LANGUAGE_CODES, default: DEFAULT_LANGUAGE },
   },
   { timestamps: true }
 );

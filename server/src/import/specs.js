@@ -1,3 +1,5 @@
+import { VOICE_LANGUAGES } from '../utils/languages.js';
+
 // Column definitions for the bulk-upload Excel templates. The same list drives
 // the downloadable template (headers, dropdowns, Excel cell rules, the
 // instructions sheet) and the checks run on an uploaded file, so the two can't
@@ -114,6 +116,8 @@ export const SPECS = {
       { key: 'lng', header: 'Home Longitude', kind: 'decimal', min: -3.3, max: 1.3, example: -0.1581, help: 'Inside Ghana: about -3.3 to 1.3' },
       { key: 'geofenceRadius', header: 'Geofence Radius (m)', kind: 'int', min: 20, max: 1000, example: 200, help: 'Metres, 20 to 1000. Leave blank for 200' },
       { key: 'emergencyInstructions', header: 'Emergency / Medical Notes', kind: 'text', max: 300, example: 'Asthmatic - inhaler in bag' },
+      // Added later: templates downloaded before it existed are still accepted (see readUpload).
+      { key: 'guardianLanguage', header: 'Guardian Language', kind: 'list', options: VOICE_LANGUAGES.map((l) => l.label), example: 'Twi', help: 'For automated calls to the parent. Leave blank for English', addedLater: true },
     ],
   },
 };

@@ -25,6 +25,8 @@ import GpsAddressInput from '../../components/ui/GpsAddressInput.jsx';
 import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.jsx';
 import { getRouteOptions } from '../../api/routes.js';
 import { getGuardians } from '../../api/guardians.js';
+import LanguageSelect from '../../components/students/LanguageSelect.jsx';
+import { DEFAULT_LANGUAGE, languageLabel } from '../../lib/languages.js';
 import { createStudent } from '../../api/students.js';
 import { CLASS_GRADE_OPTIONS } from '../../lib/options.js';
 
@@ -44,6 +46,7 @@ const initial = {
   guardianRelation: 'Father',
   guardianPhone: '',
   guardianEmail: '',
+  guardianLanguage: DEFAULT_LANGUAGE,
   secondContactName: '',
   secondContactPhone: '',
   emergencyInstructions: '',
@@ -185,8 +188,9 @@ export default function AddStudent() {
       classGrade: form.classGrade,
       profilePhotoUrl,
       guardian: form.guardianId
-        ? { id: form.guardianId }
+        ? { id: form.guardianId, preferredLanguage: form.guardianLanguage || DEFAULT_LANGUAGE }
         : {
+            preferredLanguage: form.guardianLanguage || DEFAULT_LANGUAGE,
             firstName: form.guardianFirst,
             lastName: form.guardianLast,
             relation: form.guardianRelation,
@@ -328,6 +332,7 @@ export default function AddStudent() {
                       set('guardianLast')(g.lastName);
                       set('guardianPhone')(fromStoredPhone(g.phone));
                       set('guardianEmail')(g.email || '');
+                      set('guardianLanguage')(g.preferredLanguage || DEFAULT_LANGUAGE);
                     }
                   }}
                   options={guardianOptions.map((g) => ({ value: g._id, label: `${g.firstName} ${g.lastName}`, description: formatPhone(g.phone) }))}
@@ -357,7 +362,8 @@ export default function AddStudent() {
                   <Label required>Guardian Phone</Label>
                   <PhoneInput value={form.guardianPhone} onChange={set('guardianPhone')} />
                 </div>
-                <div className="sm:col-span-2">
+                <LanguageSelect value={form.guardianLanguage} onChange={set('guardianLanguage')} />
+                <div>
                   <Label>Guardian Email</Label>
                   <Input type="email" value={form.guardianEmail} onChange={(e) => set('guardianEmail')(formatEmail(e.target.value))} placeholder="kofi.osei@gmail.com" error={Boolean(errors.guardianEmail)} />
                   <FieldError>{errors.guardianEmail}</FieldError>
@@ -571,6 +577,7 @@ export default function AddStudent() {
                   <SummaryStat label="Guardian" value={`${form.guardianFirst} ${form.guardianLast} (${form.guardianRelation})`} />
                   <SummaryStat label="Phone" value={form.guardianPhone ? formatPhone(form.guardianPhone) : '—'} />
                   <SummaryStat label="Email" value={form.guardianEmail || '—'} />
+                  <SummaryStat label="Language for calls" value={languageLabel(form.guardianLanguage)} />
                 </div>
               </section>
               <section>
