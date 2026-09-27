@@ -146,6 +146,15 @@ export const getStudentById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { ...student.toJSON(), householdMembers, todayStatus: today.get(String(student._id)) } });
 });
 
+// A parent picked on the form must be one of this school's parents (the lookup
+// is school-scoped), so an id from another school is refused rather than linked.
+const assertOwnGuardian = async (id, res) => {
+  if (!mongoose.isValidObjectId(id) || !(await Guardian.exists({ _id: id }))) {
+    res.status(400);
+    throw new Error('The selected parent was not found');
+  }
+};
+
 // @desc    Create student (final step of Add Student wizard)
 // @route   POST /api/students
 export const createStudent = asyncHandler(async (req, res) => {
@@ -207,6 +216,7 @@ export const createStudent = asyncHandler(async (req, res) => {
     throw new Error('Choose the parent\'s language from the list');
   }
   let guardianId = guardian?.id || null;
+  if (guardianId) await assertOwnGuardian(guardianId, res);
   // Linking an existing parent: a language chosen on this form updates their profile.
   if (guardianId && language) await Guardian.findByIdAndUpdate(guardianId, { preferredLanguage: language });
   if (!guardianId && guardian?.phone) {
@@ -332,6 +342,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
       throw new Error('Choose the parent\'s language from the list');
     }
     if (g.id) {
+      await assertOwnGuardian(g.id, res);
       await Guardian.findByIdAndUpdate(g.id, {
         firstName: g.firstName,
         lastName: g.lastName,

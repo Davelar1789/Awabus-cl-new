@@ -105,7 +105,6 @@ const seedSchoolData = async (school) => {
   console.log(`[seed] ${routes.length} routes created`);
 
   // 5. Guardians + Students (attached to a route + that route's bus)
-  // Note: Guardian isn't tenant-scoped yet, so these creates are unaffected either way.
   const studentSeeds = buildStudents(36);
   const students = [];
   for (let i = 0; i < studentSeeds.length; i += 1) {
