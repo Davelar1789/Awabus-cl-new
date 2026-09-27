@@ -19,17 +19,18 @@ import {
   getBroadcastHistory,
 } from '../controllers/driverAppController.js';
 import { protectDriver } from '../middleware/auth.js';
+import { authLimits } from '../middleware/rateLimit.js';
 
 const router = express.Router();
 
 // Public
-router.post('/auth/check-phone', checkDriverPhone);
-router.post('/auth/set-password', setDriverPassword);
-router.post('/auth/login', driverLogin);
-router.post('/auth/forgot-password', driverForgotPassword);
-router.post('/auth/verify-otp', driverVerifyOtp);
-router.post('/auth/resend-otp', driverResendOtp);
-router.post('/auth/reset-password', driverResetPassword);
+router.post('/auth/check-phone', ...authLimits.lookup, checkDriverPhone);
+router.post('/auth/set-password', ...authLimits.signIn, setDriverPassword);
+router.post('/auth/login', ...authLimits.signIn, driverLogin);
+router.post('/auth/forgot-password', ...authLimits.sendCode('phone'), driverForgotPassword);
+router.post('/auth/verify-otp', ...authLimits.checkCode, driverVerifyOtp);
+router.post('/auth/resend-otp', ...authLimits.sendCode('phone'), driverResendOtp);
+router.post('/auth/reset-password', ...authLimits.checkCode, driverResetPassword);
 
 // Protected
 router.get('/me', protectDriver, getDriverMe);

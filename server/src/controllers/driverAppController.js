@@ -15,6 +15,7 @@ import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextSequentialCode } from '../utils/idGenerator.js';
 import { generateOtpCode, sendOtpSms, sendSms, getOtpExpiry } from '../utils/otp.js';
 import { tenantContext } from '../utils/tenantContext.js';
+import { MAX_OTP_ATTEMPTS } from './authController.js';
 import { notify, describeTrip } from '../services/notify.js';
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -529,6 +530,8 @@ export const driverForgotPassword = asyncHandler(async (req, res) => {
   }
 
   const code = generateOtpCode();
+  // Only the newest code works.
+  await OtpToken.updateMany({ phone, purpose: 'driver_password_reset', consumed: false }, { consumed: true });
   await OtpToken.create({
     phone,
     code,
@@ -567,11 +570,22 @@ export const driverVerifyOtp = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('The code has expired');
   }
-  if (otp.code !== code) {
+  // Same rule as the admin flow: after 5 wrong codes this code is dead.
+  if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+    otp.consumed = true;
+    await otp.save();
+    res.status(429);
+    throw new Error('Too many incorrect attempts. Request a new code.');
+  }
+  if (otp.code !== String(code)) {
     otp.attempts += 1;
     await otp.save();
     res.status(400);
-    throw new Error('Invalid OTP. Please try again.');
+    throw new Error(
+      otp.attempts >= MAX_OTP_ATTEMPTS
+        ? 'Too many incorrect attempts. Request a new code.'
+        : 'Invalid OTP. Please try again.'
+    );
   }
 
   otp.consumed = true;
@@ -600,6 +614,7 @@ export const driverResendOtp = asyncHandler(async (req, res) => {
     return;
   }
   const code = generateOtpCode();
+  await OtpToken.updateMany({ phone, purpose: 'driver_password_reset', consumed: false }, { consumed: true });
   await OtpToken.create({ phone, code, purpose: 'driver_password_reset', expiresAt: getOtpExpiry() });
   if (!(await sendOtpSms(phone, code, { purpose: 'driver_password_reset', school: driver.school }))) {
     res.status(502);

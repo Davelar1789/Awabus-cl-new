@@ -1,6 +1,7 @@
 import express from 'express';
 import { protectAdmin } from '../middleware/auth.js';
 import { requireSuperadmin } from '../middleware/superadmin.js';
+import { limit } from '../middleware/rateLimit.js';
 import { getHealth, getMessages, sendTestSms, getErrors, deleteErrors } from '../controllers/systemController.js';
 import {
   getAnalytics,
@@ -20,7 +21,7 @@ router.get('/insights', getInsights);
 // Developer tools (System page)
 router.get('/system/health', getHealth);
 router.get('/system/messages', getMessages);
-router.post('/system/messages/test', sendTestSms);
+router.post('/system/messages/test', limit('test-sms', { max: 10, windowMinutes: 60, by: (req) => req.admin?._id }), sendTestSms);
 router.route('/system/errors').get(getErrors).delete(deleteErrors);
 router.get('/schools', listSchools);
 router.post('/schools', createSchool);

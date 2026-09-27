@@ -23,6 +23,8 @@ const app = express();
 // Query strings are parsed as plain text values only (no ?a[$ne]=x objects).
 app.set('query parser', 'simple');
 app.disable('x-powered-by');
+// Behind one proxy (Render, Codespaces): use the caller's real IP for rate limits.
+app.set('trust proxy', 1);
 
 // Basic security headers for an API that only serves JSON.
 app.use((req, res, next) => {
