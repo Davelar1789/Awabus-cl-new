@@ -45,6 +45,8 @@ export default function DriversList() {
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteDriver(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bus-options'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-options'] });
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       setDeleteTarget(null);
     },

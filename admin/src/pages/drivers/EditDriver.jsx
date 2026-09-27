@@ -13,9 +13,9 @@ import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
-import { getDriver, updateDriver, deleteDriver } from '../../api/drivers.js';
+import { getDriver, getDriverOptions, updateDriver, deleteDriver } from '../../api/drivers.js';
 import { getBusOptions } from '../../api/buses.js';
-import { busPickerOptions } from '../../lib/assignments.js';
+import { busHolders, busPickerOptions, busTakenBy } from '../../lib/assignments.js';
 import { dateError, emailError, formatEmail, formatLicense, formatName, licenseError, nameError } from '../../lib/formats.js';
 
 export default function EditDriver() {
@@ -28,6 +28,8 @@ export default function EditDriver() {
 
   const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id) });
   const { data: busOptions = [] } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
+  const { data: driverOptions = [] } = useQuery({ queryKey: ['driver-options'], queryFn: () => getDriverOptions() });
+  const holders = busHolders(busOptions, driverOptions);
   usePageHeader({
     breadcrumb: [
       'AwaBus',
@@ -64,6 +66,8 @@ export default function EditDriver() {
   const updateMutation = useMutation({
     mutationFn: (payload) => updateDriver(id, payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bus-options'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-options'] });
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       draft.clear();
       queryClient.invalidateQueries({ queryKey: ['driver', id] });
@@ -74,6 +78,8 @@ export default function EditDriver() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteDriver(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bus-options'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-options'] });
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
       navigate('/drivers');
     },
@@ -99,7 +105,11 @@ export default function EditDriver() {
             licenseNumber: licenseError(form.licenseNumber),
             // An unchanged old expiry can stay; a newly entered one must still be valid.
             licenseExpiry: form.licenseExpiry === baseline.licenseExpiry ? '' : dateError(form.licenseExpiry, 'licenseExpiry'),
-            assignedBus: form.assignedBus ? '' : 'Select the bus this driver operates',
+            assignedBus: !form.assignedBus
+              ? 'Select the bus this driver operates'
+              : busTakenBy(holders, form.assignedBus, id)
+                ? `This bus already has a driver (${busTakenBy(holders, form.assignedBus, id)}). A bus and its route can only have one driver.`
+                : '',
           };
           setErrors(next);
           if (Object.values(next).some(Boolean)) return;
@@ -159,7 +169,7 @@ export default function EditDriver() {
                 value={form.assignedBus}
                 onChange={set('assignedBus')}
                 error={Boolean(errors.assignedBus)}
-                options={busPickerOptions(busOptions, id)}
+                options={busPickerOptions(busOptions, holders, id)}
               />
               <FieldError>{errors.assignedBus}</FieldError>
               <p className="mt-1.5 text-xs text-slate-400">Each bus has one driver. Buses that already have a driver can&apos;t be picked.</p>

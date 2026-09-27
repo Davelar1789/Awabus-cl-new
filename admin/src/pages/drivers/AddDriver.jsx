@@ -19,8 +19,8 @@ import EmptyState from '../../components/ui/EmptyState.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
 import Spinner, { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBusOptions } from '../../api/buses.js';
-import { createDriver, validateLicense } from '../../api/drivers.js';
-import { busPickerOptions } from '../../lib/assignments.js';
+import { createDriver, getDriverOptions, validateLicense } from '../../api/drivers.js';
+import { busAvailable, busHolders, busPickerOptions, busTakenBy } from '../../lib/assignments.js';
 import {
   DATE_LIMITS,
   dateError,
@@ -80,6 +80,11 @@ export default function AddDriver() {
   };
 
   const { data: busOptions, isLoading: busesLoading } = useQuery({ queryKey: ['bus-options'], queryFn: getBusOptions });
+  const { data: driverOptions = [], isLoading: driversLoading } = useQuery({
+    queryKey: ['driver-options'],
+    queryFn: () => getDriverOptions(),
+  });
+  const holders = busHolders(busOptions, driverOptions);
 
   const validateMutation = useMutation({
     mutationFn: () =>
@@ -91,6 +96,9 @@ export default function AddDriver() {
     mutationFn: (payload) => createDriver(payload),
     onSuccess: (driver) => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      // The bus just taken must show as taken the next time the picker opens.
+      queryClient.invalidateQueries({ queryKey: ['bus-options'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-options'] });
       setCreated(driver);
       clearDraft();
     },
@@ -138,6 +146,11 @@ export default function AddDriver() {
         setBusError('Select the bus this driver will operate');
         return false;
       }
+      const takenBy = busTakenBy(holders, form.assignedBus);
+      if (takenBy) {
+        setBusError(`This bus already has a driver (${takenBy}). A bus and its route can only have one driver.`);
+        return false;
+      }
     }
     setErrors(next);
     if (Object.values(next).some(Boolean)) {
@@ -160,6 +173,10 @@ export default function AddDriver() {
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleCreate = async () => {
+    if (!validateStep(4)) {
+      setStep(4);
+      return;
+    }
     createMutation.mutate({
       ...form,
       phone: toLocalPhone(form.phone),
@@ -173,7 +190,7 @@ export default function AddDriver() {
     });
   };
 
-  if (busesLoading) return <PageLoader />;
+  if (busesLoading || driversLoading) return <PageLoader />;
 
   // Drivers must be assigned to a bus (buses come before drivers), so there's
   // nothing to assign until at least one bus is registered.
@@ -198,15 +215,15 @@ export default function AddDriver() {
   }
 
   // Every bus already has its one driver, so there is nothing to assign to.
-  if (!created && busOptions.every((bus) => bus.assignedDriver)) {
+  if (!created && !busOptions.some((bus) => busAvailable(holders, bus))) {
     return (
       <div>
         <PageHeader title="Add driver" subtitle="Create a new driver profile and save their license details." />
         <Card>
           <EmptyState
             icon={BusIcon}
-            title="Every bus already has a driver"
-            description="Each bus and its route can only have one driver. Register another bus, or unassign a driver from their bus, before adding a new driver."
+            title="No bus is free for a new driver"
+            description="Each bus and its route can only have one driver, and every bus either has a driver already or has no route yet. Register another bus, give a bus a route, or unassign a driver from their bus first."
             action={
               <Button as={Link} to="/buses/new">
                 Register a bus
@@ -434,7 +451,7 @@ export default function AddDriver() {
                       setBusError('');
                     }}
                     error={Boolean(busError)}
-                    options={busPickerOptions(busOptions)}
+                    options={busPickerOptions(busOptions, holders)}
                   />
                   <FieldError>{busError}</FieldError>
                   <p className="mt-1.5 text-xs text-slate-400">

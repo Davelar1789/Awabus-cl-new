@@ -302,6 +302,8 @@ export const getDriverOptions = asyncHandler(async (req, res) => {
   const drivers = await Driver.find(filter)
     .select('firstName lastName phone licenseNumber status assignedBus')
     .sort({ createdAt: 1 })
-    .limit(50);
+    // Unfiltered, this is the full list the admin uses to see which buses are
+    // already taken, so it must not be cut short.
+    .limit(q ? 50 : 2000);
   res.json({ success: true, data: drivers });
 });
