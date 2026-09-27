@@ -119,8 +119,20 @@ export const GUIDE = [
         title: 'Move a driver to another bus',
         steps: ['Open the driver, click Edit Details, pick the new bus and save. Their route changes with the bus.'],
       },
+      {
+        title: 'Give a driver their setup code',
+        steps: [
+          'After Create Driver, a setup code (e.g. ABCD-EFGH) is shown once. Give it to the driver in person or by phone.',
+          'The first time they open the driver app, they enter their phone number, this code and a new password.',
+          'Lost or expired (codes last 7 days)? Open the driver and click Create setup code under Driver App. The old code stops working.',
+          'Drivers added by bulk upload have no code yet: make one from their profile the same way.',
+        ],
+      },
     ],
-    tips: ['The driver signs in to the app with the phone number you entered. The first time, the app asks them to choose a password.'],
+    tips: [
+      'The Drivers list says "App not set up" under anyone who has not chosen a password yet.',
+      'Without the setup code nobody can claim a driver account, even if they know the phone number.',
+    ],
   },
   {
     id: 'students',
@@ -169,7 +181,10 @@ export const GUIDE = [
         ],
       },
     ],
-    tips: ['A bus only shows once its driver has started the trip in the driver app and the phone has GPS.'],
+    tips: [
+      'A bus only shows once its driver has started the trip in the driver app and the phone has GPS.',
+      'On a trip\'s page, the Parent alert column says whether the parent was texted when their child boarded or got off, and when the bus came near their home. Until parent alerts are switched on for your school it says "Not sent (alerts are off)".',
+    ],
   },
   {
     id: 'trip-history',
@@ -278,10 +293,10 @@ export const GUIDE = [
       {
         title: 'A driver\'s day',
         steps: [
-          'Sign in with their phone number and password (they choose it the first time).',
+          'Sign in with their phone number and password. The first time, they enter the setup code you gave them and choose a password.',
           'See today\'s trip, take the roll call (Present / Absent), then Start trip.',
           'Scan or tap students as they board and get off.',
-          'If running late, send a delay text message to the parents of the students on the trip.',
+          'If running late, send a delay text message to the parents of the students on the trip (up to 3 per trip, at least 10 minutes apart).',
           'End the trip at the end of the route.',
         ],
       },
