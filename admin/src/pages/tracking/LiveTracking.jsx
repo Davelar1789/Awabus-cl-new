@@ -15,6 +15,7 @@ import { PillTabs } from '../../components/ui/Tabs.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { timeAgo } from '../../lib/utils.js';
+import { formatPhone } from '../../lib/phone.js';
 
 const busIcon = (color) =>
   L.divIcon({
@@ -172,7 +173,7 @@ export default function LiveTracking() {
                 <p className="font-bold text-slate-800 dark:text-slate-100">
                   {selected.driver ? `${selected.driver.firstName} ${selected.driver.lastName}` : '—'}
                 </p>
-                <p className="text-sm text-slate-400">Driver · {selected.driver?.phone}</p>
+                <p className="text-sm text-slate-400">Driver · {formatPhone(selected.driver?.phone)}</p>
 
                 <div className="my-4 h-px bg-slate-100 dark:bg-slate-800" />
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Route Details</p>

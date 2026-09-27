@@ -19,7 +19,7 @@ import HouseholdLinkPicker from '../../components/students/HouseholdLinkPicker.j
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
-import { RADIUS_MAX, RADIUS_MIN, coordsError, digitsOnly, formatCoord, formatName, nameError, radiusError } from '../../lib/formats.js';
+import { RADIUS_MAX, RADIUS_MIN, coordsError, digitsOnly, formatCoord, formatName, ifChanged, nameError, radiusError } from '../../lib/formats.js';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -118,6 +118,7 @@ export default function EditStudent() {
       <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
 
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           if (!isValidPhone(form.guardianPhone) || (form.secondContactPhone && !isValidPhone(form.secondContactPhone))) {
@@ -126,12 +127,19 @@ export default function EditStudent() {
           }
           setPhoneError('');
           const next = {
-            firstName: nameError(form.firstName, 'First name'),
-            lastName: nameError(form.lastName, 'Last name'),
-            guardianFirst: nameError(form.guardianFirst, 'First name', { required: false }),
-            guardianLast: nameError(form.guardianLast, 'Last name', { required: false }),
-            coords: coordsError(form.lat, form.lng),
-            geofenceRadius: radiusError(form.geofenceRadius),
+            firstName: ifChanged(form.firstName, baseline.firstName, () => nameError(form.firstName, 'First name')),
+            lastName: ifChanged(form.lastName, baseline.lastName, () => nameError(form.lastName, 'Last name')),
+            guardianFirst: ifChanged(form.guardianFirst, baseline.guardianFirst, () =>
+              nameError(form.guardianFirst, 'First name', { required: false })
+            ),
+            guardianLast: ifChanged(form.guardianLast, baseline.guardianLast, () =>
+              nameError(form.guardianLast, 'Last name', { required: false })
+            ),
+            coords:
+              String(form.lat) === String(baseline.lat) && String(form.lng) === String(baseline.lng)
+                ? ''
+                : coordsError(form.lat, form.lng),
+            geofenceRadius: ifChanged(form.geofenceRadius, baseline.geofenceRadius, () => radiusError(form.geofenceRadius)),
           };
           setErrors(next);
           if (Object.values(next).some(Boolean)) return;

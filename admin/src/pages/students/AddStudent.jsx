@@ -239,7 +239,7 @@ export default function AddStudent() {
             <Row label="Assigned Bus" value={created.bus ? `${created.bus.plateNumber} (${created.bus.name})` : 'Not assigned yet'} />
             <Row
               label="Primary Contact"
-              value={created.primaryGuardian ? `${created.primaryGuardian.firstName} (${created.primaryGuardian.phone})` : '—'}
+              value={created.primaryGuardian ? `${created.primaryGuardian.firstName} (${formatPhone(created.primaryGuardian.phone)})` : '—'}
             />
           </div>
           <div className="mt-6 flex justify-center gap-3">
@@ -345,7 +345,7 @@ export default function AddStudent() {
                       set('guardianEmail')(g.email || '');
                     }
                   }}
-                  options={guardianOptions.map((g) => ({ value: g._id, label: `${g.firstName} ${g.lastName}`, description: g.phone }))}
+                  options={guardianOptions.map((g) => ({ value: g._id, label: `${g.firstName} ${g.lastName}`, description: formatPhone(g.phone) }))}
                 />
               </div>
 

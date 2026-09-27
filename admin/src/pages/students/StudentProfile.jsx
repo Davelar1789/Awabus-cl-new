@@ -11,6 +11,7 @@ import Avatar from '../../components/ui/Avatar.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Tabs from '../../components/ui/Tabs.jsx';
 import { formatDate, formatDateTime } from '../../lib/utils.js';
+import { formatPhone } from '../../lib/phone.js';
 
 const InfoRow = ({ label, value }) => (
   <div>
@@ -68,7 +69,7 @@ export default function StudentProfile() {
               <InfoRow label="Class / Grade" value={student.classGrade} />
               <InfoRow label="Gender" value={student.gender} />
               <InfoRow label="Date of Birth" value={formatDate(student.dob)} />
-              <InfoRow label="Emergency Phone" value={student.secondContactPhone} />
+              <InfoRow label="Emergency Phone" value={formatPhone(student.secondContactPhone)} />
               <InfoRow label="Home Address" value={student.homeAddress} className="sm:col-span-2" />
             </div>
           </Card>
@@ -104,10 +105,10 @@ export default function StudentProfile() {
           <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2">
             <InfoRow label="Full Name" value={guardian ? `${guardian.firstName} ${guardian.lastName}` : '—'} />
             <InfoRow label="Relation" value={guardian?.relation} />
-            <InfoRow label="Phone" value={guardian?.phone} />
+            <InfoRow label="Phone" value={formatPhone(guardian?.phone)} />
             <InfoRow label="Email" value={guardian?.email} />
             <InfoRow label="Second Contact" value={student.secondContactName} />
-            <InfoRow label="Second Contact Phone" value={student.secondContactPhone} />
+            <InfoRow label="Second Contact Phone" value={formatPhone(student.secondContactPhone)} />
             <InfoRow label="Emergency Instructions" value={student.emergencyInstructions} className="sm:col-span-2" />
           </div>
         </Card>

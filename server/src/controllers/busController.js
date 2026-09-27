@@ -5,7 +5,7 @@ import Route from '../models/Route.js';
 import Student from '../models/Student.js';
 import Trip from '../models/Trip.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
-import { assertFormats, normalizeCode } from '../utils/formats.js';
+import { assertFormats, ifChanged, normalizeCode } from '../utils/formats.js';
 
 const populateBus = (query) =>
   query
@@ -130,7 +130,11 @@ export const updateBus = asyncHandler(async (req, res) => {
     throw new Error('Bus not found');
   }
 
-  assertFormats(res, { plateNumber: req.body.plateNumber, capacity: req.body.capacity });
+  // Only new or changed values are checked (see ifChanged).
+  assertFormats(res, {
+    plateNumber: ifChanged(req.body.plateNumber, bus.plateNumber),
+    capacity: ifChanged(req.body.capacity, bus.capacity),
+  });
   const fields = ['plateNumber', 'name', 'type', 'capacity', 'status'];
   if (req.body.plateNumber !== undefined) req.body.plateNumber = normalizeCode(req.body.plateNumber);
   fields.forEach((f) => {

@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 import Avatar from '../ui/Avatar.jsx';
 import useConfirmSignOut from './useConfirmSignOut.jsx';
+import { formatPhone } from '../../lib/phone.js';
 
 // Section names used in page breadcrumbs, mapped to their list pages. A crumb can
 // also be given explicitly as { label, to } (e.g. a record's profile page).
@@ -117,7 +118,7 @@ export default function Topbar() {
             <div className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-lg dark:border-slate-700 dark:bg-navy-light">
               <div className="border-b border-slate-100 px-4 pb-2.5 pt-1 dark:border-slate-800">
                 <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{admin?.name}</p>
-                <p className="truncate text-xs text-slate-400">{admin?.email || admin?.phone}</p>
+                <p className="truncate text-xs text-slate-400">{admin?.email || formatPhone(admin?.phone)}</p>
               </div>
               <Link
                 to="/account/profile"

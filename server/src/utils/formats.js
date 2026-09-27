@@ -59,6 +59,26 @@ const RULES = {
   },
 };
 
+const sameValue = (a, b) => {
+  if (a instanceof Date || b instanceof Date || /^\d{4}-\d{2}-\d{2}/.test(String(a))) {
+    const da = new Date(a);
+    const db = new Date(b);
+    return !Number.isNaN(da.getTime()) && !Number.isNaN(db.getTime()) && da.toISOString().slice(0, 10) === db.toISOString().slice(0, 10);
+  }
+  if (typeof b === 'number' || typeof a === 'number') return Number(a) === Number(b);
+  return normalizeCode(a) === normalizeCode(b);
+};
+
+/**
+ * For edits: returns the new value only when it differs from what is stored.
+ * Records saved before a format rule existed can then still be edited, while
+ * anything newly typed must follow the rule.
+ */
+export const ifChanged = (next, current) =>
+  next === undefined || next === null || next === '' || (current != null && current !== '' && sameValue(next, current))
+    ? undefined
+    : next;
+
 /** The problem with one value ('' when fine or blank). */
 export const formatProblem = (rule, value) => (blank(value) ? '' : RULES[rule](value));
 

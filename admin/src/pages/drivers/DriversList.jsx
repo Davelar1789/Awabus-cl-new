@@ -17,6 +17,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
+import { formatPhone } from '../../lib/phone.js';
 
 export default function DriversList() {
   const [search, setSearch] = useState('');
@@ -123,7 +124,7 @@ export default function DriversList() {
                         </span>
                       </div>
                     </Td>
-                    <Td>{driver.phone}</Td>
+                    <Td>{formatPhone(driver.phone)}</Td>
                     <Td>{driver.licenseNumber}</Td>
                     <Td>{driver.assignedBus ? `${driver.assignedBus.name} (${driver.assignedBus.plateNumber})` : '—'}</Td>
                     <Td>{driver.assignedRoute ? `${driver.assignedRoute.name}` : '—'}</Td>

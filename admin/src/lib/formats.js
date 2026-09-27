@@ -114,3 +114,10 @@ export const dateError = (v, kind) => {
   if (v < min || v > max) return 'Enter a realistic date';
   return '';
 };
+
+/**
+ * For edit forms: only check a value that was changed. Records saved before a
+ * rule existed can still be edited; anything newly typed must follow the rule.
+ */
+export const ifChanged = (value, original, check) =>
+  String(value ?? '').trim() === String(original ?? '').trim() ? '' : check();

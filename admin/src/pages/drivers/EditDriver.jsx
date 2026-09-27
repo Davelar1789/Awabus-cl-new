@@ -16,7 +16,7 @@ import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getDriver, getDriverOptions, updateDriver, deleteDriver } from '../../api/drivers.js';
 import { getBusOptions } from '../../api/buses.js';
 import { busHolders, busPickerOptions, busTakenBy } from '../../lib/assignments.js';
-import { dateError, emailError, formatEmail, formatLicense, formatName, licenseError, nameError } from '../../lib/formats.js';
+import { dateError, emailError, formatEmail, formatLicense, formatName, ifChanged, licenseError, nameError } from '../../lib/formats.js';
 
 export default function EditDriver() {
   const { id } = useParams();
@@ -95,19 +95,22 @@ export default function EditDriver() {
       <PageHeader title="Edit Driver" subtitle="Update personal information, licensing status, and assigned fleet assets." />
       <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
       <form
+        // Our own checks run on submit (and skip unchanged old values), so the
+        // browser's built-in checks must not block saving an older record.
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           const next = {
-            firstName: nameError(form.firstName, 'First name'),
-            lastName: nameError(form.lastName, 'Last name'),
+            firstName: ifChanged(form.firstName, baseline.firstName, () => nameError(form.firstName, 'First name')),
+            lastName: ifChanged(form.lastName, baseline.lastName, () => nameError(form.lastName, 'Last name')),
             phone: isValidPhone(form.phone) ? '' : 'Enter a 10-digit number starting with 0, e.g. 024 412 3456',
-            email: emailError(form.email),
-            licenseNumber: licenseError(form.licenseNumber),
+            email: ifChanged(form.email, baseline.email, () => emailError(form.email)),
+            licenseNumber: ifChanged(form.licenseNumber, baseline.licenseNumber, () => licenseError(form.licenseNumber)),
             // An unchanged old expiry can stay; a newly entered one must still be valid.
             licenseExpiry: form.licenseExpiry === baseline.licenseExpiry ? '' : dateError(form.licenseExpiry, 'licenseExpiry'),
             assignedBus: !form.assignedBus
               ? 'Select the bus this driver operates'
-              : busTakenBy(holders, form.assignedBus, id)
+              : form.assignedBus !== baseline.assignedBus && busTakenBy(holders, form.assignedBus, id)
                 ? `This bus already has a driver (${busTakenBy(holders, form.assignedBus, id)}). A bus and its route can only have one driver.`
                 : '',
           };

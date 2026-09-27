@@ -18,6 +18,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import RowActions from '../../components/ui/RowActions.jsx';
 import BulkUploadModal from '../../components/import/BulkUploadModal.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
+import { formatPhone } from '../../lib/phone.js';
 
 export default function StudentsList() {
   const [search, setSearch] = useState('');
@@ -145,7 +146,7 @@ export default function StudentsList() {
                     </Td>
                     <Td>{s.classGrade}</Td>
                     <Td>{s.primaryGuardian ? s.primaryGuardian.fullName || `${s.primaryGuardian.firstName} ${s.primaryGuardian.lastName}` : '—'}</Td>
-                    <Td>{s.primaryGuardian?.phone || '—'}</Td>
+                    <Td>{s.primaryGuardian?.phone ? formatPhone(s.primaryGuardian.phone) : '—'}</Td>
                     <Td>{s.bus?.plateNumber || s.bus?.name || '—'}</Td>
                     <Td>{s.route?.name || '—'}</Td>
                     <Td>{s.pickupTime || '—'}</Td>

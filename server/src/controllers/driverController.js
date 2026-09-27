@@ -4,14 +4,12 @@ import Driver from '../models/Driver.js';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
-import { assertFormats, formatProblem, normalizeCode } from '../utils/formats.js';
+import { assertFormats, formatProblem, ifChanged, normalizeCode } from '../utils/formats.js';
 
 const populateDriver = (query) =>
   query
     .populate('assignedBus', 'plateNumber name capacity')
     .populate('assignedRoute', 'routeId name');
-
-const sameDay = (a, b) => Boolean(a && b) && new Date(a).toISOString().slice(0, 10) === new Date(b).toISOString().slice(0, 10);
 
 // A bus (and so its route) has exactly one driver. The drivers collection is
 // the source of truth, so look for any other driver already holding the bus.
@@ -211,13 +209,13 @@ export const updateDriver = asyncHandler(async (req, res) => {
     'residentialAddress',
     'status',
   ];
+  // Only new or changed values are checked, so records saved before these rules
+  // (e.g. an old expired license, which the profile flags) can still be edited.
   assertFormats(res, {
-    licenseNumber: req.body.licenseNumber,
-    email: req.body.email,
-    driverDob: req.body.dob,
-    // Only a newly entered expiry date must be in the future, so an old record
-    // can still be edited; the profile flags an expired license.
-    licenseExpiry: sameDay(req.body.licenseExpiry, driver.licenseExpiry) ? undefined : req.body.licenseExpiry,
+    licenseNumber: ifChanged(req.body.licenseNumber, driver.licenseNumber),
+    email: ifChanged(req.body.email, driver.email),
+    driverDob: ifChanged(req.body.dob, driver.dob),
+    licenseExpiry: ifChanged(req.body.licenseExpiry, driver.licenseExpiry),
   });
   fields.forEach((f) => {
     if (req.body[f] !== undefined) driver[f] = req.body[f];
@@ -244,7 +242,9 @@ export const updateDriver = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('This bus is not yet assigned to a route — assign it to a route before assigning a driver');
       }
-      await assertBusFree(res, bus._id, driver._id);
+      // Only when the bus changes, so drivers left sharing a bus by older data
+      // can still be edited (and then moved to a free bus to fix it).
+      if (String(newBusId) !== previousBus) await assertBusFree(res, bus._id, driver._id);
       driver.assignedBus = newBusId;
       // Derived from the bus, same as on creation — never chosen independently.
       driver.assignedRoute = bus.assignedRoute;

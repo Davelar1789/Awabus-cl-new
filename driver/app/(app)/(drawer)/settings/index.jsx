@@ -14,6 +14,7 @@ import { getMe } from '../../../../src/api/driverApp.js';
 import { useAuthStore } from '../../../../src/store/authStore.js';
 import { useUiStore } from '../../../../src/store/uiStore.js';
 import { colors } from '../../../../src/lib/theme.js';
+import { formatPhone } from '../../../../src/lib/phone.js';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'Follow system' },
@@ -44,7 +45,7 @@ export default function Settings() {
         <Card style={styles.profileCard}>
           <Avatar name={driver?.name} src={info.profilePhotoUrl} size="lg" />
           <Text style={styles.name}>{driver?.name || 'Driver'}</Text>
-          <Text style={styles.phone}>{driver?.phone}</Text>
+          <Text style={styles.phone}>{formatPhone(driver?.phone)}</Text>
           <View style={styles.divider} />
           <Row label="License number" value={info.licenseNumber || '—'} />
           <Row label="Assigned bus" value={info.assignedBus?.plateNumber || 'Not assigned'} />

@@ -12,6 +12,7 @@ import Button from '../../components/ui/Button.jsx';
 import Tabs from '../../components/ui/Tabs.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table.jsx';
 import { formatDate } from '../../lib/utils.js';
+import { formatPhone } from '../../lib/phone.js';
 
 const InfoRow = ({ label, value }) => (
   <div>
@@ -69,7 +70,7 @@ export default function DriverProfile() {
           <Card>
             <CardHeader title="Driver Information" />
             <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2">
-              <InfoRow label="Phone" value={driver.phone} />
+              <InfoRow label="Phone" value={formatPhone(driver.phone)} />
               <InfoRow label="Email" value={driver.email} />
               <InfoRow label="Date of birth" value={driver.dob ? `${formatDate(driver.dob)} (${age} years)` : '—'} />
               <InfoRow label="Gender" value={driver.gender} />
@@ -77,7 +78,7 @@ export default function DriverProfile() {
                 label="Emergency contact"
                 value={
                   driver.emergencyContactName
-                    ? `${driver.emergencyContactName} (${driver.emergencyContactRelation}) - ${driver.emergencyContactPhone}`
+                    ? `${driver.emergencyContactName} (${driver.emergencyContactRelation}) - ${formatPhone(driver.emergencyContactPhone)}`
                     : '—'
                 }
               />

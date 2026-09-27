@@ -24,7 +24,7 @@ const FAQS = [
 ];
 
 const CONTACTS = [
-  { icon: Phone, label: 'Call support', value: '+233 20 000 0000', action: () => Linking.openURL('tel:+233200000000') },
+  { icon: Phone, label: 'Call support', value: '020 000 0000', action: () => Linking.openURL('tel:+233200000000') },
   { icon: Mail, label: 'Email support', value: 'support@awabus.com', action: () => Linking.openURL('mailto:support@awabus.com') },
   { icon: MessageCircle, label: 'WhatsApp', value: 'Chat with the school office', action: () => Linking.openURL('https://wa.me/233200000000') },
 ];

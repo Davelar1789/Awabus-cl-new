@@ -11,7 +11,7 @@ import { Select } from '../../components/ui/Input.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import { SearchableSelect } from '../../components/ui/SearchableSelect.jsx';
-import { CAPACITY_MAX, capacityError, digitsOnly, formatPlate, plateError } from '../../lib/formats.js';
+import { CAPACITY_MAX, capacityError, digitsOnly, formatPlate, ifChanged, plateError } from '../../lib/formats.js';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import { getBus, updateBus, deleteBus } from '../../api/buses.js';
 import { getRouteOptions } from '../../api/routes.js';
@@ -78,7 +78,11 @@ export default function EditBus() {
       setRouteError('A bus must remain assigned to a route');
       return;
     }
-    const next = { plateNumber: plateError(form.plateNumber), capacity: capacityError(form.capacity), name: form.name.trim() ? '' : 'Bus name is required' };
+    const next = {
+      plateNumber: ifChanged(form.plateNumber, baseline.plateNumber, () => plateError(form.plateNumber)),
+      capacity: ifChanged(form.capacity, baseline.capacity, () => capacityError(form.capacity)),
+      name: form.name.trim() ? '' : 'Bus name is required',
+    };
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
     updateMutation.mutate({ ...form, capacity: Number(form.capacity) });
@@ -88,7 +92,7 @@ export default function EditBus() {
     <div>
       <PageHeader title={`Edit Bus ${bus.plateNumber}`} />
       <DraftNotice show={draft.restored} onDiscard={draft.discard} discardLabel="Discard changes" />
-      <form onSubmit={handleSubmit}>
+      <form noValidate onSubmit={handleSubmit}>
         <Card>
           {updateMutation.error && (
             <div className="mx-6 mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">

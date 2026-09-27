@@ -16,7 +16,11 @@ const RESEND_COOLDOWN_MS = 60 * 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const maskEmail = (email) => email.replace(/^(.)(.*)(@.*)$/, (_, a, b, c) => `${a}${'*'.repeat(Math.max(b.length, 1))}${c}`);
-const maskPhone = (phone) => `${phone.slice(0, 4)}*****${phone.slice(-4)}`;
+// Shown the local way (0XX), e.g. +233244123456 -> 024*****3456
+const maskPhone = (phone) => {
+  const local = phone.startsWith('+233') ? `0${phone.slice(4)}` : phone;
+  return `${local.slice(0, 3)}*****${local.slice(-4)}`;
+};
 
 // Email and phone must be unique across schools for sign-in / password reset
 // lookups to be unambiguous, so these checks deliberately run system-wide.

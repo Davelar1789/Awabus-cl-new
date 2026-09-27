@@ -256,7 +256,7 @@ export default function AddDriver() {
             <Row label="License Number" value={created.licenseNumber} />
             <Row label="Assigned Bus" value={created.assignedBus ? `${created.assignedBus.name}` : '—'} />
             <Row label="Assigned Route" value={created.assignedRoute?.name || '—'} />
-            <Row label="Contact Phone" value={created.phone} />
+            <Row label="Contact Phone" value={formatPhone(created.phone)} />
           </div>
           <div className="mt-6 flex justify-center gap-3">
             <Button as={Link} to="/drivers" variant="outline">

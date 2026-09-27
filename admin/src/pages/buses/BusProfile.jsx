@@ -10,6 +10,7 @@ import Button from '../../components/ui/Button.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table.jsx';
 import { formatDate } from '../../lib/utils.js';
+import { formatPhone } from '../../lib/phone.js';
 
 const InfoRow = ({ label, value }) => (
   <div className="flex items-center justify-between border-b border-slate-100 py-3 last:border-0 dark:border-slate-800">
@@ -68,7 +69,7 @@ export default function BusProfile() {
                     {bus.assignedDriver.firstName} {bus.assignedDriver.lastName}
                   </p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">Active School Bus Driver</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{bus.assignedDriver.phone}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{formatPhone(bus.assignedDriver.phone)}</p>
                 </div>
               </div>
             ) : (

@@ -6,7 +6,7 @@ import Guardian from '../models/Guardian.js';
 import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
 import { nextYearCode } from '../utils/idGenerator.js';
-import { assertFormats } from '../utils/formats.js';
+import { assertFormats, ifChanged } from '../utils/formats.js';
 
 const populateStudent = (query) =>
   query
@@ -226,11 +226,12 @@ export const updateStudent = asyncHandler(async (req, res) => {
     'lng',
     'status',
   ];
+  // Only new or changed values are checked (see ifChanged).
   assertFormats(res, {
-    studentDob: req.body.dob,
-    lat: req.body.lat,
-    lng: req.body.lng,
-    geofenceRadius: req.body.geofenceRadius,
+    studentDob: ifChanged(req.body.dob, student.dob),
+    lat: ifChanged(req.body.lat, student.lat),
+    lng: ifChanged(req.body.lng, student.lng),
+    geofenceRadius: ifChanged(req.body.geofenceRadius, student.geofenceRadius),
     email: req.body.guardian?.email,
   });
   const locationBefore = JSON.stringify(pickLocation(student));

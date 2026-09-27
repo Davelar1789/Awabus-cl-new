@@ -12,9 +12,9 @@ import { colors } from '../../src/lib/theme.js';
 const maskPhone = (phone = '') => {
   const digits = phone.replace(/\D/g, '');
   if (digits.length < 6) return phone;
-  const last2 = digits.slice(-2);
-  const first = digits.slice(0, digits.length - 6);
-  return `+${first.slice(0, 3)} ${first.slice(3, 5)} *** ** ${last2}`;
+  // Shown the local way: 024 *** ** 56
+  const local = digits.startsWith('233') ? `0${digits.slice(3)}` : digits.startsWith('0') ? digits : `0${digits}`;
+  return `${local.slice(0, 3)} *** ** ${local.slice(-2)}`;
 };
 
 export default function VerifyOtp() {
