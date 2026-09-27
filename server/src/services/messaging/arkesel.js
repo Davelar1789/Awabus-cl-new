@@ -28,7 +28,9 @@ export async function arkeselSend(to, message) {
   if (!res.ok || data?.status !== 'success') {
     throw new Error(data?.message || `Arkesel responded with HTTP ${res.status}`);
   }
-  return { providerMessageId: String(data?.data?.[0]?.id || '') };
+  // The id comes back as data.id (one message) or data[0].id (per recipient).
+  const first = Array.isArray(data?.data) ? data.data[0] : data?.data;
+  return { providerMessageId: String(first?.id || '') };
 }
 
 /** Remaining SMS credit, shown on the System page. */
