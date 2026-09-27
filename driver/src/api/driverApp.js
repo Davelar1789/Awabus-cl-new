@@ -27,7 +27,10 @@ export const resetPassword = (resetToken, newPassword) =>
 // --- Profile & trips -----------------------------------------------------
 export const getMe = () => apiClient.get('/driver-app/me').then((r) => r.data.data);
 
-export const getTodaysTrip = () => apiClient.get('/driver-app/trips/today').then((r) => r.data.data);
+// Today's running or next trip; completedToday = trips already finished today.
+export const getTodaysTrip = () =>
+  apiClient.get('/driver-app/trips/today').then((r) => (r.data.data ? { ...r.data.data, completedToday: r.data.completedToday || 0 } : null));
+export const getNotifications = () => apiClient.get('/driver-app/notifications').then((r) => r.data.data);
 
 export const getTripHistory = (params) => apiClient.get('/driver-app/trips', { params }).then((r) => r.data);
 

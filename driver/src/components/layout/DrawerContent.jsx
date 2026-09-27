@@ -7,6 +7,7 @@ import {
   Waypoints,
   History,
   MessageSquare,
+  Bell,
   Settings,
   HelpCircle,
   LogOut,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { path: '/trip/active', label: 'Active trip', icon: Waypoints },
   { path: '/trip-history', label: 'Trip history', icon: History },
   { path: '/broadcast-history', label: 'Broadcast history', icon: MessageSquare },
+  { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/help', label: 'Help & support', icon: HelpCircle },
 ];

@@ -23,7 +23,8 @@ export function useGeolocation(active) {
         }
 
         subscriptionRef.current = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+          // distanceInterval 0: keep reporting while parked too (every ~5 s on Android).
+          { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 0 },
           (loc) => {
             if (cancelled) return;
             setError(null);

@@ -10,6 +10,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="index" />
       <Drawer.Screen name="trip-history" />
       <Drawer.Screen name="broadcast-history" />
+      <Drawer.Screen name="notifications" />
       <Drawer.Screen name="settings" />
       <Drawer.Screen name="help" />
     </Drawer>

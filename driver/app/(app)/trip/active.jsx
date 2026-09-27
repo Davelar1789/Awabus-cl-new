@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { AlertTriangle, Search } from 'lucide-react-native';
@@ -9,17 +9,18 @@ import TripHeader from '../../../src/components/layout/TripHeader.jsx';
 import Card from '../../../src/components/ui/Card.jsx';
 import Button from '../../../src/components/ui/Button.jsx';
 import Modal from '../../../src/components/ui/Modal.jsx';
+import ConfirmDialog from '../../../src/components/ui/ConfirmDialog.jsx';
+import StudentMeta, { guardianName } from '../../../src/components/StudentMeta.jsx';
+import { formatPhone } from '../../../src/lib/phone.js';
+import { useLiveGpsStore } from '../../../src/store/liveGpsStore.js';
 import { PageLoader } from '../../../src/components/ui/Spinner.jsx';
 import { useConnectionStore } from '../../../src/store/connectionStore.js';
 import { useOfflineQueueStore } from '../../../src/store/offlineQueueStore.js';
 import { useUiStore } from '../../../src/store/uiStore.js';
 import { useAuthStore } from '../../../src/store/authStore.js';
-import { useGeolocation } from '../../../src/hooks/useGeolocation.js';
-import { getTodaysTrip, markAttendance, pushLocation, endTrip } from '../../../src/api/driverApp.js';
+import { getTodaysTrip, markAttendance, endTrip } from '../../../src/api/driverApp.js';
 import { formatClock, formatDate, formatLat, formatLng, timeAgo } from '../../../src/lib/utils.js';
 import { colors, radii } from '../../../src/lib/theme.js';
-
-const LOCATION_PUSH_INTERVAL_MS = 8000;
 
 export default function ActiveTrip() {
   const queryClient = useQueryClient();
@@ -29,13 +30,17 @@ export default function ActiveTrip() {
   const enqueue = useOfflineQueueStore((s) => s.enqueue);
   const vibrationEnabled = useUiStore((s) => s.vibration);
   const driverId = useAuthStore((s) => s.driver?.id);
+  const driverName = useAuthStore((s) => s.driver?.name);
   const queue = useOfflineQueueStore((s) => s.queue);
 
   const [elapsed, setElapsed] = useState(0);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
-  const lastPushRef = useRef(0);
+  const [confirm, setConfirm] = useState(null); // pending "are you sure?" request
+  // Position sent by the background tracker (src/components/BackgroundWork.jsx).
+  const position = useLiveGpsStore((s) => s.position);
+  const gpsError = useLiveGpsStore((s) => s.error);
 
   const { data: trip, isLoading } = useQuery({
     queryKey: ['todays-trip'],
@@ -43,11 +48,14 @@ export default function ActiveTrip() {
     refetchInterval: 20000,
   });
 
-  useEffect(() => {
-    if (trip && trip.status !== 'In Progress' && trip.status !== 'Delayed') {
-      router.replace('/');
-    }
-  }, [trip]);
+  // Back to the start screen when this trip is no longer running, but only
+  // while this screen is in view (a background refresh never moves screens).
+  const notLive = Boolean(trip) && trip.status !== 'In Progress' && trip.status !== 'Delayed';
+  useFocusEffect(
+    useCallback(() => {
+      if (notLive) router.replace('/');
+    }, [notLive])
+  );
 
   useEffect(() => {
     if (!trip?.startedAt) return undefined;
@@ -57,19 +65,6 @@ export default function ActiveTrip() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [trip?.startedAt]);
-
-  const { position } = useGeolocation(Boolean(trip));
-
-  useEffect(() => {
-    if (!position || !trip?._id) return;
-    const now = Date.now();
-    if (now - lastPushRef.current < LOCATION_PUSH_INTERVAL_MS) return;
-    lastPushRef.current = now;
-
-    pushLocation(trip._id, position)
-      .then(() => markSynced())
-      .catch(() => enqueue({ kind: 'location', tripId: trip._id, driverId, payload: position }));
-  }, [position, trip?._id, driverId, markSynced, enqueue]);
 
   // Every status change for a student (board, drop off, not here) goes through
   // here. Offline, it is queued and shown straight away with an "(offline)" tag.
@@ -93,6 +88,32 @@ export default function ActiveTrip() {
       );
     },
   });
+
+  // Every step is confirmed first, so a stray tap changes nothing.
+  const STEP = {
+    'On board': { verb: 'boarded', label: 'Yes, on board' },
+    'Dropped off': { verb: 'dropped off', label: 'Yes, dropped off' },
+    'Not on board': { verb: 'not here', label: 'Yes, not here', danger: true },
+  };
+  const askStatus = (p, dropoffStatus) => {
+    const name = p.student ? `${p.student.firstName} ${p.student.lastName}` : 'this student';
+    const step = STEP[dropoffStatus];
+    setConfirm({
+      title: `Mark ${name} as ${step.verb}?`,
+      message: p.student?.classGrade ? `${p.student.classGrade}` : '',
+      confirmLabel: step.label,
+      danger: step.danger,
+      onConfirm: () => setStatus(p.student?._id, dropoffStatus),
+    });
+  };
+
+  const callParent = (g) =>
+    setConfirm({
+      title: `Call ${guardianName(g) || 'the parent'}?`,
+      message: `This opens your phone app to call ${formatPhone(g.phone)}.`,
+      confirmLabel: 'Call',
+      onConfirm: () => Linking.openURL(`tel:${g.phone}`).catch(() => {}),
+    });
 
   const setStatus = (studentId, dropoffStatus) => {
     if (vibrationEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -142,7 +163,7 @@ export default function ActiveTrip() {
           <Text style={styles.infoLine}>
             <Text style={styles.infoLabel}>Driver: </Text>
             <Text style={styles.infoValue}>
-              {trip.driver ? `${trip.driver.firstName || ''} ${trip.driver.lastName || ''}`.trim() : '—'}
+              {(trip.driver?.firstName ? `${trip.driver.firstName} ${trip.driver.lastName || ''}`.trim() : driverName) || '—'}
             </Text>
           </Text>
           <Text style={styles.dateText}>{formatDate(trip.date)}</Text>
@@ -176,6 +197,13 @@ export default function ActiveTrip() {
             </Text>
           </View>
         </Card>
+
+        {gpsError ? (
+          <View style={styles.offlineBanner}>
+            <AlertTriangle size={16} color={colors.amber800} />
+            <Text style={styles.offlineText}>GPS is off: {gpsError} The school cannot see the bus until location is allowed.</Text>
+          </View>
+        ) : null}
 
         {!isOnline && (
           <View style={styles.offlineBanner}>
@@ -220,7 +248,7 @@ export default function ActiveTrip() {
           )}
           <View style={{ gap: 8 }}>
             {visibleStudents.map((p) => (
-              <StudentRow key={p.student?._id} p={p} isOnline={isOnline} onSet={(status) => setStatus(p.student?._id, status)} />
+              <StudentRow key={p.student?._id} p={p} isOnline={isOnline} onSet={(status) => askStatus(p, status)} onCall={callParent} />
             ))}
             {visibleStudents.length === 0 && <Text style={styles.emptyListText}>No students found.</Text>}
           </View>
@@ -235,6 +263,8 @@ export default function ActiveTrip() {
           End trip
         </Button>
       </SafeAreaView>
+
+      <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />
 
       <Modal open={endOpen} onClose={() => setEndOpen(false)}>
         <Text style={styles.modalTitle}>End today's trip?</Text>
@@ -273,7 +303,7 @@ export default function ActiveTrip() {
 }
 
 // One student: what happened so far, and the next step as a button.
-function StudentRow({ p, isOnline, onSet }) {
+function StudentRow({ p, isOnline, onSet, onCall }) {
   const name = p.student ? `${p.student.firstName} ${p.student.lastName}` : 'Student';
   const when = p._offline || !isOnline ? ' (offline)' : p.alertTime ? ` at ${p.alertTime}` : '';
   const status = p.dropoffStatus;
@@ -281,7 +311,10 @@ function StudentRow({ p, isOnline, onSet }) {
   if (p.attendance === 'Absent' || p.attendance === 'Cancelled') {
     return (
       <View style={[styles.studentRow, styles.studentRowMuted]}>
-        <Text style={[styles.studentName, styles.mutedName]}>{name}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.studentName, styles.mutedName]}>{name}</Text>
+          <StudentMeta student={p.student} onCall={onCall} />
+        </View>
         <Text style={styles.absentText}>Absent</Text>
       </View>
     );
@@ -289,7 +322,10 @@ function StudentRow({ p, isOnline, onSet }) {
   if (status === 'Dropped off') {
     return (
       <View style={styles.studentRow}>
-        <Text style={styles.studentName}>{name}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.studentName}>{name}</Text>
+          <StudentMeta student={p.student} onCall={onCall} />
+        </View>
         <Text style={styles.scannedText}>Dropped off{when}</Text>
       </View>
     );
@@ -300,6 +336,7 @@ function StudentRow({ p, isOnline, onSet }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.studentName}>{name}</Text>
           <Text style={styles.onBoardText}>On board{when}</Text>
+          <StudentMeta student={p.student} onCall={onCall} />
         </View>
         <SmallButton label="Drop off" onPress={() => onSet('Dropped off')} />
       </View>
@@ -310,6 +347,7 @@ function StudentRow({ p, isOnline, onSet }) {
       <View style={{ flex: 1 }}>
         <Text style={styles.studentName}>{name}</Text>
         {status === 'Not on board' ? <Text style={styles.notHereText}>Not here{when}</Text> : <Text style={styles.waitingText}>Waiting</Text>}
+        <StudentMeta student={p.student} onCall={onCall} />
       </View>
       <View style={styles.actions}>
         {status !== 'Not on board' && <SmallButton label="Not here" variant="ghost" onPress={() => onSet('Not on board')} />}

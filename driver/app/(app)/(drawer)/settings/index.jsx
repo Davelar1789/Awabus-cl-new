@@ -71,7 +71,7 @@ export default function Settings() {
         <Text style={styles.sectionTitle}>Notifications</Text>
         <Card style={styles.card}>
           <ToggleRow
-            label="Notification sounds"
+            label="Vibrate for new notifications"
             value={prefs.notificationSounds}
             onValueChange={(v) => prefs.setPref('notificationSounds', v)}
           />
