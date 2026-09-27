@@ -18,15 +18,11 @@ export const MAX_OTP_ATTEMPTS = 5;
 // Once an admin is found, `admin.school` goes into the JWT and every
 // subsequent request is scoped normally by the withTenant 
 const findAdminByEmail = (email) =>
-  tenantContext.runAsSystem(async () => {
-    console.log('[AUTH] Inside runAsSystem');
-    console.log('[AUTH] isSystem:', tenantContext.isSystem());
-    console.log('[AUTH] school:', tenantContext.getSchool());
-
-    return Admin.findOne({
+  tenantContext.runAsSystem(async () =>
+    Admin.findOne({
       email: email.toLowerCase().trim(),
-    });
-  });
+    })
+  );
 
 const saveAdminAsSystem = (admin) => tenantContext.runAsSystem(() => admin.save());
 

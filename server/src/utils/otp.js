@@ -5,6 +5,8 @@ import { sendSms as deliverSms, sendEmail as deliverEmail } from '../services/me
 // records every message and uses the SMS provider once one is switched on
 // (until then the message is written to the server log, as before).
 
+const logCodes = () => process.env.LOG_OTP_CODES !== 'false';
+
 export const generateOtpCode = () => String(crypto.randomInt(100000, 1000000));
 
 export const sendOtpSms = async (phone, code, { purpose = 'account_verification', school = null } = {}) => {
@@ -18,7 +20,8 @@ export const sendOtpSms = async (phone, code, { purpose = 'account_verification'
   });
   // Not actually sent (no SMS provider yet): keep the code readable in the server
   // log, in the same format as before, so it can still be used while testing.
-  if (res.status === 'logged') console.log(`[otp] Verification code for ${phone}: ${code}`);
+  // Set LOG_OTP_CODES=false to stop this (e.g. once a provider is live).
+  if (res.status === 'logged' && logCodes()) console.log(`[otp] Verification code for ${phone}: ${code}`);
   return res.status !== 'failed';
 };
 
@@ -31,7 +34,7 @@ export const sendOtpEmail = async (email, code, { purpose = 'account_verificatio
     school,
     secret: true,
   });
-  if (res.status === 'logged') console.log(`[otp] Verification code for ${email}: ${code}`);
+  if (res.status === 'logged' && logCodes()) console.log(`[otp] Verification code for ${email}: ${code}`);
   return res.status !== 'failed';
 };
 
