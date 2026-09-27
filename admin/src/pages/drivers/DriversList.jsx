@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload, Plus, Users, SearchX } from 'lucide-react';
+import { Upload, Plus, Users, SearchX, UserCheck, Bus as BusIcon, IdCard } from 'lucide-react';
+import StatCard from '../../components/ui/StatCard.jsx';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getDrivers, updateDriver } from '../../api/drivers.js';
@@ -79,6 +80,7 @@ export default function DriversList() {
     setDeleteTarget(null);
   };
   const meta = data?.meta;
+  const stats = data?.stats || {};
 
   return (
     <div className={selection.selecting ? 'pb-24' : undefined}>
@@ -86,6 +88,19 @@ export default function DriversList() {
         title="Drivers"
         subtitle="Manage and assign authorized drivers for the school fleet."
       />
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total Drivers" value={stats.totalDrivers ?? 0} hint="Registered drivers" icon={Users} />
+        <StatCard label="Active Drivers" value={stats.active ?? 0} hint="Status set to Active" icon={UserCheck} />
+        <StatCard label="Without a Bus" value={stats.withoutBus ?? 0} hint="Need a bus before they can drive" icon={BusIcon} tone="slate" />
+        <StatCard
+          label="License Alerts"
+          value={stats.licenseAlerts ?? 0}
+          hint="Expired or expiring within 30 days"
+          icon={IdCard}
+          tone={stats.licenseAlerts ? 'red' : 'amber'}
+        />
+      </div>
 
       <ListToolbar left={meta ? <p className="text-sm text-slate-500 dark:text-slate-400">{meta.total} drivers</p> : null}>
         {selection.toolbarButton}

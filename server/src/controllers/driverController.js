@@ -26,7 +26,7 @@ async function assertBusFree(res, busId, driverId = null) {
 }
 
 // @desc    List drivers (search + pagination)
-// @route   GET /api/drivers
+// @route   GET /api/drivers   (also returns overview stats for the cards)
 export const getDrivers = asyncHandler(async (req, res) => {
   const { q } = req.query;
   const { page, limit, skip } = getPagination(req.query, 8);
@@ -41,12 +41,24 @@ export const getDrivers = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [drivers, total] = await Promise.all([
+  // Licenses expiring within 30 days (or already expired) need renewing soon.
+  const soon = new Date();
+  soon.setDate(soon.getDate() + 30);
+  const [drivers, total, totalDrivers, active, withoutBus, licenseAlerts] = await Promise.all([
     populateDriver(Driver.find(filter)).sort({ createdAt: 1 }).skip(skip).limit(limit),
     Driver.countDocuments(filter),
+    Driver.countDocuments(),
+    Driver.countDocuments({ status: 'Active' }),
+    Driver.countDocuments({ assignedBus: null }),
+    Driver.countDocuments({ licenseExpiry: { $ne: null, $lte: soon } }),
   ]);
 
-  res.json({ success: true, data: drivers, meta: buildPaginationMeta(total, page, limit) });
+  res.json({
+    success: true,
+    data: drivers,
+    meta: buildPaginationMeta(total, page, limit),
+    stats: { totalDrivers, active, withoutBus, licenseAlerts },
+  });
 });
 
 // @desc    Get driver profile (details + assignment history)

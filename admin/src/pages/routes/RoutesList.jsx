@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload, Plus, Milestone, SearchX } from 'lucide-react';
+import { Upload, Plus, Milestone, SearchX, CircleCheck, Bus as BusIcon, GraduationCap } from 'lucide-react';
+import StatCard from '../../components/ui/StatCard.jsx';
 import usePageHeader from '../../hooks/usePageHeader.js';
 import useDebounce from '../../hooks/useDebounce.js';
 import { getRoutes, updateRoute } from '../../api/routes.js';
@@ -74,6 +75,7 @@ export default function RoutesList() {
     setDeleteTarget(null);
   };
   const meta = data?.meta;
+  const stats = data?.stats || {};
   const hasAnyRoutes = meta && (meta.total > 0 || debouncedSearch);
 
   return (
@@ -82,6 +84,13 @@ export default function RoutesList() {
         title="Routes"
         subtitle="Manage operational lines, assign drivers, and monitor service capacity."
       />
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total Routes" value={stats.totalRoutes ?? 0} hint="Lines your buses run" icon={Milestone} />
+        <StatCard label="Active Routes" value={stats.active ?? 0} hint="Currently in service" icon={CircleCheck} />
+        <StatCard label="Routes Without a Bus" value={stats.withoutBus ?? 0} hint="Need a bus assigned" icon={BusIcon} tone="amber" />
+        <StatCard label="Students on Routes" value={stats.studentsOnRoutes ?? 0} hint="Students assigned to a route" icon={GraduationCap} tone="slate" />
+      </div>
 
       <ListToolbar left={meta ? <p className="text-sm text-slate-500 dark:text-slate-400">{meta.total} routes</p> : null}>
         {selection.toolbarButton}

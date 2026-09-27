@@ -26,12 +26,21 @@ export const getRoutes = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [routes, total] = await Promise.all([
+  const [routes, total, totalRoutes, active, withoutBus, studentsOnRoutes] = await Promise.all([
     populateRoute(Route.find(filter)).sort({ createdAt: 1 }).skip(skip).limit(limit),
     Route.countDocuments(filter),
+    Route.countDocuments(),
+    Route.countDocuments({ status: 'Active' }),
+    Route.countDocuments({ assignedBus: null }),
+    Student.countDocuments({ route: { $ne: null } }),
   ]);
 
-  res.json({ success: true, data: routes, meta: buildPaginationMeta(total, page, limit) });
+  res.json({
+    success: true,
+    data: routes,
+    meta: buildPaginationMeta(total, page, limit),
+    stats: { totalRoutes, active, withoutBus, studentsOnRoutes },
+  });
 });
 
 // @desc    Get single route
