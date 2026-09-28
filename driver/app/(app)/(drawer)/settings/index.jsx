@@ -15,6 +15,7 @@ import { useAuthStore } from '../../../../src/store/authStore.js';
 import { useUiStore } from '../../../../src/store/uiStore.js';
 import { colors } from '../../../../src/lib/theme.js';
 import { formatPhone } from '../../../../src/lib/phone.js';
+import { buildLine } from '../../../../src/lib/buildInfo.js';
 import { useOfflineQueueStore } from '../../../../src/store/offlineQueueStore.js';
 
 const THEME_OPTIONS = [
@@ -117,6 +118,7 @@ export default function Settings() {
           <Text style={styles.logoutText}>Log out</Text>
         </Button>
         <Text style={styles.version}>AwaBus Driver v1.0.0</Text>
+        <Text style={styles.version}>{buildLine()}</Text>
       </ScrollView>
 
       <Modal open={confirmLogout} onClose={() => setConfirmLogout(false)}>

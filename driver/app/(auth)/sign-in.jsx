@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AlertCircle, ArrowLeft, Check, WifiOff } from 'lucide-react-native';
 import AuthLayout from '../../src/components/layout/AuthLayout.jsx';
 import PhoneInput from '../../src/components/ui/PhoneInput.jsx';
+import { buildLine } from '../../src/lib/buildInfo.js';
 import { Input, PasswordInput, Label, FieldError } from '../../src/components/ui/Input.jsx';
 import Button from '../../src/components/ui/Button.jsx';
 import { checkPhone, login as loginApi, setPassword as setPasswordApi } from '../../src/api/driverApp.js';
@@ -171,6 +172,7 @@ export default function SignIn() {
         <Text style={styles.terms}>
           By signing in, you agree to our <Text style={styles.termsLink}>Terms and Conditions.</Text>
         </Text>
+        <Text style={styles.buildLine}>{buildLine()}</Text>
       </AuthLayout>
     );
   }
@@ -274,6 +276,7 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
+  buildLine: { marginTop: 16, textAlign: 'center', fontSize: 11, color: colors.slate400 },
   title: {
     fontSize: 26,
     fontWeight: '800',
