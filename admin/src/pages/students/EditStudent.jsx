@@ -182,9 +182,10 @@ export default function EditStudent() {
           });
         }}
       >
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
-          <div className="space-y-6">
-            <Card>
+        <div className="space-y-6">
+          {/* Student and guardian side by side, same height */}
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card className="h-full">
               <CardHeader title="Student & School Info" />
               <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
@@ -222,7 +223,7 @@ export default function EditStudent() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card className="h-full">
               <CardHeader title="Guardian Details" />
               <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
@@ -259,11 +260,17 @@ export default function EditStudent() {
                 {phoneError && <p className="text-sm font-medium text-red-600 sm:col-span-2">{phoneError}</p>}
               </CardBody>
             </Card>
+          </div>
 
-            <Card>
-              <CardHeader title="Location & Geofencing Parameters" />
-              <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                <div className="sm:col-span-3">
+          {/* Location: fields on the left, the map on the right */}
+          <Card>
+            <CardHeader
+              title="Location & Geofencing"
+              subtitle="Type the GPS address, click the map or drag the pin. The green circle is the notification zone."
+            />
+            <CardBody className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
+              <div className="grid grid-cols-1 content-start gap-5 sm:grid-cols-2">
+                <div className="sm:col-span-2">
                   <GpsAddressInput
                     value={form.homeAddress ?? baseline.homeAddress}
                     onChange={set('homeAddress')}
@@ -278,23 +285,32 @@ export default function EditStudent() {
                   <Label>Longitude</Label>
                   <Input inputMode="decimal" value={form.lng} onChange={(e) => set('lng')(formatCoord(e.target.value))} error={Boolean(errors.coords)} />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <Label>Geofence Radius (meters)</Label>
                   <Input inputMode="numeric" value={form.geofenceRadius} onChange={(e) => set('geofenceRadius')(digitsOnly(e.target.value, 4))} error={Boolean(errors.geofenceRadius)} />
                   <FieldError>{errors.geofenceRadius}</FieldError>
                   {!errors.geofenceRadius && <p className="mt-1.5 text-xs text-slate-400">Between {RADIUS_MIN} and {RADIUS_MAX} metres</p>}
                 </div>
                 {errors.coords && (
-                  <div className="sm:col-span-3">
+                  <div className="sm:col-span-2">
                     <FieldError>{errors.coords}</FieldError>
                   </div>
                 )}
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2">
                   <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>
                     Open map picker
                   </Button>
                 </div>
-              </CardBody>
+              </div>
+              <div className="h-72 overflow-hidden rounded-xl sm:h-80 lg:h-auto lg:min-h-[20rem]">
+                <GeofenceMap
+                  lat={form.lat}
+                  lng={form.lng}
+                  radius={form.geofenceRadius}
+                  onMove={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
+                />
+              </div>
+            </CardBody>
               <LocationPickerModal
                 open={mapOpen}
                 onClose={() => setMapOpen(false)}
@@ -375,23 +391,9 @@ export default function EditStudent() {
                 )}
               </CardBody>
             </Card>
-          </div>
 
-          <Card className="flex flex-col">
-            <CardHeader title="Interactive Geofence Picker" />
-            <div className="h-80 px-5 pt-1 sm:h-96">
-              <GeofenceMap
-                lat={form.lat}
-                lng={form.lng}
-                radius={form.geofenceRadius}
-                onMove={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))}
-              />
-            </div>
-            <p className="p-5 text-xs text-slate-400">
-              Click the map or drag the pin to update the latitude and longitude inputs. The green circle shows the
-              geofence radius, which can be customized on the left panel.
-            </p>
-            <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 p-5">
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
