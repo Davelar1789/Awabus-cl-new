@@ -19,7 +19,7 @@ import { cn } from '../../lib/utils.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUiStore } from '../../store/uiStore.js';
 
-const emptyPassword = { current: '', next: '', confirm: '' };
+const emptyPassword = { next: '', confirm: '' };
 
 export default function AccountSettings() {
   usePageHeader({ breadcrumb: ['AwaBus', 'Account settings'] });
@@ -55,7 +55,7 @@ export default function AccountSettings() {
   });
 
   const changeMutation = useMutation({
-    mutationFn: () => changePassword({ currentPassword: pw.current, newPassword: pw.next, code }),
+    mutationFn: () => changePassword({ newPassword: pw.next, code }),
     onSuccess: (res) => {
       if (res?.token) useAuthStore.getState().setToken(res.token); // stay signed in here
       setPw(emptyPassword);
@@ -69,10 +69,8 @@ export default function AccountSettings() {
 
   const requestCode = () => {
     setError('');
-    if (!pw.current) return setError('Enter your current password');
     if (!isStrongPassword(pw.next, who)) return setError('Your new password doesn\'t meet all the password requirements yet');
     if (pw.next !== pw.confirm) return setError('The new passwords do not match');
-    if (pw.next === pw.current) return setError('Choose a password different from your current one');
     return sendMutation.mutate();
   };
 
@@ -85,23 +83,10 @@ export default function AccountSettings() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[3fr_2fr]">
         <Card>
           <CardHeader
-            title="Change password"
-            subtitle="For your security, we'll confirm the change with a code sent to your email or phone."
+            title="Reset password"
+            subtitle="Choose a new password. We'll confirm it with a code sent to your email or phone."
           />
           <CardBody className="space-y-5">
-            <div>
-              <Label>Current password</Label>
-              <PasswordInput
-                value={pw.current}
-                onChange={(e) => {
-                  setError('');
-                  setPw((p) => ({ ...p, current: e.target.value }));
-                }}
-                autoComplete="current-password"
-                disabled={Boolean(sentTo)}
-                noReveal
-              />
-            </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <Label>New password</Label>
@@ -197,7 +182,7 @@ export default function AccountSettings() {
                     disabled={code.length !== 6}
                     loading={changeMutation.isPending}
                   >
-                    Update password
+                    Reset password
                   </Button>
                 </>
               ) : (

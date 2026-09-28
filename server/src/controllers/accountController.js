@@ -10,8 +10,8 @@ import generateToken from '../utils/generateToken.js';
 
 // Account settings for the signed-in admin (req.admin, set by protectAdmin).
 // Changing the email or phone needs a code sent to the NEW address, proving the
-// admin controls it; changing the password needs the current password plus a
-// code sent to the email or phone already on the account.
+// admin controls it; resetting the password needs a code sent to the email or
+// phone already on the account.
 
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -182,16 +182,13 @@ export const confirmPhoneChange = asyncHandler(async (req, res) => {
   res.json({ success: true, admin: admin.toSafeObject() });
 });
 
-// @desc    Change password (current password + verification code)
+// @desc    Reset password while signed in: new password + the code sent to the
+//          account's email or phone (the code is the proof, like Forgot password)
 // @route   POST /api/auth/me/password
 export const changePassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword, code } = req.body;
+  const { newPassword, code } = req.body;
   const admin = req.admin;
 
-  if (admin.password && !(await admin.matchPassword(currentPassword || ''))) {
-    res.status(400);
-    throw new Error('Your current password is incorrect');
-  }
   const weak = checkPasswordStrength(newPassword, { email: admin.email, name: admin.name });
   if (weak) {
     res.status(400);

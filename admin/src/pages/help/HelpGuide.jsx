@@ -343,7 +343,7 @@ export const GUIDE = [
         steps: [
           'Click your name at the top right, then My profile or Account settings.',
           'Changing your email or phone sends a code to the new address or number to confirm it.',
-          'Changing your password needs your current password and a code.',
+          'To reset your password, enter the new one twice and the code sent to your email or phone.',
         ],
       },
     ],
