@@ -24,6 +24,7 @@ import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import { RADIUS_MAX, RADIUS_MIN, coordsError, digitsOnly, formatCoord, formatName, ifChanged, nameError, radiusError } from '../../lib/formats.js';
 import RideSessionPicker from '../../components/students/RideSessionPicker.jsx';
+import GpsAddressInput from '../../components/ui/GpsAddressInput.jsx';
 import ArrivalCallsToggle, { arrivalCallsLabel } from '../../components/students/ArrivalCallsToggle.jsx';
 
 export default function EditStudent() {
@@ -61,6 +62,7 @@ export default function EditStudent() {
             guardianPhone: fromStoredPhone(student.primaryGuardian?.phone),
             guardianLanguage: student.primaryGuardian?.preferredLanguage || DEFAULT_LANGUAGE,
             secondContactPhone: fromStoredPhone(student.secondContactPhone),
+            homeAddress: student.homeAddress || '',
             lat: student.lat ?? ACCRA_DEFAULT.lat,
             lng: student.lng ?? ACCRA_DEFAULT.lng,
             geofenceRadius: student.geofenceRadius || 200,
@@ -98,6 +100,7 @@ export default function EditStudent() {
       queryClient.invalidateQueries({ queryKey: ['student-options'] });
       setForm((f) => ({
         ...f,
+        homeAddress: updated.homeAddress ?? f.homeAddress,
         lat: updated.lat ?? f.lat,
         lng: updated.lng ?? f.lng,
         geofenceRadius: updated.geofenceRadius || f.geofenceRadius,
@@ -170,6 +173,7 @@ export default function EditStudent() {
               preferredLanguage: form.guardianLanguage || DEFAULT_LANGUAGE,
             },
             secondContactPhone: toLocalPhone(form.secondContactPhone),
+            homeAddress: form.homeAddress ?? baseline.homeAddress,
             lat: Number(form.lat),
             lng: Number(form.lng),
             geofenceRadius: Number(form.geofenceRadius),
@@ -259,6 +263,13 @@ export default function EditStudent() {
             <Card>
               <CardHeader title="Location & Geofencing Parameters" />
               <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                <div className="sm:col-span-3">
+                  <GpsAddressInput
+                    value={form.homeAddress ?? baseline.homeAddress}
+                    onChange={set('homeAddress')}
+                    onResolve={({ lat, lng }) => setForm((f) => ({ ...f, lat, lng }))}
+                  />
+                </div>
                 <div>
                   <Label>Latitude</Label>
                   <Input inputMode="decimal" value={form.lat} onChange={(e) => set('lat')(formatCoord(e.target.value))} error={Boolean(errors.coords)} />
