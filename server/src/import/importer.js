@@ -37,10 +37,11 @@ async function loadRefs(names) {
   const refs = {};
   if (names.has('allRoutes') || names.has('routesWithoutBus')) {
     const routes = await Route.find().select('routeId name assignedBus').sort({ routeId: 1 }).lean();
-    refs.allRoutes = routes.map((r) => ({ id: r._id, code: r.routeId, label: routeLabel(r), taken: false }));
+    refs.allRoutes = routes.map((r) => ({ id: r._id, code: r.routeId, name: r.name, label: routeLabel(r), taken: false }));
     refs.routesWithoutBus = routes.map((r) => ({
       id: r._id,
       code: r.routeId,
+      name: r.name,
       label: routeLabel(r),
       taken: Boolean(r.assignedBus),
       takenMessage: 'already has a bus. A route can only have one bus',
@@ -305,8 +306,16 @@ function checkCell(c, raw, refs) {
       return hit ? { value: hit } : { error: `must be one of: ${c.options.join(', ')}` };
     }
     case 'ref': {
+      const options = refs[c.ref] || [];
       const code = normalizeCode(text.split(' - ')[0]);
-      const hit = (refs[c.ref] || []).find((o) => normalizeCode(o.code) === code);
+      let hit = options.find((o) => normalizeCode(o.code) === code);
+      if (!hit) {
+        // A route can also be given by its name alone (e.g. "Adenta - Madina"),
+        // so files can be prepared before the route IDs are known.
+        const byName = options.filter((o) => o.name && o.name.trim().toLowerCase() === text.replace(/\s+/g, ' ').toLowerCase());
+        if (byName.length > 1) return { error: `more than one route is called "${text}". Pick from the dropdown` };
+        [hit] = byName;
+      }
       if (!hit) return { error: `"${text}" was not found in AwaBus. Pick from the dropdown` };
       if (hit.taken) return { error: `${hit.label} ${hit.takenMessage}` };
       return { value: hit.id, label: hit.label };
