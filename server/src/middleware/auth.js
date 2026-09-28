@@ -8,6 +8,21 @@ import { tenantContext } from '../utils/tenantContext.js';
 import { schoolStatus, accessError, SCHOOL_SUSPENDED_MESSAGE, DRIVER_INACTIVE_MESSAGE } from '../utils/access.js';
 import { issuedBeforePasswordChange } from '../utils/resetToken.js';
 
+// Every signed-in request from the driver app counts as "online now" (see
+// Driver.online). Written at most every 20 seconds per driver, and never
+// waited for, so it costs the request nothing.
+const SEEN_WRITE_EVERY_MS = 20 * 1000;
+function markDriverSeen(driver) {
+  const last = driver.lastSeenAt ? new Date(driver.lastSeenAt).getTime() : 0;
+  const signedOutSince = driver.signedOutAt && (!driver.lastSeenAt || driver.signedOutAt >= driver.lastSeenAt);
+  if (!signedOutSince && Date.now() - last < SEEN_WRITE_EVERY_MS) return;
+  const now = new Date();
+  driver.lastSeenAt = now;
+  Driver.updateOne({ _id: driver._id }, { $set: { lastSeenAt: now } }).catch((err) =>
+    console.error('[auth] could not record driver check-in:', err.message)
+  );
+}
+
 const extractBearerToken = (req) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer')) {
@@ -166,6 +181,7 @@ export const protectDriver = asyncHandler(async (req, res, next) => {
     if ((await schoolStatus(decoded.school)) !== 'Active') throw accessError(res, 'SCHOOL_SUSPENDED', SCHOOL_SUSPENDED_MESSAGE);
     req.driver = driver;
     req.school = decoded.school;
+    markDriverSeen(driver);
     next();
   });
 });

@@ -63,9 +63,24 @@ const driverSchema = new mongoose.Schema(
     ...setupCodeFields,
     // When the password last changed; sign-ins from before then stop working.
     passwordChangedAt: { type: Date, default: null },
+    // Online / offline in the driver app: when the app last reached the server
+    // (it checks in every 30 seconds while open and signed in), and when the
+    // driver last signed out.
+    lastSeenAt: { type: Date, default: null },
+    signedOutAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
+
+// No check-in for this long means the app is closed, the phone is off or
+// has no data: the driver shows as offline.
+export const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
+driverSchema.virtual('online').get(function online() {
+  if (!this.lastSeenAt) return false;
+  if (this.signedOutAt && this.signedOutAt >= this.lastSeenAt) return false;
+  return Date.now() - new Date(this.lastSeenAt).getTime() < ONLINE_WINDOW_MS;
+});
 
 driverSchema.virtual('fullName').get(function fullName() {
   return `${this.firstName} ${this.lastName}`;

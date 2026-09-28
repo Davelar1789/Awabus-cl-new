@@ -10,7 +10,7 @@ import Avatar from '../../../../src/components/ui/Avatar.jsx';
 import Switch from '../../../../src/components/ui/Switch.jsx';
 import Modal from '../../../../src/components/ui/Modal.jsx';
 import { OptionField } from '../../../../src/components/ui/OptionPicker.jsx';
-import { getMe } from '../../../../src/api/driverApp.js';
+import { getMe, reportSignOut } from '../../../../src/api/driverApp.js';
 import { useAuthStore } from '../../../../src/store/authStore.js';
 import { useUiStore } from '../../../../src/store/uiStore.js';
 import { colors } from '../../../../src/lib/theme.js';
@@ -132,6 +132,7 @@ export default function Settings() {
           variant="danger"
           onPress={() => {
             useOfflineQueueStore.getState().clear();
+            reportSignOut(useAuthStore.getState().token);
             logout();
           }}
           style={{ marginTop: 16 }}

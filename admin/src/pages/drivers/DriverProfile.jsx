@@ -8,6 +8,7 @@ import SetupCodeBox from '../../components/account/SetupCodeBox.jsx';
 import { PageLoader } from '../../components/ui/Spinner.jsx';
 import Card, { CardHeader } from '../../components/ui/Card.jsx';
 import Badge from '../../components/ui/Badge.jsx';
+import OnlineStatus, { lastSeenText } from '../../components/drivers/OnlineStatus.jsx';
 import Avatar from '../../components/ui/Avatar.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Tabs from '../../components/ui/Tabs.jsx';
@@ -25,7 +26,7 @@ const InfoRow = ({ label, value }) => (
 export default function DriverProfile() {
   const { id } = useParams();
   const [tab, setTab] = useState('personal');
-  const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id) });
+  const { data: driver, isLoading } = useQuery({ queryKey: ['driver', id], queryFn: () => getDriver(id), refetchInterval: 30000 });
 
   usePageHeader({ breadcrumb: ['AwaBus', 'Drivers', driver ? `${driver.firstName} ${driver.lastName}` : '...'] });
 
@@ -46,8 +47,11 @@ export default function DriverProfile() {
                 {driver.firstName} {driver.lastName}
               </h1>
               <Badge>{driver.status}</Badge>
+              <OnlineStatus driver={driver} />
             </div>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Driver Profile &amp; Assigned Assets</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Driver Profile &amp; Assigned Assets · {driver.online ? 'Driver app open now' : lastSeenText(driver)}
+            </p>
           </div>
         </div>
         <Button as={Link} to={`/drivers/${id}/edit`} variant="outline">

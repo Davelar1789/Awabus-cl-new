@@ -149,6 +149,8 @@ export const GUIDE = [
     tips: [
       'The Drivers list says "App not set up" under anyone who has not chosen a password yet.',
       'Without the setup code nobody can claim a driver account, even if they know the phone number.',
+      'The Driver App column shows Online while the driver has the app open and signed in. Offline means they signed out, closed the app, or their phone has been off or without data for 2 minutes; "Last seen" says when the app last reached the school.',
+      'Status (Active, Idle...) is set by you; Online / Offline comes from the driver\'s phone.',
     ],
   },
   {

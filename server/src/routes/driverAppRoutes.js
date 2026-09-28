@@ -8,6 +8,7 @@ import {
   driverResendOtp,
   driverResetPassword,
   getDriverMe,
+  driverSignOut,
   getTodaysTrip,
   startTrip,
   endTrip,
@@ -35,6 +36,7 @@ router.post('/auth/reset-password', ...authLimits.checkCode, driverResetPassword
 
 // Protected
 router.get('/me', protectDriver, getDriverMe);
+router.post('/sign-out', protectDriver, driverSignOut);
 router.get('/notifications', protectDriver, getDriverNotifications);
 router.get('/trips/today', protectDriver, getTodaysTrip);
 router.get('/trips', protectDriver, getTripHistory);

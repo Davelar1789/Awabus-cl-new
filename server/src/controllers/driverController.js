@@ -1,6 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import { normalizeGhanaPhone } from '../utils/phone.js';
-import Driver from '../models/Driver.js';
+import Driver, { ONLINE_WINDOW_MS } from '../models/Driver.js';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
@@ -56,20 +56,21 @@ export const getDrivers = asyncHandler(async (req, res) => {
   // Licenses expiring within 30 days (or already expired) need renewing soon.
   const soon = new Date();
   soon.setDate(soon.getDate() + 30);
-  const [drivers, total, totalDrivers, active, withoutBus, licenseAlerts] = await Promise.all([
+  const [drivers, total, totalDrivers, active, withoutBus, licenseAlerts, recentlySeen] = await Promise.all([
     populateDriver(Driver.find(filter)).sort({ createdAt: 1 }).skip(skip).limit(limit),
     Driver.countDocuments(filter),
     Driver.countDocuments(),
     Driver.countDocuments({ status: 'Active' }),
     Driver.countDocuments({ assignedBus: null }),
     Driver.countDocuments({ licenseExpiry: { $ne: null, $lte: soon } }),
+    Driver.find({ lastSeenAt: { $gte: new Date(Date.now() - ONLINE_WINDOW_MS) } }).select('lastSeenAt signedOutAt'),
   ]);
 
   res.json({
     success: true,
     data: await withAccountState(drivers),
     meta: buildPaginationMeta(total, page, limit),
-    stats: { totalDrivers, active, withoutBus, licenseAlerts },
+    stats: { totalDrivers, active, withoutBus, licenseAlerts, online: recentlySeen.filter((d) => d.online).length },
   });
 });
 

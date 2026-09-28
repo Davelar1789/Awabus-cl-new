@@ -177,6 +177,13 @@ export const getDriverMe = asyncHandler(async (req, res) => {
   res.json({ success: true, data: driver });
 });
 
+// @desc    Driver signed out of the app: show them offline straight away
+// @route   POST /api/driver-app/sign-out
+export const driverSignOut = asyncHandler(async (req, res) => {
+  await Driver.updateOne({ _id: req.driver._id }, { $set: { signedOutAt: new Date() } });
+  res.json({ success: true });
+});
+
 // Builds today's trip document for a driver on the fly the first time it's
 // requested, from whatever bus/route they're currently assigned. This means
 // the driver app works without an admin having to manually schedule a trip

@@ -13,6 +13,7 @@ import {
   LogOut,
 } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore.js';
+import { reportSignOut } from '../../api/driverApp.js';
 import { useConnectionStore } from '../../store/connectionStore.js';
 import { colors, radii } from '../../lib/theme.js';
 import Avatar from '../ui/Avatar.jsx';
@@ -99,6 +100,7 @@ export default function DrawerContent(props) {
           variant="danger"
           onPress={() => {
             useOfflineQueueStore.getState().clear();
+            reportSignOut(useAuthStore.getState().token);
             logout();
           }}
           style={{ marginTop: 16 }}

@@ -21,6 +21,14 @@ export const verifyOtp = (phone, code) =>
 export const resendOtp = (phone) =>
   apiClient.post('/driver-app/auth/resend-otp', { phone }).then((r) => r.data);
 
+// Tells the school the driver signed out, so they show as offline at once.
+// Best effort: never blocks or fails the sign-out. The token is passed in
+// because it is cleared right after.
+export const reportSignOut = (token) =>
+  apiClient
+    .post('/driver-app/sign-out', null, { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 })
+    .catch(() => {});
+
 export const resetPassword = (resetToken, newPassword) =>
   apiClient.post('/driver-app/auth/reset-password', { resetToken, newPassword }).then((r) => r.data);
 
