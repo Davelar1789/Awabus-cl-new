@@ -27,11 +27,11 @@ import {
   dateError,
   emailError,
   formatEmail,
-  formatLicense,
   formatName,
   licenseError,
   nameError,
 } from '../../lib/formats.js';
+import { LicenseInput } from '../../components/ui/FormattedInputs.jsx';
 
 const STEPS = [
   'Personal Information',
@@ -356,9 +356,8 @@ export default function AddDriver() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <Label required>License Number</Label>
-                  <Input value={form.licenseNumber} onChange={(e) => set('licenseNumber')(formatLicense(e.target.value))} placeholder="e.g. GH-DL-29831" error={Boolean(errors.licenseNumber)} required />
+                  <LicenseInput value={form.licenseNumber} onChange={set('licenseNumber')} error={errors.licenseNumber} required />
                   <FieldError>{errors.licenseNumber}</FieldError>
-                  {!errors.licenseNumber && <p className="mt-1.5 text-xs text-slate-400">Capital letters and numbers, as printed on the license.</p>}
                 </div>
                 <div>
                   <Label required>License Expiry Date</Label>
@@ -421,11 +420,7 @@ export default function AddDriver() {
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
                       <Label>License Number</Label>
-                      <Input
-                        value={form.licenseNumber}
-                        onChange={(e) => set('licenseNumber')(formatLicense(e.target.value))}
-                        error={Boolean(validation.errors?.licenseNumber)}
-                      />
+                      <LicenseInput value={form.licenseNumber} onChange={set('licenseNumber')} error={validation.errors?.licenseNumber} />
                       <FieldError>{validation.errors?.licenseNumber}</FieldError>
                     </div>
                     <div>

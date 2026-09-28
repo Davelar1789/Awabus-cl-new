@@ -4,7 +4,7 @@ import Driver, { ONLINE_WINDOW_MS } from '../models/Driver.js';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
-import { assertFormats, formatProblem, ifChanged, normalizeCode } from '../utils/formats.js';
+import { assertFormats, formatProblem, ifChanged, normalizeLicense } from '../utils/formats.js';
 import { searchPattern } from '../utils/search.js';
 import { issueSetupCode } from '../utils/setupCode.js';
 
@@ -98,7 +98,7 @@ export const getDriverById = asyncHandler(async (req, res) => {
 //          another driver in this school) - AwaBus does not contact the DVLA.
 // @route   POST /api/drivers/validate-license
 export const validateLicense = asyncHandler(async (req, res) => {
-  const licenseNumber = normalizeCode(req.body.licenseNumber);
+  const licenseNumber = normalizeLicense(req.body.licenseNumber);
   const { licenseExpiry } = req.body;
 
   if (!licenseNumber) {
@@ -187,7 +187,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     dob,
     gender,
     profilePhotoUrl,
-    licenseNumber: normalizeCode(licenseNumber),
+    licenseNumber: normalizeLicense(licenseNumber),
     licenseExpiry,
     licenseClass,
     licenseValidation: licenseValidation || { status: 'verified', message: 'License details saved', checkedAt: new Date() },
@@ -267,7 +267,7 @@ export const updateDriver = asyncHandler(async (req, res) => {
   fields.forEach((f) => {
     if (req.body[f] !== undefined) driver[f] = req.body[f];
   });
-  if (req.body.licenseNumber !== undefined) driver.licenseNumber = normalizeCode(req.body.licenseNumber);
+  if (req.body.licenseNumber !== undefined) driver.licenseNumber = normalizeLicense(req.body.licenseNumber);
   if (req.body.phone !== undefined) driver.phone = normalizeGhanaPhone(req.body.phone);
   if (req.body.emergencyContactPhone !== undefined) {
     driver.emergencyContactPhone = normalizeGhanaPhone(req.body.emergencyContactPhone);

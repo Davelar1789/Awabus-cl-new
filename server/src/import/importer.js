@@ -5,7 +5,7 @@ import Driver from '../models/Driver.js';
 import Student from '../models/Student.js';
 import Guardian from '../models/Guardian.js';
 import { ghanaPhoneVariants, isValidGhanaPhone, normalizeGhanaPhone } from '../utils/phone.js';
-import { EMAIL_RE, formatProblem, normalizeCode } from '../utils/formats.js';
+import { EMAIL_RE, formatProblem, normalizeCode, normalizeLicense, normalizePlate } from '../utils/formats.js';
 import { MAX_ROWS, SPECS } from './specs.js';
 import { normalizeLanguage } from '../utils/languages.js';
 import { parseTime } from '../utils/sessions.js';
@@ -131,7 +131,7 @@ const KIND_HELP = {
   ref: 'Pick from the dropdown',
   phone: '10 digits starting with 0',
   email: 'Email address',
-  plate: 'Format GR-1234-20',
+  plate: 'Format GR-1234-20 or GT-881-Z',
   license: 'Capital letters and numbers',
   gps: 'Format GA-543-0125',
   int: 'Whole number',
@@ -319,7 +319,7 @@ function checkCell(c, raw, refs) {
     }
     case 'plate':
     case 'license': {
-      const s = normalizeCode(text);
+      const s = c.kind === 'plate' ? normalizePlate(text) : normalizeLicense(text);
       const problem = formatProblem(c.kind === 'plate' ? 'plateNumber' : 'licenseNumber', s);
       return problem ? { error: problem.replace(/^(Plate number|License number) /, '') } : { value: s };
     }

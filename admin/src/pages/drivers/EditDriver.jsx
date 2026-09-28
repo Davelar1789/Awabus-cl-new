@@ -17,7 +17,8 @@ import { UNDO_SECONDS, useUndoDeleteStore } from '../../store/undoDeleteStore.js
 import { getDriver, getDriverOptions, updateDriver } from '../../api/drivers.js';
 import { getBusOptions } from '../../api/buses.js';
 import { busHolders, busPickerOptions, busTakenBy } from '../../lib/assignments.js';
-import { dateError, emailError, formatEmail, formatLicense, formatName, ifChanged, licenseError, nameError } from '../../lib/formats.js';
+import { dateError, emailError, formatEmail, formatName, ifChanged, licenseError, nameError } from '../../lib/formats.js';
+import { LicenseInput } from '../../components/ui/FormattedInputs.jsx';
 
 export default function EditDriver() {
   const { id } = useParams();
@@ -157,7 +158,7 @@ export default function EditDriver() {
           <CardBody className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <Label>License Number</Label>
-              <Input value={form.licenseNumber} onChange={(e) => set('licenseNumber')(formatLicense(e.target.value))} error={Boolean(errors.licenseNumber)} placeholder="e.g. GH-DL-29831" />
+              <LicenseInput value={form.licenseNumber} onChange={set('licenseNumber')} error={errors.licenseNumber} />
               <FieldError>{errors.licenseNumber}</FieldError>
             </div>
             <div>

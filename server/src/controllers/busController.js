@@ -5,7 +5,7 @@ import Route from '../models/Route.js';
 import Student from '../models/Student.js';
 import Trip from '../models/Trip.js';
 import { getPagination, buildPaginationMeta } from '../utils/pagination.js';
-import { assertFormats, ifChanged, normalizeCode } from '../utils/formats.js';
+import { assertFormats, ifChanged, normalizePlate } from '../utils/formats.js';
 import { notify } from '../services/notify.js';
 import { searchPattern } from '../utils/search.js';
 
@@ -106,7 +106,7 @@ export const createBus = asyncHandler(async (req, res) => {
   }
 
   const bus = await Bus.create({
-    plateNumber: normalizeCode(plateNumber),
+    plateNumber: normalizePlate(plateNumber),
     name,
     type: type || 'Standard',
     capacity,
@@ -139,7 +139,7 @@ export const updateBus = asyncHandler(async (req, res) => {
   });
   const previousStatus = bus.status;
   const fields = ['plateNumber', 'name', 'type', 'capacity', 'status'];
-  if (req.body.plateNumber !== undefined) req.body.plateNumber = normalizeCode(req.body.plateNumber);
+  if (req.body.plateNumber !== undefined) req.body.plateNumber = normalizePlate(req.body.plateNumber);
   fields.forEach((f) => {
     if (req.body[f] !== undefined) bus[f] = req.body[f];
   });
