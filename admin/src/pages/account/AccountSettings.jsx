@@ -11,7 +11,6 @@ import OtpInput from '../../components/ui/OtpInput.jsx';
 import AccountTabs, { SuccessNote } from '../../components/account/AccountTabs.jsx';
 import PasswordChecklist from '../../components/account/PasswordChecklist.jsx';
 import useCountdown from '../../components/account/useCountdown.js';
-import RevealPasswordModal from '../../components/account/RevealPasswordModal.jsx';
 import NotificationSettings from '../../components/notifications/NotificationSettings.jsx';
 import { changePassword, requestVerification } from '../../api/account.js';
 import { isStrongPassword } from '../../lib/password.js';
@@ -43,27 +42,6 @@ export default function AccountSettings() {
     const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
     return () => clearTimeout(t);
   }, [hash]);
-
-  // Showing the typed current password needs an emailed code first; once
-  // verified it can be toggled freely until revealUntil, then hides again.
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [revealUntil, setRevealUntil] = useState(0);
-  const [revealOpen, setRevealOpen] = useState(false);
-
-  useEffect(() => {
-    if (!revealUntil) return undefined;
-    const t = setTimeout(() => {
-      setShowCurrent(false);
-      setRevealUntil(0);
-    }, Math.max(revealUntil - Date.now(), 0));
-    return () => clearTimeout(t);
-  }, [revealUntil]);
-
-  const toggleCurrent = (show) => {
-    if (!show) return setShowCurrent(false);
-    if (Date.now() < revealUntil) return setShowCurrent(true);
-    return setRevealOpen(true);
-  };
 
   const sendMutation = useMutation({
     mutationFn: () => requestVerification({ purpose: 'change_password', channel }),
@@ -121,17 +99,7 @@ export default function AccountSettings() {
                 }}
                 autoComplete="current-password"
                 disabled={Boolean(sentTo)}
-                visible={showCurrent}
-                onToggleVisible={toggleCurrent}
-              />
-              <RevealPasswordModal
-                open={revealOpen}
-                email={admin?.email}
-                onClose={() => setRevealOpen(false)}
-                onVerified={(until) => {
-                  setRevealUntil(until);
-                  setShowCurrent(true);
-                }}
+                noReveal
               />
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

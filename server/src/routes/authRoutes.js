@@ -15,7 +15,6 @@ import {
   confirmEmailChange,
   confirmPhoneChange,
   changePassword,
-  confirmPasswordReveal,
 } from '../controllers/accountController.js';
 import { authLimits } from '../middleware/rateLimit.js';
 import { protectAdmin } from '../middleware/auth.js';
@@ -29,7 +28,6 @@ router.post('/me/verification', protectAdmin, ...authLimits.sendCode('purpose'),
 router.post('/me/email', protectAdmin, ...authLimits.checkCode, confirmEmailChange);
 router.post('/me/phone', protectAdmin, ...authLimits.checkCode, confirmPhoneChange);
 router.post('/me/password', protectAdmin, ...authLimits.checkCode, changePassword);
-router.post('/me/reveal-password', protectAdmin, ...authLimits.checkCode, confirmPasswordReveal);
 router.post('/forgot-password', ...authLimits.sendCode('email'), forgotPassword);
 router.post('/check-email', ...authLimits.lookup, checkEmail);
 router.post('/set-password', ...authLimits.signIn, setPassword);
