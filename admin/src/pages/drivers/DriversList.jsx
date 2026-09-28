@@ -85,7 +85,7 @@ export default function DriversList() {
   const stats = data?.stats || {};
 
   return (
-    <div className={selection.selecting ? 'pb-24' : undefined}>
+    <div>
       <PageHeader
         title="Drivers"
         subtitle="Manage and assign authorized drivers for the school fleet."

@@ -98,7 +98,7 @@ export default function RoutesList() {
   const hasAnyRoutes = meta && (meta.total > 0 || debouncedSearch);
 
   return (
-    <div className={selection.selecting ? 'pb-24' : undefined}>
+    <div>
       <PageHeader
         title="Routes"
         subtitle="Manage operational lines, assign drivers, and monitor service capacity."
