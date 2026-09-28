@@ -58,7 +58,11 @@ app.use(express.urlencoded({ extended: false, limit: '5mb' }));
 app.use(sanitizeBody);
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
-app.get('/api/health', (req, res) => res.json({ success: true, message: 'AwaBus API is running' }));
+// `features` tells apart servers running different code (e.g. the deployed
+// server vs. a Codespace on a branch): open /api/health on each to compare.
+app.get('/api/health', (req, res) =>
+  res.json({ success: true, message: 'AwaBus API is running', features: ['runs', 'arrival-calls', 'driver-online'] })
+);
 
 // Admin Portal API
 app.use('/api/auth', authRoutes);

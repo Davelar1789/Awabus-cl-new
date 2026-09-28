@@ -2,9 +2,13 @@ import axios from 'axios';
 import { useAuthStore, signInLapsed } from '../store/authStore.js';
 import { useViewSchoolStore } from '../store/viewSchoolStore.js';
 
-export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://awabus.onrender.com/api',
-});
+// Where the API is. Without admin/.env, the dev server (npm run dev, e.g. in a
+// Codespace) uses its own /api, which Vite forwards to the server on port
+// 5000 - the same server the driver app is pointed at with api:codespace. Only
+// a production build falls back to the deployed server.
+export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://awabus.onrender.com/api');
+
+export const apiClient = axios.create({ baseURL: API_URL });
 
 apiClient.interceptors.request.use((config) => {
   // Not remembered and past its time (tab left open): sign out instead of sending.

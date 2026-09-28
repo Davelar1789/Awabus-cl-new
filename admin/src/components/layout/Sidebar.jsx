@@ -18,6 +18,7 @@ import {
 import { useUiStore } from '../../store/uiStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import useConfirmSignOut from './useConfirmSignOut.jsx';
+import { API_URL } from '../../api/client.js';
 import { cn } from '../../lib/utils.js';
 
 const NAV_ITEMS = [
@@ -134,6 +135,13 @@ export default function Sidebar() {
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
+          {import.meta.env.DEV && (
+            // Development only: which server this portal talks to, so it can be
+            // matched with the driver app's EXPO_PUBLIC_API_URL.
+            <p className="mt-3 truncate text-center text-[11px] text-white/50" title={API_URL}>
+              Server: {API_URL.startsWith('/') ? 'this Codespace / computer' : API_URL.replace(/^https?:\/\//, '').replace(/\/api$/, '')}
+            </p>
+          )}
         </div>
       </aside>
       {signOutDialog}

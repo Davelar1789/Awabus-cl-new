@@ -137,9 +137,10 @@ export default function AddDriver() {
     }
     if (n === 4) {
       next = {
-        emergencyContactName: nameError(form.emergencyContactName, 'Contact name', { required: false }),
-        emergencyContactPhone:
-          form.emergencyContactPhone && !isValidPhone(form.emergencyContactPhone)
+        emergencyContactName: nameError(form.emergencyContactName, 'Emergency contact name'),
+        emergencyContactPhone: !form.emergencyContactPhone
+          ? 'Enter the emergency contact\'s phone number'
+          : !isValidPhone(form.emergencyContactPhone)
             ? 'Must be 10 digits starting with 0'
             : '',
       };
@@ -473,12 +474,12 @@ export default function AddDriver() {
 
               <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <div>
-                  <Label>Emergency Contact Name</Label>
+                  <Label required>Emergency Contact Name</Label>
                   <Input value={form.emergencyContactName} onChange={(e) => set('emergencyContactName')(formatName(e.target.value))} placeholder="e.g. Abena Mensah" error={Boolean(errors.emergencyContactName)} />
                   <FieldError>{errors.emergencyContactName}</FieldError>
                 </div>
                 <div>
-                  <Label>Relation</Label>
+                  <Label required>Relation</Label>
                   <Select value={form.emergencyContactRelation} onChange={(e) => set('emergencyContactRelation')(e.target.value)}>
                     {['Wife', 'Husband', 'Sister', 'Brother', 'Father', 'Mother', 'Other'].map((r) => (
                       <option key={r}>{r}</option>
@@ -486,7 +487,7 @@ export default function AddDriver() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Emergency Contact Phone</Label>
+                  <Label required>Emergency Contact Phone</Label>
                   <PhoneInput value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} error={Boolean(errors.emergencyContactPhone)} />
                   <FieldError>{errors.emergencyContactPhone}</FieldError>
                 </div>

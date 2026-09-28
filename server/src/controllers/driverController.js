@@ -1,5 +1,5 @@
 import asyncHandler from 'express-async-handler';
-import { normalizeGhanaPhone } from '../utils/phone.js';
+import { isValidGhanaPhone, normalizeGhanaPhone } from '../utils/phone.js';
 import Driver, { ONLINE_WINDOW_MS } from '../models/Driver.js';
 import Bus from '../models/Bus.js';
 import Route from '../models/Route.js';
@@ -73,6 +73,24 @@ export const getDrivers = asyncHandler(async (req, res) => {
     stats: { totalDrivers, active, withoutBus, licenseAlerts, online: recentlySeen.filter((d) => d.online).length },
   });
 });
+
+// Every driver needs someone to call in an emergency: a name, how they are
+// related, and a valid phone number.
+function assertEmergencyContact(res, { emergencyContactName, emergencyContactRelation, emergencyContactPhone }) {
+  const missing = [
+    !String(emergencyContactName || '').trim() && 'name',
+    !String(emergencyContactRelation || '').trim() && 'relation',
+    !String(emergencyContactPhone || '').trim() && 'phone number',
+  ].filter(Boolean);
+  if (missing.length) {
+    res.status(400);
+    throw new Error(`The emergency contact is required: add their ${missing.join(', ')}`);
+  }
+  if (!isValidGhanaPhone(emergencyContactPhone)) {
+    res.status(400);
+    throw new Error('The emergency contact phone must be 10 digits starting with 0, e.g. 020 111 2233');
+  }
+}
 
 // @desc    Get driver profile (details + assignment history)
 // @route   GET /api/drivers/:id
@@ -158,6 +176,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     throw new Error('First name, last name, phone, license number and license expiry are required');
   }
   assertFormats(res, { licenseNumber, email, driverDob: dob, licenseExpiry });
+  assertEmergencyContact(res, { emergencyContactName, emergencyContactRelation, emergencyContactPhone });
   if (!assignedBus) {
     res.status(400);
     throw new Error('A driver must be assigned to a bus — register a bus first if none exist yet');
@@ -264,6 +283,11 @@ export const updateDriver = asyncHandler(async (req, res) => {
     driverDob: ifChanged(req.body.dob, driver.dob),
     licenseExpiry: ifChanged(req.body.licenseExpiry, driver.licenseExpiry),
   });
+  // Changes may not leave the emergency contact incomplete.
+  const emergencyChange = ['emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone'];
+  if (emergencyChange.some((f) => req.body[f] !== undefined)) {
+    assertEmergencyContact(res, Object.fromEntries(emergencyChange.map((f) => [f, req.body[f] !== undefined ? req.body[f] : driver[f]])));
+  }
   fields.forEach((f) => {
     if (req.body[f] !== undefined) driver[f] = req.body[f];
   });
