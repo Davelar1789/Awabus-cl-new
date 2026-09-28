@@ -74,6 +74,10 @@ export default function StudentProfile() {
               <InfoRow label="Date of Birth" value={formatDate(student.dob)} />
               <InfoRow label="Emergency Phone" value={formatPhone(student.secondContactPhone)} />
               <InfoRow label="Rides" value={rideSessionLabel(student.rideSession)} />
+              <InfoRow
+                label="Arrival calls"
+                value={student.arrivalCalls === false ? 'Off: the parent is not called when the bus nears home' : 'On: the parent is called when the bus nears home'}
+              />
               <InfoRow label="Home Address" value={student.homeAddress} className="sm:col-span-2" />
             </div>
           </Card>

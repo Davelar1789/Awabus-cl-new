@@ -544,5 +544,6 @@ export async function toCreateBody(entity, d) {
     geofenceRadius: d.geofenceRadius ?? 200,
     emergencyInstructions: d.emergencyInstructions,
     rideSession: d.rideSession,
+    ...(d.arrivalCalls ? { arrivalCalls: d.arrivalCalls } : {}),
   };
 }

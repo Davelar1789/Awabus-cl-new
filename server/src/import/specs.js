@@ -124,6 +124,7 @@ export const SPECS = {
       // Added later: templates downloaded before it existed are still accepted (see readUpload).
       { key: 'rideSession', header: 'Rides', kind: 'list', options: Object.values(RIDE_SESSION_LABELS), example: 'Morning & evening', help: 'Which runs the student rides. Leave blank for Morning & evening', addedLater: true },
       { key: 'guardianLanguage', header: 'Guardian Language', kind: 'list', options: VOICE_LANGUAGES.map((l) => l.label), example: 'Twi', help: 'For automated calls to the parent. Leave blank for English', addedLater: true },
+      { key: 'arrivalCalls', header: 'Arrival Calls', kind: 'list', options: ['Yes', 'No'], example: 'Yes', help: 'Call the parent when the bus is almost at the home. For brothers and sisters at one home, Yes for one child is enough. Leave blank for Yes', addedLater: true },
     ],
   },
 };

@@ -56,7 +56,7 @@ async function tidyHousehold(householdId) {
 const getHouseholdMembers = (student) =>
   student.household
     ? Student.find({ household: student.household, _id: { $ne: student._id } })
-        .select('firstName lastName studentCode classGrade')
+        .select('firstName lastName studentCode classGrade arrivalCalls')
         .sort({ createdAt: 1 })
     : [];
 
@@ -146,6 +146,16 @@ export const getStudentById = asyncHandler(async (req, res) => {
   const [householdMembers, today] = await Promise.all([getHouseholdMembers(student), todayStatuses([student])]);
   res.json({ success: true, data: { ...student.toJSON(), householdMembers, todayStatus: today.get(String(student._id)) } });
 });
+
+// On/off settings arrive as true/false, or "On"/"Off"/"Yes"/"No" from bulk tools.
+const readOnOff = (value, res) => {
+  if (typeof value === 'boolean') return value;
+  const v = String(value).trim().toLowerCase();
+  if (['on', 'yes', 'true', '1'].includes(v)) return true;
+  if (['off', 'no', 'false', '0'].includes(v)) return false;
+  res.status(400);
+  throw new Error('Arrival calls must be on or off');
+};
 
 // A parent picked on the form must be one of this school's parents (the lookup
 // is school-scoped), so an id from another school is refused rather than linked.
@@ -258,6 +268,7 @@ export const createStudent = asyncHandler(async (req, res) => {
     pickupTime,
     dropoffTime,
     ...(rideSession ? { rideSession } : {}),
+    ...(req.body.arrivalCalls !== undefined ? { arrivalCalls: readOnOff(req.body.arrivalCalls, res) } : {}),
     ...location,
     household,
   });
@@ -297,6 +308,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
     'lng',
     'status',
   ];
+  if (req.body.arrivalCalls !== undefined) student.arrivalCalls = readOnOff(req.body.arrivalCalls, res);
   if (req.body.rideSession !== undefined) {
     const rideSession = normalizeRideSession(req.body.rideSession);
     if (!rideSession) {
@@ -423,7 +435,7 @@ export const getStudentOptions = asyncHandler(async (req, res) => {
     ];
   }
   const students = await Student.find(filter)
-    .select('firstName lastName studentCode classGrade route primaryGuardian household homeAddress geofenceRadius lat lng')
+    .select('firstName lastName studentCode classGrade route primaryGuardian household homeAddress geofenceRadius lat lng arrivalCalls')
     .sort({ createdAt: 1 })
     .limit(50);
   res.json({ success: true, data: students });

@@ -169,6 +169,16 @@ export const GUIDE = [
         ],
       },
       {
+        title: 'Switch arrival calls on or off',
+        steps: [
+          'Arrival calls ring the parent when the bus is almost at the home: before pickup in the morning, before drop-off in the evening.',
+          'They are on for new students. Untick "Call the parent when the bus is almost at the home" (Add Student, Home location step, or Edit Student) for parents who don\'t want calls.',
+          'Brothers and sisters: leave it on for one child and off for the others. When you share a home with a sibling who already has calls on, the new student starts with calls off.',
+          'Even with calls on for several children, a parent (or a shared home) is called only once per trip. The trip page shows why a child was not called.',
+          'To change many students at once, select them and use Edit selected.',
+        ],
+      },
+      {
         title: 'Read the "Today" column',
         steps: [
           'No trip today: no trip on the student\'s route today yet.',

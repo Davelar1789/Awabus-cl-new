@@ -31,6 +31,7 @@ import { createStudent } from '../../api/students.js';
 import { CLASS_GRADE_OPTIONS } from '../../lib/options.js';
 import RideSessionPicker from '../../components/students/RideSessionPicker.jsx';
 import { formatRunTime, rideSessionLabel } from '../../lib/sessions.js';
+import ArrivalCallsToggle, { arrivalCallsLabel } from '../../components/students/ArrivalCallsToggle.jsx';
 
 const STEPS = ['Student Information', 'Parents & Guardian', 'Transport Assignment', 'Home Location', 'Review & Finalize'];
 
@@ -62,6 +63,8 @@ const initial = {
   lng: '',
   linkLocationWith: null, // sibling/neighbour whose home location is shared
   linkedLocationName: '',
+  arrivalCalls: true,
+  arrivalCallsNote: '',
 };
 
 export default function AddStudent() {
@@ -212,6 +215,7 @@ export default function AddStudent() {
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
       linkLocationWith: form.linkLocationWith || undefined,
+      arrivalCalls: form.arrivalCalls !== false,
     });
   };
 
@@ -473,7 +477,7 @@ export default function AddStudent() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setForm((f) => ({ ...f, linkLocationWith: null, linkedLocationName: '' }))}
+                        onClick={() => setForm((f) => ({ ...f, linkLocationWith: null, linkedLocationName: '', arrivalCallsNote: '' }))}
                       >
                         <Unlink className="h-4 w-4" />
                         Unlink
@@ -491,6 +495,14 @@ export default function AddStudent() {
                           lat: s.lat != null ? String(s.lat) : '',
                           lng: s.lng != null ? String(s.lng) : '',
                           geofenceRadius: s.geofenceRadius || f.geofenceRadius,
+                          // One call per home is enough: when the sibling already
+                          // gets arrival calls, start this one switched off.
+                          ...(s.arrivalCalls !== false
+                            ? {
+                                arrivalCalls: false,
+                                arrivalCallsNote: `Switched off because ${s.firstName} already gets arrival calls at this home. Turn it on if this parent wants a call for each child.`,
+                              }
+                            : { arrivalCallsNote: '' }),
                         }))
                       }
                     />
@@ -570,6 +582,14 @@ export default function AddStudent() {
                 radius={form.geofenceRadius}
                 onConfirm={(lat, lng) => setForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }))}
               />
+              <div className="mt-6">
+                <Label>Arrival calls</Label>
+                <ArrivalCallsToggle
+                  value={form.arrivalCalls}
+                  onChange={(on) => setForm((f) => ({ ...f, arrivalCalls: on, arrivalCallsNote: '' }))}
+                  note={form.arrivalCallsNote}
+                />
+              </div>
             </div>
           )}
 
@@ -609,6 +629,7 @@ export default function AddStudent() {
                   <SummaryStat label="Geofence" value={`${form.geofenceRadius}m`} />
                   <SummaryStat label="Coordinates" value={form.lat && form.lng ? `${form.lat}, ${form.lng}` : '—'} />
                   <SummaryStat label="Shares home with" value={form.linkedLocationName || '—'} />
+                  <SummaryStat label="Arrival calls" value={arrivalCallsLabel(form.arrivalCalls)} />
                 </div>
               </section>
             </div>

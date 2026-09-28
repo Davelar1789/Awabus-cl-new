@@ -24,6 +24,7 @@ import PhoneInput from '../../components/ui/PhoneInput.jsx';
 import { fromStoredPhone, isValidPhone, toLocalPhone } from '../../lib/phone.js';
 import { RADIUS_MAX, RADIUS_MIN, coordsError, digitsOnly, formatCoord, formatName, ifChanged, nameError, radiusError } from '../../lib/formats.js';
 import RideSessionPicker from '../../components/students/RideSessionPicker.jsx';
+import ArrivalCallsToggle, { arrivalCallsLabel } from '../../components/students/ArrivalCallsToggle.jsx';
 
 export default function EditStudent() {
   const { id } = useParams();
@@ -64,6 +65,7 @@ export default function EditStudent() {
             lng: student.lng ?? ACCRA_DEFAULT.lng,
             geofenceRadius: student.geofenceRadius || 200,
             rideSession: student.rideSession || 'both',
+            arrivalCalls: student.arrivalCalls !== false,
           }
         : null,
     [student]
@@ -119,6 +121,7 @@ export default function EditStudent() {
   if (isLoading || !form) return <PageLoader />;
 
   const householdMembers = student.householdMembers || [];
+  const homeWithCalls = householdMembers.filter((m) => m.arrivalCalls !== false);
 
   return (
     <div>
@@ -171,6 +174,7 @@ export default function EditStudent() {
             lng: Number(form.lng),
             geofenceRadius: Number(form.geofenceRadius),
             rideSession: form.rideSession || 'both',
+            arrivalCalls: (form.arrivalCalls ?? baseline.arrivalCalls) !== false,
           });
         }}
       >
@@ -236,6 +240,18 @@ export default function EditStudent() {
                   <PhoneInput value={form.secondContactPhone} onChange={set('secondContactPhone')} placeholder="020 111 2233" />
                 </div>
                 <LanguageSelect value={form.guardianLanguage} onChange={set('guardianLanguage')} />
+                <div className="sm:col-span-2">
+                  <Label>Arrival calls</Label>
+                  <ArrivalCallsToggle
+                    value={form.arrivalCalls ?? baseline.arrivalCalls}
+                    onChange={set('arrivalCalls')}
+                    note={
+                      (form.arrivalCalls ?? baseline.arrivalCalls) && homeWithCalls.length
+                        ? `${homeWithCalls.map((m) => m.firstName).join(', ')} at the same home also ${homeWithCalls.length > 1 ? 'have' : 'has'} calls on. The parent is still called only once per trip.`
+                        : ''
+                    }
+                  />
+                </div>
                 {phoneError && <p className="text-sm font-medium text-red-600 sm:col-span-2">{phoneError}</p>}
               </CardBody>
             </Card>
@@ -292,6 +308,15 @@ export default function EditStudent() {
                             {m.firstName} {m.lastName}
                           </Link>
                           <span className="text-xs text-slate-400">{[m.studentCode, m.classGrade].filter(Boolean).join(' · ')}</span>
+                          <span
+                            className={`ml-auto rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              m.arrivalCalls !== false
+                                ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+                                : 'bg-slate-100 text-slate-500 dark:bg-navy dark:text-slate-400'
+                            }`}
+                          >
+                            Calls {arrivalCallsLabel(m.arrivalCalls).toLowerCase()}
+                          </span>
                         </li>
                       ))}
                     </ul>

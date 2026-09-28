@@ -86,6 +86,17 @@ export default function StudentsList() {
         get: (s) => s.rideSession || 'both',
         hint: 'Morning-only students are left off evening trips, and the other way round.',
       },
+      {
+        key: 'arrivalCalls',
+        label: 'Arrival calls',
+        type: 'select',
+        options: [
+          { value: 'on', label: 'On' },
+          { value: 'off', label: 'Off' },
+        ],
+        get: (s) => (s.arrivalCalls === false ? 'off' : 'on'),
+        hint: 'Call the parent when the bus is almost at the home. For brothers and sisters, on for one child is enough.',
+      },
       { key: 'pickupPoint', label: 'Pickup point', type: 'text', get: (s) => s.pickupPoint || '', validate: (v) => (v.length > 120 ? 'At most 120 characters' : '') },
       { key: 'dropoffPoint', label: 'Drop-off point', type: 'text', get: (s) => s.dropoffPoint || '', validate: (v) => (v.length > 120 ? 'At most 120 characters' : '') },
       {

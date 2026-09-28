@@ -16,6 +16,8 @@ export const ALERT_STATUS = {
   sent: 'Sent',
   logged: 'Not sent (no SMS provider)',
   failed: 'Failed',
+  callsOff: 'Not called (arrival calls are off for this student)',
+  sibling: 'Not called (parent already called for a brother or sister)',
 };
 
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Accra' });
@@ -69,7 +71,9 @@ export function metresBetween(a, b) {
  * Geofence check for a new bus position: every student still waiting for the
  * bus (not yet picked up) or still on it (not yet dropped off) whose home is
  * within their notification zone gets marked "near home" once per trip, and
- * their parent is texted when alerts are on. Runs after the position is saved;
+ * their parent is contacted when alerts are on: unless arrival calls are off
+ * for that student, and at most once per trip for a parent or a shared home
+ * (brothers and sisters). Runs after the position is saved;
  * problems are logged, never passed to the driver.
  */
 export async function checkGeofences({ tripId, position, school }) {
@@ -81,11 +85,25 @@ export async function checkGeofences({ tripId, position, school }) {
       .filter(({ row }) => !row.nearHomeAt && ['Present', 'Expected'].includes(row.attendance) && ['Pending', 'On board', 'Boarding now'].includes(row.dropoffStatus));
     if (!waiting.length) return 0;
 
-    const students = await Student.find({ _id: { $in: waiting.map(({ row }) => row.student) } })
-      .select('firstName lat lng geofenceRadius primaryGuardian')
+    // Everyone on the trip, so parents already called on it (for a brother or
+    // sister) can be recognised.
+    const students = await Student.find({ _id: { $in: trip.studentProgress.map((row) => row.student) } })
+      .select('firstName lat lng geofenceRadius primaryGuardian household arrivalCalls')
       .populate('primaryGuardian', 'phone')
       .lean();
     const byId = new Map(students.map((s) => [String(s._id), s]));
+    // A student's family on this trip: their parent and their shared home.
+    const familyOf = (studentId) => {
+      const s = byId.get(String(studentId));
+      if (!s) return [];
+      return [s.primaryGuardian && `parent:${s.primaryGuardian._id}`, s.household && `home:${s.household}`].filter(Boolean);
+    };
+    // Families this trip already tried to reach: one call per family per trip.
+    const calledFamilies = new Set(
+      trip.studentProgress
+        .filter((row) => row.nearHomeAlert && ![ALERT_STATUS.off, ALERT_STATUS.callsOff, ALERT_STATUS.sibling].includes(row.nearHomeAlert))
+        .flatMap((row) => familyOf(row.student))
+    );
     let entered = 0;
     for (const { row, index } of waiting) {
       const s = byId.get(String(row.student));
@@ -102,8 +120,16 @@ export async function checkGeofences({ tripId, position, school }) {
       );
       if (!claimed.modifiedCount) continue;
       entered += 1;
+      const family = familyOf(row.student);
       let status = ALERT_STATUS.off;
-      if (parentAlertsEnabled()) {
+      if (s.arrivalCalls === false) {
+        status = ALERT_STATUS.callsOff; // switched off for this student
+      } else if (!parentAlertsEnabled()) {
+        status = ALERT_STATUS.off;
+      } else if (family.some((key) => calledFamilies.has(key))) {
+        status = ALERT_STATUS.sibling; // this parent / home was already called on this trip
+      } else {
+        family.forEach((key) => calledFamilies.add(key));
         const what = row.dropoffStatus === 'On board' ? 'is almost home on the school bus' : 'will soon be picked up: the school bus is nearly at home';
         // eslint-disable-next-line no-await-in-loop
         status = await deliver(s.primaryGuardian?.phone, `AwaBus: ${s.firstName} ${what}.`, 'approaching_alert', school);
