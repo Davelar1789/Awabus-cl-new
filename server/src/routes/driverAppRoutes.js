@@ -19,6 +19,7 @@ import {
   getTripByIdForDriver,
   getBroadcastHistory,
   getDriverNotifications,
+  deleteDriverNotifications,
 } from '../controllers/driverAppController.js';
 import { protectDriver } from '../middleware/auth.js';
 import { authLimits } from '../middleware/rateLimit.js';
@@ -38,6 +39,7 @@ router.post('/auth/reset-password', ...authLimits.checkCode, driverResetPassword
 router.get('/me', protectDriver, getDriverMe);
 router.post('/sign-out', protectDriver, driverSignOut);
 router.get('/notifications', protectDriver, getDriverNotifications);
+router.post('/notifications/delete', protectDriver, deleteDriverNotifications);
 router.get('/trips/today', protectDriver, getTodaysTrip);
 router.get('/trips', protectDriver, getTripHistory);
 router.get('/trips/:id', protectDriver, getTripByIdForDriver);

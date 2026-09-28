@@ -60,3 +60,8 @@ export const sendDelayBroadcast = (tripId, { reason, message }) =>
   apiClient.post(`/driver-app/trips/${tripId}/delay-broadcast`, { reason, message }).then((r) => r.data);
 
 export const getBroadcastHistory = () => apiClient.get('/driver-app/broadcasts').then((r) => r.data.data);
+
+// Delete notifications on this driver's list: { ids: [...] } or { all: true }.
+// Returns the list that is left.
+export const deleteNotifications = (body) =>
+  apiClient.post('/driver-app/notifications/delete', body).then((r) => r.data.data);

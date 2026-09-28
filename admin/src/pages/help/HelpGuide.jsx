@@ -236,6 +236,7 @@ export const GUIDE = [
         steps: [
           'The number on the bell is how many you haven\'t read yet. It turns red when one of them is critical, such as a student not on board.',
           'Click the bell to see the latest ones. Click a notification to open the trip, bus or list it is about; it is then marked as read.',
+          'To delete one, point at it and click the bin. On the Notifications page, use Select to tick several and Delete them, or Delete all. Deleting only removes them for you; other admins still see theirs. Notifications are deleted automatically after 30 days.',
           'Click "View all notifications" to see everything from the last 30 days, filtered by Unread, Critical, Trips, Fleet or Uploads.',
         ],
       },

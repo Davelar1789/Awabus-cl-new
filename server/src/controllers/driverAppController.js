@@ -638,14 +638,17 @@ export const getTripHistory = asyncHandler(async (req, res) => {
 //          own records: licence expiry, new bus/route, trips AwaBus ended for
 //          them, and delay texts that did not reach every parent.
 // @route   GET /api/driver-app/notifications
-export const getDriverNotifications = asyncHandler(async (req, res) => {
+// Driver-app notifications cover the last 30 days; deleted ones are hidden.
+const NOTIFICATION_DAYS = 30;
+
+async function buildDriverNotifications(driverId) {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
-  const since = new Date(now - 14 * day);
+  const since = new Date(now - NOTIFICATION_DAYS * day);
   const items = [];
 
-  const driver = await Driver.findById(req.driver._id)
-    .select('licenseExpiry assignmentHistory')
+  const driver = await Driver.findById(driverId)
+    .select('licenseExpiry assignmentHistory dismissedNotifications')
     .populate('assignmentHistory.bus', 'plateNumber')
     .populate('assignmentHistory.route', 'name')
     .lean();
@@ -681,8 +684,8 @@ export const getDriverNotifications = asyncHandler(async (req, res) => {
     });
 
   const [autoEnded, delayed] = await Promise.all([
-    Trip.find({ driver: req.driver._id, autoEnded: true, endedAt: { $gte: since } }).select('tripCode endedAt').lean(),
-    Trip.find({ driver: req.driver._id, 'delayBroadcasts.sentAt': { $gte: since } }).select('tripCode delayBroadcasts').lean(),
+    Trip.find({ driver: driverId, autoEnded: true, endedAt: { $gte: since } }).select('tripCode endedAt').lean(),
+    Trip.find({ driver: driverId, 'delayBroadcasts.sentAt': { $gte: since } }).select('tripCode delayBroadcasts').lean(),
   ]);
   autoEnded.forEach((t) => {
     items.push({
@@ -707,8 +710,37 @@ export const getDriverNotifications = asyncHandler(async (req, res) => {
       });
   });
 
-  items.sort((a, b) => new Date(b.at) - new Date(a.at));
-  res.json({ success: true, data: items });
+  const dismissed = new Set((driver?.dismissedNotifications || []).map((d) => d.id));
+  return items.filter((n) => !dismissed.has(n.id)).sort((a, b) => new Date(b.at) - new Date(a.at));
+}
+
+// @desc    The driver's notifications (last 30 days, minus deleted ones)
+// @route   GET /api/driver-app/notifications
+export const getDriverNotifications = asyncHandler(async (req, res) => {
+  res.json({ success: true, data: await buildDriverNotifications(req.driver._id) });
+});
+
+// @desc    Delete driver-app notifications   body: { ids: [...] } or { all: true }
+// @route   POST /api/driver-app/notifications/delete
+export const deleteDriverNotifications = asyncHandler(async (req, res) => {
+  let ids;
+  if (req.body?.all === true) {
+    ids = (await buildDriverNotifications(req.driver._id)).map((n) => n.id);
+  } else {
+    ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id) => typeof id === 'string' && id.length <= 120).slice(0, 200) : [];
+    if (!ids.length) {
+      res.status(400);
+      throw new Error('Choose the notifications to delete');
+    }
+  }
+  const cutoff = Date.now() - NOTIFICATION_DAYS * 24 * 60 * 60 * 1000;
+  const driver = await Driver.findById(req.driver._id).select('dismissedNotifications').lean();
+  const kept = (driver?.dismissedNotifications || []).filter((d) => new Date(d.at).getTime() >= cutoff && !ids.includes(d.id));
+  await Driver.updateOne(
+    { _id: req.driver._id },
+    { $set: { dismissedNotifications: [...kept, ...ids.map((id) => ({ id, at: new Date() }))] } }
+  );
+  res.json({ success: true, deleted: ids.length, data: await buildDriverNotifications(req.driver._id) });
 });
 
 // @desc    Get a single past trip's detail for the logged-in driver

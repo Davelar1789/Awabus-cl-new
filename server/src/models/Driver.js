@@ -67,6 +67,9 @@ const driverSchema = new mongoose.Schema(
     // (it checks in every 30 seconds while open and signed in), and when the
     // driver last signed out.
     lastSeenAt: { type: Date, default: null },
+    // Driver-app notifications the driver deleted (by notification id); kept
+    // 30 days, after which those notifications are gone anyway.
+    dismissedNotifications: [{ id: { type: String }, at: { type: Date, default: Date.now }, _id: false }],
     signedOutAt: { type: Date, default: null },
   },
   { timestamps: true }
