@@ -65,3 +65,7 @@ export const getBroadcastHistory = () => apiClient.get('/driver-app/broadcasts')
 // Returns the list that is left.
 export const deleteNotifications = (body) =>
   apiClient.post('/driver-app/notifications/delete', body).then((r) => r.data.data);
+
+// Text one student's parent from the bus (through the AwaBus SMS line).
+export const sendParentMessage = (tripId, studentId, text) =>
+  apiClient.post(`/driver-app/trips/${tripId}/students/${studentId}/message`, { text }).then((r) => r.data);

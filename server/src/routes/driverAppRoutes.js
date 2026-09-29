@@ -15,6 +15,7 @@ import {
   pushLocation,
   markAttendance,
   sendDelayBroadcast,
+  messageParent,
   getTripHistory,
   getTripByIdForDriver,
   getBroadcastHistory,
@@ -48,6 +49,7 @@ router.post('/trips/:id/end', protectDriver, endTrip);
 router.post('/trips/:id/location', protectDriver, pushLocation);
 router.post('/trips/:id/students/:studentId/attendance', protectDriver, markAttendance);
 router.post('/trips/:id/delay-broadcast', protectDriver, sendDelayBroadcast);
+router.post('/trips/:id/students/:studentId/message', protectDriver, messageParent);
 router.get('/broadcasts', protectDriver, getBroadcastHistory);
 
 export default router;

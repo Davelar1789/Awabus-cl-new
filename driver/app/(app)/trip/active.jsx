@@ -11,6 +11,7 @@ import Button from '../../../src/components/ui/Button.jsx';
 import Modal from '../../../src/components/ui/Modal.jsx';
 import ConfirmDialog from '../../../src/components/ui/ConfirmDialog.jsx';
 import StudentMeta, { guardianName } from '../../../src/components/StudentMeta.jsx';
+import MessageParentSheet from '../../../src/components/MessageParentSheet.jsx';
 import { formatPhone } from '../../../src/lib/phone.js';
 import { useLiveGpsStore } from '../../../src/store/liveGpsStore.js';
 import { PageLoader } from '../../../src/components/ui/Spinner.jsx';
@@ -38,6 +39,7 @@ export default function ActiveTrip() {
   const [showSearch, setShowSearch] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // pending "are you sure?" request
+  const [messageTo, setMessageTo] = useState(null); // { tripId, student } for the message sheet
   // Position sent by the background tracker (src/components/BackgroundWork.jsx).
   const position = useLiveGpsStore((s) => s.position);
   const gpsError = useLiveGpsStore((s) => s.error);
@@ -248,7 +250,7 @@ export default function ActiveTrip() {
           )}
           <View style={{ gap: 8 }}>
             {visibleStudents.map((p) => (
-              <StudentRow key={p.student?._id} p={p} isOnline={isOnline} onSet={(status) => askStatus(p, status)} onCall={callParent} />
+              <StudentRow key={p.student?._id} p={p} isOnline={isOnline} onSet={(status) => askStatus(p, status)} onCall={callParent} onMessage={(student) => setMessageTo({ tripId: trip._id, student })} />
             ))}
             {visibleStudents.length === 0 && <Text style={styles.emptyListText}>No students found.</Text>}
           </View>
@@ -265,6 +267,7 @@ export default function ActiveTrip() {
       </SafeAreaView>
 
       <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />
+      <MessageParentSheet target={messageTo} onClose={() => setMessageTo(null)} />
 
       <Modal open={endOpen} onClose={() => setEndOpen(false)}>
         <Text style={styles.modalTitle}>End today's trip?</Text>
@@ -303,7 +306,7 @@ export default function ActiveTrip() {
 }
 
 // One student: what happened so far, and the next step as a button.
-function StudentRow({ p, isOnline, onSet, onCall }) {
+function StudentRow({ p, isOnline, onSet, onCall, onMessage }) {
   const name = p.student ? `${p.student.firstName} ${p.student.lastName}` : 'Student';
   const when = p._offline || !isOnline ? ' (offline)' : p.alertTime ? ` at ${p.alertTime}` : '';
   const status = p.dropoffStatus;
@@ -313,7 +316,7 @@ function StudentRow({ p, isOnline, onSet, onCall }) {
       <View style={[styles.studentRow, styles.studentRowMuted]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.studentName, styles.mutedName]}>{name}</Text>
-          <StudentMeta student={p.student} onCall={onCall} />
+          <StudentMeta student={p.student} onCall={onCall} onMessage={onMessage} />
         </View>
         <Text style={styles.absentText}>{p.attendance === 'Cancelled' ? 'Cancelled by parent' : 'Absent'}</Text>
       </View>
@@ -324,7 +327,7 @@ function StudentRow({ p, isOnline, onSet, onCall }) {
       <View style={styles.studentRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.studentName}>{name}</Text>
-          <StudentMeta student={p.student} onCall={onCall} />
+          <StudentMeta student={p.student} onCall={onCall} onMessage={onMessage} />
         </View>
         <Text style={styles.scannedText}>Dropped off{when}</Text>
       </View>
@@ -336,7 +339,7 @@ function StudentRow({ p, isOnline, onSet, onCall }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.studentName}>{name}</Text>
           <Text style={styles.onBoardText}>On board{when}</Text>
-          <StudentMeta student={p.student} onCall={onCall} />
+          <StudentMeta student={p.student} onCall={onCall} onMessage={onMessage} />
         </View>
         <SmallButton label="Drop off" onPress={() => onSet('Dropped off')} />
       </View>
@@ -347,7 +350,7 @@ function StudentRow({ p, isOnline, onSet, onCall }) {
       <View style={{ flex: 1 }}>
         <Text style={styles.studentName}>{name}</Text>
         {status === 'Not on board' ? <Text style={styles.notHereText}>Not here{when}</Text> : <Text style={styles.waitingText}>Waiting</Text>}
-        <StudentMeta student={p.student} onCall={onCall} />
+        <StudentMeta student={p.student} onCall={onCall} onMessage={onMessage} />
       </View>
       <View style={styles.actions}>
         {status !== 'Not on board' && <SmallButton label="Not here" variant="ghost" onPress={() => onSet('Not on board')} />}

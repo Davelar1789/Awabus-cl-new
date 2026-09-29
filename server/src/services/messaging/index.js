@@ -10,6 +10,7 @@ export const MESSAGE_PURPOSES = {
   account_verification: { channel: 'sms / email', label: 'Admin account verification code', where: 'Account settings (change phone, email or password)', wired: true },
   admin_password_reset: { channel: 'email', label: 'Admin password reset code', where: 'Admin sign-in > Forgot password', wired: true },
   delay_broadcast: { channel: 'sms', label: 'Delay notice to parents', where: 'Driver app > Report delay', wired: true },
+  parent_message: { channel: 'sms', label: 'Message from the bus to one parent', where: 'Driver app > student list > message button', wired: true },
   test: { channel: 'sms', label: 'Test message', where: 'System page > Send test SMS', wired: true },
   boarding_alert: { channel: 'sms', label: 'Child boarded / dropped off alert to parents', where: 'Driver app scan (on with PARENT_ALERTS=true)', wired: true, switch: 'PARENT_ALERTS' },
   approaching_alert: { channel: 'sms', label: 'Bus near home alert (geofence)', where: 'Live GPS vs the student\'s notification zone (on with PARENT_ALERTS=true)', wired: true, switch: 'PARENT_ALERTS' },

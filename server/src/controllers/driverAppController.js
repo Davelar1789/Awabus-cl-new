@@ -178,6 +178,63 @@ export const getDriverMe = asyncHandler(async (req, res) => {
   res.json({ success: true, data: driver });
 });
 
+// Texts from the bus to one parent: short, and not too many.
+export const PARENT_MESSAGE_LIMITS = { maxLength: 140, perStudentPerTrip: 3, minSecondsApart: 60 };
+
+// @desc    Text one student's parent from the bus (sent through the AwaBus SMS line)
+//          body: { text }
+// @route   POST /api/driver-app/trips/:id/students/:studentId/message
+export const messageParent = asyncHandler(async (req, res) => {
+  const text = String(req.body?.text || '').replace(/\s+/g, ' ').trim();
+  if (!text) {
+    res.status(400);
+    throw new Error('Type a message first');
+  }
+  if (text.length > PARENT_MESSAGE_LIMITS.maxLength) {
+    res.status(400);
+    throw new Error(`Keep the message to ${PARENT_MESSAGE_LIMITS.maxLength} characters so it fits in one SMS.`);
+  }
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).populate('bus', 'plateNumber');
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+  if (!['Scheduled', 'In Progress', 'Delayed'].includes(trip.status)) {
+    throw refuseTrip(res, 409, 'TRIP_OVER', 'This trip has ended. Call the parent or the school office instead.');
+  }
+  const onTrip = trip.studentProgress.some((p) => String(p.student) === String(req.params.studentId));
+  if (!onTrip) {
+    res.status(404);
+    throw new Error('This student is not on this trip');
+  }
+  const earlier = (trip.parentMessages || []).filter((m) => String(m.student) === String(req.params.studentId));
+  if (earlier.length >= PARENT_MESSAGE_LIMITS.perStudentPerTrip) {
+    throw refuseTrip(res, 429, 'MESSAGE_LIMIT', `This parent has already had ${PARENT_MESSAGE_LIMITS.perStudentPerTrip} messages on this trip. Call them instead.`);
+  }
+  const last = earlier.length ? new Date(earlier[earlier.length - 1].sentAt).getTime() : 0;
+  const waitSec = Math.ceil((last + PARENT_MESSAGE_LIMITS.minSecondsApart * 1000 - Date.now()) / 1000);
+  if (waitSec > 0) throw refuseTrip(res, 429, 'MESSAGE_TOO_SOON', `You just messaged this parent. Wait ${waitSec} seconds.`);
+
+  const student = await Student.findById(req.params.studentId).select('firstName primaryGuardian').populate('primaryGuardian', 'phone');
+  const phone = student?.primaryGuardian?.phone;
+  if (!phone) {
+    res.status(400);
+    throw new Error('There is no phone number for this parent');
+  }
+  const plate = trip.bus?.plateNumber ? ` ${trip.bus.plateNumber}` : '';
+  const smsText = `AwaBus (school bus${plate}): ${text}`;
+  const result = await sendSms({ to: phone, text: smsText, purpose: 'parent_message', school: req.school });
+  await Trip.updateOne(
+    { _id: trip._id },
+    { $push: { parentMessages: { student: req.params.studentId, text, sentAt: new Date(), status: result?.status || 'failed' } } }
+  );
+  if (result?.status === 'failed') {
+    res.status(502);
+    throw new Error("The message couldn't be sent. Try again, or call the parent.");
+  }
+  res.status(201).json({ success: true, status: result.status, preview: smsText });
+});
+
 // @desc    Driver signed out of the app: show them offline straight away
 // @route   POST /api/driver-app/sign-out
 export const driverSignOut = asyncHandler(async (req, res) => {
@@ -597,8 +654,9 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
   await Promise.all(
     guardianPhones.map(async (phone) => {
       try {
-        await sendSms(phone, smsText, { purpose: 'delay_broadcast', school: req.school });
-        delivered += 1;
+        const result = await sendSms({ to: phone, text: smsText, purpose: 'delay_broadcast', school: req.school });
+        if (result?.status === 'failed') failed += 1;
+        else delivered += 1;
       } catch {
         failed += 1;
       }

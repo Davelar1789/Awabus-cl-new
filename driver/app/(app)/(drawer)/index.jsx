@@ -11,6 +11,7 @@ import Button from '../../../src/components/ui/Button.jsx';
 import Modal from '../../../src/components/ui/Modal.jsx';
 import ConfirmDialog from '../../../src/components/ui/ConfirmDialog.jsx';
 import StudentMeta, { guardianName } from '../../../src/components/StudentMeta.jsx';
+import MessageParentSheet from '../../../src/components/MessageParentSheet.jsx';
 import { formatPhone } from '../../../src/lib/phone.js';
 import { PageLoader } from '../../../src/components/ui/Spinner.jsx';
 import { useAuthStore } from '../../../src/store/authStore.js';
@@ -25,6 +26,7 @@ export default function Home() {
   const isOnline = useConnectionStore((s) => s.isOnline);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // pending "are you sure?" request
+  const [messageTo, setMessageTo] = useState(null); // { tripId, student } for the message sheet
 
   const {
     data: trip,
@@ -208,7 +210,7 @@ export default function Home() {
             <View key={p.student?._id} style={styles.studentRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.studentName}>{p.student ? `${p.student.firstName} ${p.student.lastName}` : 'Student'}</Text>
-                <StudentMeta student={p.student} onCall={callParent} />
+                <StudentMeta student={p.student} onCall={callParent} onMessage={(student) => setMessageTo({ tripId: trip._id, student })} />
               </View>
               <Pressable
                 onPress={() => askToggle(p)}
@@ -233,6 +235,7 @@ export default function Home() {
       </SafeAreaView>
 
       <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />
+      <MessageParentSheet target={messageTo} onClose={() => setMessageTo(null)} />
 
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <Text style={styles.modalTitle}>

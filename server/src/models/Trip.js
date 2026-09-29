@@ -101,6 +101,16 @@ const tripSchema = new mongoose.Schema(
     etaMinutes: { type: Number, default: 0 },
 
     delayBroadcasts: [delayBroadcastSchema],
+    // Texts sent from the bus to one student's parent (driver app message button).
+    parentMessages: [
+      {
+        student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+        text: { type: String, default: '' },
+        sentAt: { type: Date, default: Date.now },
+        status: { type: String, default: '' }, // sent | logged | failed
+        _id: false,
+      },
+    ],
   },
   { timestamps: true }
 );

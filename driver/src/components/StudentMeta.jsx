@@ -1,15 +1,16 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Phone } from 'lucide-react-native';
+import { MessageSquare, Phone } from 'lucide-react-native';
 import { formatPhone } from '../lib/phone.js';
 import { colors, radii } from '../lib/theme.js';
 
 export const guardianName = (g) => (g ? `${g.firstName || ''} ${g.lastName || ''}`.trim() : '');
 
 /**
- * A student's class and parent/guardian, with a button to call the parent.
- * onCall(guardian) is called when the button is pressed (the screen confirms first).
+ * A student's class and parent/guardian, with buttons to call and to text the parent.
+ * onCall(guardian) is called when the call button is pressed (the screen confirms first);
+ * onMessage(student) opens the message sheet.
  */
-export default function StudentMeta({ student, onCall }) {
+export default function StudentMeta({ student, onCall, onMessage }) {
   const g = student?.primaryGuardian;
   const cls = student?.classGrade;
   if (!cls && !g) return null;
@@ -32,6 +33,17 @@ export default function StudentMeta({ student, onCall }) {
               style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.7 }]}
             >
               <Phone size={14} color={colors.brand600} />
+            </Pressable>
+          ) : null}
+          {g.phone && onMessage ? (
+            <Pressable
+              onPress={() => onMessage(student)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Send a message to ${guardianName(g) || 'the parent'}`}
+              style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.7 }]}
+            >
+              <MessageSquare size={14} color={colors.brand600} />
             </Pressable>
           ) : null}
         </View>
