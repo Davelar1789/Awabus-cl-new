@@ -24,6 +24,7 @@ import { checkSetupCode, clearSetupCode, SETUP_CODE_MESSAGES } from '../utils/se
 import { inGhana } from '../utils/geo.js';
 import { sessionFor, ridesIn } from '../utils/sessions.js';
 import { alertForScan, checkGeofences } from '../services/parentAlerts.js';
+import { cancelledStudentIds, dateKey } from '../services/rideCancellations.js';
 
 // What the driver sees about each student: name, class and the parent to call.
 const STUDENT_FOR_DRIVER = {
@@ -198,6 +199,8 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
   // riding that run are on it.
   const session = sessionFor(route);
   const tripCode = await nextSequentialCode(Trip, 'tripCode', 'TRP-', 4);
+  // Rides a parent (or the office) cancelled for this run show as "Cancelled".
+  const cancelled = await cancelledStudentIds(dateKey(new Date()), session);
 
   const trip = await Trip.create({
     tripCode,
@@ -210,7 +213,7 @@ const provisionTodaysTrip = async (driver, dayStart, dayEnd) => {
     stops: route.stops,
     studentProgress: (route.students || []).filter((s) => ridesIn(s.rideSession, session)).map((s) => ({
       student: s._id,
-      attendance: 'Present',
+      attendance: cancelled.has(String(s._id)) ? 'Cancelled' : 'Present',
       dropoffStatus: 'Pending',
     })),
   });
@@ -250,7 +253,17 @@ const reconcileStudentProgress = async (trip) => {
 
   const sameMembership =
     currentIds.size === existingIds.size && [...currentIds].every((id) => existingIds.has(id));
-  if (sameMembership) return trip;
+  // Cancellations made (or undone) since the trip was prepared.
+  const cancelled = await cancelledStudentIds(dateKey(new Date()), trip.session);
+  const attendanceFor = (id, current) => {
+    if (cancelled.has(id)) return 'Cancelled';
+    return current === 'Cancelled' ? 'Present' : current; // cancellation undone
+  };
+  const sameCancellations = trip.studentProgress.every((p) => {
+    const id = String(p.student?._id || p.student);
+    return attendanceFor(id, p.attendance) === p.attendance;
+  });
+  if (sameMembership && sameCancellations) return trip;
 
   // Rebuild as plain objects (not populated subdocuments) and write via
   // findByIdAndUpdate rather than mutating + saving the populated `trip`
@@ -260,7 +273,7 @@ const reconcileStudentProgress = async (trip) => {
     .filter((p) => currentIds.has(String(p.student?._id || p.student)))
     .map((p) => ({
       student: p.student?._id || p.student,
-      attendance: p.attendance,
+      attendance: attendanceFor(String(p.student?._id || p.student), p.attendance),
       alertStatus: p.alertStatus,
       alertTime: p.alertTime,
       alertFor: p.alertFor,
@@ -270,7 +283,7 @@ const reconcileStudentProgress = async (trip) => {
     }));
   const added = [...currentIds]
     .filter((id) => !existingIds.has(id))
-    .map((id) => ({ student: id, attendance: 'Present', dropoffStatus: 'Pending' }));
+    .map((id) => ({ student: id, attendance: cancelled.has(id) ? 'Cancelled' : 'Present', dropoffStatus: 'Pending' }));
 
   await Trip.findByIdAndUpdate(trip._id, { studentProgress: [...kept, ...added] });
   return Trip.findById(trip._id)

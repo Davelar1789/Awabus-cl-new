@@ -1,8 +1,9 @@
 // Morning and evening runs.
 //
 // Each route has an estimated start time for its morning run and its evening
-// run (set by the school). They decide which run a trip belongs to, and later
-// the cut-off for parents cancelling a ride. Each student rides in the morning,
+// run (set by the school). They decide which run a trip belongs to. (They are
+// not a cut-off for parents: a cancelled ride always applies to the next run
+// that has not started, see services/rideCancellations.js.) Each student rides in the morning,
 // the evening, or both; a trip only lists the students riding that run.
 
 export const RIDE_SESSIONS = ['both', 'morning', 'evening'];

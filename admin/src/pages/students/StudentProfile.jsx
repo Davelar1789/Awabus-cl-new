@@ -14,6 +14,7 @@ import { formatDate, formatDateTime } from '../../lib/utils.js';
 import { formatPhone } from '../../lib/phone.js';
 import { languageLabel } from '../../lib/languages.js';
 import { rideSessionLabel } from '../../lib/sessions.js';
+import RideCancellationsCard from '../../components/students/RideCancellationsCard.jsx';
 
 const InfoRow = ({ label, value }) => (
   <div>
@@ -104,6 +105,12 @@ export default function StudentProfile() {
               </div>
             </div>
           </Card>
+        </div>
+      )}
+
+      {tab === 'info' && (
+        <div className="mt-6">
+          <RideCancellationsCard student={student} />
         </div>
       )}
 

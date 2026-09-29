@@ -59,8 +59,8 @@ export default function RouteForm({ mode, values, onChange, onSubmit, submitting
         <div className="border-t border-slate-100 p-5 dark:border-slate-800">
           <h4 className="text-sm font-bold text-slate-900 dark:text-white">Run times</h4>
           <p className="mb-4 mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            When each run usually sets off. They decide whether a trip is the morning or evening run (so it only lists the
-            students riding that run) and, later, the latest time parents can cancel a ride by phone.
+            When each run usually sets off. They decide whether a trip is the morning or evening run, so it only lists the
+            students riding that run.
           </p>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>

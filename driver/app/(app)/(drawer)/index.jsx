@@ -78,6 +78,15 @@ export default function Home() {
   // Changing attendance is confirmed first, so a stray tap changes nothing.
   const askToggle = (p) => {
     const name = p.student ? `${p.student.firstName} ${p.student.lastName}` : 'this student';
+    // Cancelled by the parent (phone line) or the school office: only the office can undo it.
+    if (p.attendance === 'Cancelled') {
+      setConfirm({
+        title: `${name}'s ride was cancelled`,
+        message: 'The parent or the school office cancelled this ride. If they are riding after all, ask the school office to undo the cancellation.',
+        confirmLabel: 'OK',
+      });
+      return;
+    }
     const next = p.attendance === 'Present' ? 'Absent' : 'Present';
     setConfirm({
       title: next === 'Absent' ? `Mark ${name} as not attending?` : `Mark ${name} as attending?`,
@@ -139,7 +148,7 @@ export default function Home() {
   const progress = trip.studentProgress || [];
   const total = progress.length;
   const attending = progress.filter((p) => p.attendance === 'Present').length;
-  const absent = progress.filter((p) => p.attendance === 'Absent').length;
+  const absent = progress.filter((p) => p.attendance === 'Absent' || p.attendance === 'Cancelled').length;
 
   return (
     <View style={{ flex: 1 }}>
@@ -205,10 +214,10 @@ export default function Home() {
                 onPress={() => askToggle(p)}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel={`${p.attendance === 'Present' ? 'Attending' : 'Not attending'}. Tap to change`}
+                accessibilityLabel={`${p.attendance === 'Present' ? 'Attending' : p.attendance === 'Cancelled' ? 'Cancelled by parent' : 'Not attending'}. Tap to change`}
               >
-                <Badge tone={p.attendance === 'Present' ? 'success' : 'danger'}>
-                  {p.attendance === 'Present' ? 'Attending' : 'Not attending'}
+                <Badge tone={p.attendance === 'Present' ? 'success' : p.attendance === 'Cancelled' ? 'warning' : 'danger'}>
+                  {p.attendance === 'Present' ? 'Attending' : p.attendance === 'Cancelled' ? 'Cancelled by parent' : 'Not attending'}
                 </Badge>
               </Pressable>
             </View>

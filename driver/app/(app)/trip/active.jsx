@@ -315,7 +315,7 @@ function StudentRow({ p, isOnline, onSet, onCall }) {
           <Text style={[styles.studentName, styles.mutedName]}>{name}</Text>
           <StudentMeta student={p.student} onCall={onCall} />
         </View>
-        <Text style={styles.absentText}>Absent</Text>
+        <Text style={styles.absentText}>{p.attendance === 'Cancelled' ? 'Cancelled by parent' : 'Absent'}</Text>
       </View>
     );
   }

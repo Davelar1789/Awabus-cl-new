@@ -84,7 +84,6 @@ export const GUIDE = [
         steps: [
           'A trip started before the halfway point between the two times is the morning run; after it, the evening run. Without times, noon is the halfway point.',
           'Each trip only lists the students who ride that run.',
-          'The times will also be the latest a parent can cancel a ride by phone.',
           'To set them on many routes at once, select the routes and use Edit selected.',
         ],
       },
@@ -168,6 +167,16 @@ export const GUIDE = [
           'Transport: pick the route (the bus and driver follow from it), and choose when the student rides: morning & evening, morning only or evening only. They are left off the trips of a run they don\'t ride.',
           'Home location: type the GhanaPost GPS address or pin the home on the map. The green circle is the geofence around the home. Siblings can share one home location.',
           'Review and finish.',
+        ],
+      },
+      {
+        title: 'Cancel a ride (parents by phone, or the office)',
+        steps: [
+          'Parents call the AwaBus line and press: 1 to cancel the morning pick-up, 2 to cancel the afternoon drop-off, 3 to cancel both, or 4 to be put through to the driver. Calls from numbers that are not a parent on AwaBus are ended.',
+          'There is no cut-off time. A cancellation is for the next run of that kind that has not started: today\'s if the bus has not set off yet, otherwise the next school day (Monday to Friday).',
+          'A parent\'s cancellation covers all their children who ride that run.',
+          'The office can do the same on the student\'s profile: Cancel a ride, then pick the morning pick-up, the afternoon drop-off or both. Upcoming cancellations are listed there and can be undone until that run starts.',
+          'On the trip, a cancelled student shows as "Cancelled by parent" for the driver and gets no arrival call.',
         ],
       },
       {
