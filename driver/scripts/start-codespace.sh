@@ -13,6 +13,9 @@ URL="https://${CODESPACE_NAME}-8081.${DOMAIN}"
 # Make port 8081 public so the phone can reach it (needs the gh CLI; if this
 # fails, set it by hand: Ports tab > 8081 > right click > Port Visibility > Public).
 (sleep 15 && gh codespace ports visibility 8081:public -c "$CODESPACE_NAME" >/dev/null 2>&1 && echo "Port 8081 set to Public") &
+# The API server (port 5000) must be Public too, or every request from the
+# phone gets "401" from GitHub. Only works once the server is running.
+(sleep 20 && gh codespace ports visibility 5000:public -c "$CODESPACE_NAME" >/dev/null 2>&1 && echo "Port 5000 set to Public") &
 echo ""
 echo "Phone address: ${URL}"
 echo "In Expo Go scan the QR code below, or tap 'Enter URL manually' and type:"

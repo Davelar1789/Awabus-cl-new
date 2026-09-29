@@ -17,7 +17,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
+    // Our server's 401 (session over) signs out; a bare 401 from GitHub's
+    // private Codespace port (no message) does not.
+    if (error?.response?.status === 401 && error?.response?.data?.message) {
       useAuthStore.getState().logout();
     }
     // School suspended or driver made inactive: this account can't be used, so sign out.
@@ -34,8 +36,16 @@ apiClient.interceptors.response.use(
     // "no internet" when the device itself actually reports being offline.
     const deviceIsOffline = noResponse && !useConnectionStore.getState().isOnline;
 
+    // A 401 without our server's JSON message comes from GitHub, not AwaBus:
+    // the Codespace port the app talks to (5000) is still Private.
+    const codespacePortPrivate =
+      error?.response?.status === 401 && !error?.response?.data?.message && /\.app\.github\.dev/.test(error?.config?.baseURL || '');
+
     const message =
       error?.response?.data?.message ||
+      (codespacePortPrivate
+        ? "The server in the Codespace isn't open to phones yet: in the Codespace Ports tab, set port 5000 to Public, then try again."
+        : null) ||
       (deviceIsOffline
         ? 'No internet connection. Check your data or Wi-Fi and try again.'
         : noResponse
