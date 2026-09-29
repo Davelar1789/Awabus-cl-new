@@ -18,6 +18,7 @@ import importRoutes from './routes/importRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 import { sanitizeBody } from './middleware/sanitize.js';
+import assistRoutes from './routes/assistRoutes.js';
 
 const app = express();
 // Query strings are parsed as plain text values only (no ?a[$ne]=x objects).
@@ -73,6 +74,8 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/guardians', guardianRoutes);
 app.use('/api/trips', tripRoutes);
+// Bus assistant page (teacher on bus duty, via the driver's QR code)
+app.use('/api/assist', assistRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/superadmin', superadminRoutes);
 app.use('/api/geocode', geocodeRoutes);

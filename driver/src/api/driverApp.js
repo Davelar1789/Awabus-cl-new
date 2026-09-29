@@ -69,3 +69,8 @@ export const deleteNotifications = (body) =>
 // Text one student's parent from the bus (through the AwaBus SMS line).
 export const sendParentMessage = (tripId, studentId, text) =>
   apiClient.post(`/driver-app/trips/${tripId}/students/${studentId}/message`, { text }).then((r) => r.data);
+
+// Bus assistant (teacher on bus duty) pass for a trip: status, new QR code, stop sharing.
+export const getAssistPass = (tripId) => apiClient.get(`/driver-app/trips/${tripId}/assist-pass`).then((r) => r.data.data);
+export const createAssistPass = (tripId) => apiClient.post(`/driver-app/trips/${tripId}/assist-pass`).then((r) => r.data.data);
+export const stopAssistPass = (tripId) => apiClient.delete(`/driver-app/trips/${tripId}/assist-pass`).then((r) => r.data);

@@ -11,6 +11,7 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  QrCode,
 } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore.js';
 import { reportSignOut } from '../../api/driverApp.js';
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { path: '/', label: 'Home (pre-trip)', icon: Home },
   { path: '/trip/active', label: 'Active trip', icon: Waypoints },
   { path: '/trip-history', label: 'Trip history', icon: History },
+  { path: '/assistant', label: 'Bus assistant', icon: QrCode },
   { path: '/broadcast-history', label: 'Broadcast history', icon: MessageSquare },
   { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/settings', label: 'Settings', icon: Settings },

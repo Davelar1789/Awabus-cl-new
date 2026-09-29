@@ -16,6 +16,9 @@ import {
   markAttendance,
   sendDelayBroadcast,
   messageParent,
+  getAssistPass,
+  createAssistPass,
+  deleteAssistPass,
   getTripHistory,
   getTripByIdForDriver,
   getBroadcastHistory,
@@ -50,6 +53,11 @@ router.post('/trips/:id/location', protectDriver, pushLocation);
 router.post('/trips/:id/students/:studentId/attendance', protectDriver, markAttendance);
 router.post('/trips/:id/delay-broadcast', protectDriver, sendDelayBroadcast);
 router.post('/trips/:id/students/:studentId/message', protectDriver, messageParent);
+router
+  .route('/trips/:id/assist-pass')
+  .get(protectDriver, getAssistPass)
+  .post(protectDriver, createAssistPass)
+  .delete(protectDriver, deleteAssistPass);
 router.get('/broadcasts', protectDriver, getBroadcastHistory);
 
 export default router;

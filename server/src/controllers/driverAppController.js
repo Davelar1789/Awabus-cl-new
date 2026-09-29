@@ -25,9 +25,10 @@ import { inGhana } from '../utils/geo.js';
 import { sessionFor, ridesIn } from '../utils/sessions.js';
 import { alertForScan, checkGeofences } from '../services/parentAlerts.js';
 import { cancelledStudentIds, dateKey } from '../services/rideCancellations.js';
+import { createPass, revokePass } from '../services/assistPass.js';
 
 // What the driver sees about each student: name, class and the parent to call.
-const STUDENT_FOR_DRIVER = {
+export const STUDENT_FOR_DRIVER = {
   path: 'studentProgress.student',
   select: 'firstName lastName studentCode classGrade primaryGuardian',
   populate: { path: 'primaryGuardian', select: 'firstName lastName relation phone' },
@@ -178,6 +179,45 @@ export const getDriverMe = asyncHandler(async (req, res) => {
   res.json({ success: true, data: driver });
 });
 
+// @desc    Bus assistant pass for a trip: is one active, and who used it
+// @route   GET /api/driver-app/trips/:id/assist-pass
+export const getAssistPass = asyncHandler(async (req, res) => {
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).select('status assistPass assistants').lean();
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+  const p = trip.assistPass || {};
+  const active = Boolean(p.hash) && ASSIST_OPEN.includes(trip.status) && (!p.expiresAt || new Date(p.expiresAt) > new Date());
+  res.json({ success: true, data: { active, createdAt: p.createdAt, expiresAt: p.expiresAt, assistants: trip.assistants || [] } });
+});
+
+// @desc    New bus assistant QR code for a trip (any earlier one stops working)
+// @route   POST /api/driver-app/trips/:id/assist-pass
+export const createAssistPass = asyncHandler(async (req, res) => {
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).select('status');
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+  if (!ASSIST_OPEN.includes(trip.status)) throw refuseTrip(res, 409, 'TRIP_OVER', 'This trip has ended. A bus assistant can join your next trip.');
+  res.status(201).json({ success: true, data: await createPass(trip) });
+});
+
+// @desc    Stop sharing the trip with the bus assistant
+// @route   DELETE /api/driver-app/trips/:id/assist-pass
+export const deleteAssistPass = asyncHandler(async (req, res) => {
+  const trip = await Trip.findOne({ _id: req.params.id, driver: req.driver._id }).select('_id');
+  if (!trip) {
+    res.status(404);
+    throw new Error('Trip not found');
+  }
+  await revokePass(trip._id);
+  res.json({ success: true });
+});
+
+const ASSIST_OPEN = ['Scheduled', 'In Progress', 'Delayed'];
+
 // Texts from the bus to one parent: short, and not too many.
 export const PARENT_MESSAGE_LIMITS = { maxLength: 140, perStudentPerTrip: 3, minSecondsApart: 60 };
 
@@ -226,7 +266,11 @@ export const messageParent = asyncHandler(async (req, res) => {
   const result = await sendSms({ to: phone, text: smsText, purpose: 'parent_message', school: req.school });
   await Trip.updateOne(
     { _id: trip._id },
-    { $push: { parentMessages: { student: req.params.studentId, text, sentAt: new Date(), status: result?.status || 'failed' } } }
+    {
+      $push: {
+        parentMessages: { student: req.params.studentId, text, sentAt: new Date(), status: result?.status || 'failed', by: req.assistant?.label || '' },
+      },
+    }
   );
   if (result?.status === 'failed') {
     res.status(502);
@@ -448,6 +492,8 @@ export const endTrip = asyncHandler(async (req, res) => {
     throw refuseTrip(res, 409, 'TRIP_NOT_LIVE', trip.status === 'Cancelled' ? 'This trip was cancelled.' : 'Start the trip before ending it.');
   }
   trip.status = 'Completed';
+  // The bus assistant's link stops working with the trip.
+  trip.assistPass = { hash: '', createdAt: null, expiresAt: null };
   trip.endedAt = new Date();
   trip.arrivalTime = timeNow();
   if (trip.startedAt) {
@@ -670,6 +716,7 @@ export const sendDelayBroadcast = asyncHandler(async (req, res) => {
     recipientCount: guardianPhones.length,
     deliveredCount: delivered,
     failedCount: failed,
+    by: req.assistant?.label || '',
   };
   trip.delayBroadcasts.push(broadcast);
   trip.status = trip.status === 'In Progress' ? 'Delayed' : trip.status;

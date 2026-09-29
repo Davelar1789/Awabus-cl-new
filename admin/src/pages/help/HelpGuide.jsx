@@ -170,6 +170,16 @@ export const GUIDE = [
         ],
       },
       {
+        title: 'Bus assistant (teacher on bus duty)',
+        steps: [
+          'The driver opens Bus assistant in the driver app menu and taps Show QR code.',
+          'The teacher scans it with their own phone camera. A page opens (no app or account needed): they type their name once.',
+          'From there they can do the roll call, mark children as boarded, not here or dropped off, call or text a parent, and send a delay notice. The same limits as the driver apply.',
+          'The page stops working when the trip ends, when the driver taps Stop sharing or New code, or after 12 hours.',
+          'What the teacher does is recorded as "Bus assistant (their name)" in notifications and on the trip.',
+        ],
+      },
+      {
         title: 'Cancel a ride (parents by phone, or the office)',
         steps: [
           'Parents call the AwaBus line and press: 1 to cancel the morning pick-up, 2 to cancel the afternoon drop-off, 3 to cancel both, or 4 to be put through to the driver. Calls from numbers that are not a parent on AwaBus are ended.',

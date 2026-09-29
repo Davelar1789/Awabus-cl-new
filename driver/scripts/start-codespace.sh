@@ -16,6 +16,8 @@ URL="https://${CODESPACE_NAME}-8081.${DOMAIN}"
 # The API server (port 5000) must be Public too, or every request from the
 # phone gets "401" from GitHub. Only works once the server is running.
 (sleep 20 && gh codespace ports visibility 5000:public -c "$CODESPACE_NAME" >/dev/null 2>&1 && echo "Port 5000 set to Public") &
+# The bus assistant page (teacher's phone) is on the admin site, port 5173.
+(sleep 25 && gh codespace ports visibility 5173:public -c "$CODESPACE_NAME" >/dev/null 2>&1 && echo "Port 5173 set to Public") &
 echo ""
 echo "Phone address: ${URL}"
 echo "In Expo Go scan the QR code below, or tap 'Enter URL manually' and type:"

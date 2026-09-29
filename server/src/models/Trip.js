@@ -52,6 +52,7 @@ const delayBroadcastSchema = new mongoose.Schema(
     recipientCount: { type: Number, default: 0 },
     deliveredCount: { type: Number, default: 0 },
     failedCount: { type: Number, default: 0 },
+    by: { type: String, default: '' }, // '' = the driver, or "Bus assistant (name)"
   },
   { _id: false }
 );
@@ -101,6 +102,16 @@ const tripSchema = new mongoose.Schema(
     etaMinutes: { type: Number, default: 0 },
 
     delayBroadcasts: [delayBroadcastSchema],
+    // Bus assistant pass (teacher on bus duty, via a QR code in the driver app).
+    // Only a hash of the pass is kept; it works while this trip has not ended
+    // and until expiresAt. See services/assistPass.js.
+    assistPass: {
+      hash: { type: String, default: '' },
+      createdAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+    },
+    // Who used the pass, for the trip record.
+    assistants: [{ name: { type: String, default: '' }, firstSeenAt: { type: Date, default: Date.now }, _id: false }],
     // Texts sent from the bus to one student's parent (driver app message button).
     parentMessages: [
       {
@@ -108,6 +119,7 @@ const tripSchema = new mongoose.Schema(
         text: { type: String, default: '' },
         sentAt: { type: Date, default: Date.now },
         status: { type: String, default: '' }, // sent | logged | failed
+        by: { type: String, default: '' }, // '' = the driver, or "Bus assistant (name)"
         _id: false,
       },
     ],
@@ -117,6 +129,8 @@ const tripSchema = new mongoose.Schema(
 
 // tripCode only needs to be unique within a school, not globally
 tripSchema.index({ school: 1, tripCode: 1 }, { unique: true });
+// Looking up a bus assistant pass (across schools: the pass itself says which trip).
+tripSchema.index({ 'assistPass.hash': 1 }, { sparse: true });
 // common query pattern: "today's trips for this school"
 tripSchema.index({ school: 1, date: -1 });
 tripSchema.index({ school: 1, status: 1 });
